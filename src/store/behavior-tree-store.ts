@@ -33,7 +33,7 @@ export interface BehaviorTreeNode extends Node {
 }
 
 // 扩展的边类型
-export interface BehaviorTreeEdge extends Edge {
+export interface BehaviorTreeEdge extends Omit<Edge, 'data'> {
   data?: {
     executionCount?: number
     lastExecutionTime?: number
@@ -243,8 +243,26 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         },
         
         switchSession: (sessionId: string) => {
-          const session = get().sessions.find(s => s.id === sessionId)
+          const state = get()
+          const session = state.sessions.find(s => s.id === sessionId)
           if (session) {
+            // 在切换前保存当前会话的状态
+            if (state.currentSession) {
+              const updatedSessions = state.sessions.map(s => 
+                s.id === state.currentSession?.id 
+                  ? { 
+                      ...s, 
+                      nodes: state.nodes,
+                      edges: state.edges,
+                      blackboard: state.blackboard,
+                      modifiedAt: Date.now()
+                    }
+                  : s
+              )
+              set({ sessions: updatedSessions })
+            }
+            
+            // 切换到新会话
             set({
               currentSession: session,
               activeSessionId: sessionId,
@@ -508,7 +526,28 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         
         // 批量操作
         importData: (nodes: BehaviorTreeNode[], edges: BehaviorTreeEdge[]) => {
-          set({ nodes, edges })
+          const state = get()
+          set({ 
+            nodes, 
+            edges,
+            // 同时更新当前会话的数据
+            currentSession: state.currentSession ? {
+              ...state.currentSession,
+              nodes,
+              edges,
+              modifiedAt: Date.now()
+            } : null
+          })
+          
+          // 更新会话列表中的当前会话
+          if (state.currentSession) {
+            const updatedSessions = state.sessions.map(s => 
+              s.id === state.currentSession?.id 
+                ? { ...s, nodes, edges, modifiedAt: Date.now() }
+                : s
+            )
+            set({ sessions: updatedSessions })
+          }
         },
         
         exportData: () => {
