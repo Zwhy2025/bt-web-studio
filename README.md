@@ -1,4 +1,4 @@
-# BT Web Studio: Web版BehaviorTree.CPP可视化编辑与调试工具
+# Web版BehaviorTree.CPP可视化编辑与调试工具
 
 ## 项目简介
 
@@ -64,7 +64,7 @@
 
 ## 贡献
 
-欢迎任何形式的贡献！如果您有任何建议、发现 Bug 或希望添加新功能，请随时创建 [Issue](https://github.com/your-username/bt-web-studio/issues) 或提交 [Pull Request](https://github.com/your-username/bt-web-studio/pulls)。
+欢迎任何形式的贡献！如果您有任何建议、发现 Bug 或希望添加新功能，请随时创建 [Issue](https://github.com/Zwhy2025/bt-web-studio/issues) 或提交 [Pull Request](https://github.com/Zwhy2025/bt-web-studio/pulls)。
 
 ## 许可证
 
