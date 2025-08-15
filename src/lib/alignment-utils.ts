@@ -11,11 +11,25 @@ export interface SnapResult {
   x: number;
   y: number;
   guides: AlignmentGuide[];
+  snappedToGrid?: boolean;
+}
+
+export interface SelectionBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  width: number;
+  height: number;
+  centerX: number;
+  centerY: number;
 }
 
 // 网格吸附配置
 export const GRID_SIZE = 20;
 export const SNAP_THRESHOLD = 15; // 吸附阈值（像素）
+export const NODE_WIDTH = 180;
+export const NODE_HEIGHT = 60;
 
 /**
  * 将坐标吸附到网格
@@ -25,6 +39,86 @@ export function snapToGrid(x: number, y: number): { x: number; y: number } {
     x: Math.round(x / GRID_SIZE) * GRID_SIZE,
     y: Math.round(y / GRID_SIZE) * GRID_SIZE,
   };
+}
+
+/**
+ * 计算选择框的边界
+ */
+export function getSelectionBounds(nodes: Node[]): SelectionBounds | null {
+  if (nodes.length === 0) return null;
+
+  const positions = nodes.map(node => {
+    // 优先使用节点的实际尺寸，如果没有则使用默认值
+    const width = node.width || NODE_WIDTH;
+    const height = node.height || NODE_HEIGHT;
+    
+    return {
+      left: node.position.x,
+      right: node.position.x + width,
+      top: node.position.y,
+      bottom: node.position.y + height,
+    };
+  });
+
+  const left = Math.min(...positions.map(p => p.left));
+  const right = Math.max(...positions.map(p => p.right));
+  const top = Math.min(...positions.map(p => p.top));
+  const bottom = Math.max(...positions.map(p => p.bottom));
+
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+    centerX: left + (right - left) / 2,
+    centerY: top + (bottom - top) / 2,
+  };
+}
+
+/**
+ * 检查点是否在矩形内
+ */
+export function isPointInRect(
+  point: { x: number; y: number },
+  rect: { x: number; y: number; width: number; height: number }
+): boolean {
+  return (
+    point.x >= rect.x &&
+    point.x <= rect.x + rect.width &&
+    point.y >= rect.y &&
+    point.y <= rect.y + rect.height
+  );
+}
+
+/**
+ * 橡皮框选择 - 获取框选范围内的节点
+ */
+export function getNodesInSelectionBox(
+  nodes: Node[],
+  selectionBox: { x: number; y: number; width: number; height: number }
+): Node[] {
+  return nodes.filter(node => {
+    // 优先使用节点的实际尺寸，如果没有则使用默认值
+    const width = node.width || NODE_WIDTH;
+    const height = node.height || NODE_HEIGHT;
+    
+    const nodeRect = {
+      x: node.position.x,
+      y: node.position.y,
+      width,
+      height,
+    };
+
+    // 检查节点是否与选择框相交
+    return !(
+      nodeRect.x > selectionBox.x + selectionBox.width ||
+      nodeRect.x + nodeRect.width < selectionBox.x ||
+      nodeRect.y > selectionBox.y + selectionBox.height ||
+      nodeRect.y + nodeRect.height < selectionBox.y
+    );
+  });
 }
 
 /**
@@ -39,9 +133,9 @@ export function calculateAlignmentGuides(
   let snappedX = draggingNode.position.x;
   let snappedY = draggingNode.position.y;
 
-  // 节点尺寸（假设所有节点都是相同大小）
-  const nodeWidth = 180;
-  const nodeHeight = 60;
+  // 获取拖拽节点的实际尺寸
+  const nodeWidth = draggingNode.width || NODE_WIDTH;
+  const nodeHeight = draggingNode.height || NODE_HEIGHT;
 
   // 当前拖拽节点的边界
   const dragLeft = draggingNode.position.x;
@@ -59,12 +153,16 @@ export function calculateAlignmentGuides(
   otherNodes.forEach((node) => {
     if (node.id === draggingNode.id) return;
 
+    // 获取当前节点的实际尺寸
+    const currentNodeWidth = node.width || NODE_WIDTH;
+    const currentNodeHeight = node.height || NODE_HEIGHT;
+
     const nodeLeft = node.position.x;
-    const nodeRight = node.position.x + nodeWidth;
+    const nodeRight = node.position.x + currentNodeWidth;
     const nodeTop = node.position.y;
-    const nodeBottom = node.position.y + nodeHeight;
-    const nodeCenterX = node.position.x + nodeWidth / 2;
-    const nodeCenterY = node.position.y + nodeHeight / 2;
+    const nodeBottom = node.position.y + currentNodeHeight;
+    const nodeCenterX = node.position.x + currentNodeWidth / 2;
+    const nodeCenterY = node.position.y + currentNodeHeight / 2;
 
     // 垂直对齐线（X轴）
     const verticalCandidates = [
@@ -225,9 +323,6 @@ export function alignNodes(
 ): Node[] {
   if (selectedNodes.length < 2) return selectedNodes;
 
-  const nodeWidth = 180;
-  const nodeHeight = 60;
-
   switch (alignType) {
     case 'left': {
       const leftMost = Math.min(...selectedNodes.map(n => n.position.x));
@@ -238,20 +333,32 @@ export function alignNodes(
     }
 
     case 'right': {
-      const rightMost = Math.max(...selectedNodes.map(n => n.position.x + nodeWidth));
-      return selectedNodes.map(node => ({
-        ...node,
-        position: { ...node.position, x: rightMost - nodeWidth }
+      const rightMost = Math.max(...selectedNodes.map(n => {
+        const nodeWidth = n.width || NODE_WIDTH;
+        return n.position.x + nodeWidth;
       }));
+      return selectedNodes.map(node => {
+        const nodeWidth = node.width || NODE_WIDTH;
+        return {
+          ...node,
+          position: { ...node.position, x: rightMost - nodeWidth }
+        };
+      });
     }
 
     case 'center': {
-      const centers = selectedNodes.map(n => n.position.x + nodeWidth / 2);
+      const centers = selectedNodes.map(n => {
+        const nodeWidth = n.width || NODE_WIDTH;
+        return n.position.x + nodeWidth / 2;
+      });
       const avgCenter = centers.reduce((sum, c) => sum + c, 0) / centers.length;
-      return selectedNodes.map(node => ({
-        ...node,
-        position: { ...node.position, x: avgCenter - nodeWidth / 2 }
-      }));
+      return selectedNodes.map(node => {
+        const nodeWidth = node.width || NODE_WIDTH;
+        return {
+          ...node,
+          position: { ...node.position, x: avgCenter - nodeWidth / 2 }
+        };
+      });
     }
 
     case 'top': {
@@ -263,26 +370,39 @@ export function alignNodes(
     }
 
     case 'bottom': {
-      const bottomMost = Math.max(...selectedNodes.map(n => n.position.y + nodeHeight));
-      return selectedNodes.map(node => ({
-        ...node,
-        position: { ...node.position, y: bottomMost - nodeHeight }
+      const bottomMost = Math.max(...selectedNodes.map(n => {
+        const nodeHeight = n.height || NODE_HEIGHT;
+        return n.position.y + nodeHeight;
       }));
+      return selectedNodes.map(node => {
+        const nodeHeight = node.height || NODE_HEIGHT;
+        return {
+          ...node,
+          position: { ...node.position, y: bottomMost - nodeHeight }
+        };
+      });
     }
 
     case 'middle': {
-      const middles = selectedNodes.map(n => n.position.y + nodeHeight / 2);
+      const middles = selectedNodes.map(n => {
+        const nodeHeight = n.height || NODE_HEIGHT;
+        return n.position.y + nodeHeight / 2;
+      });
       const avgMiddle = middles.reduce((sum, m) => sum + m, 0) / middles.length;
-      return selectedNodes.map(node => ({
-        ...node,
-        position: { ...node.position, y: avgMiddle - nodeHeight / 2 }
-      }));
+      return selectedNodes.map(node => {
+        const nodeHeight = node.height || NODE_HEIGHT;
+        return {
+          ...node,
+          position: { ...node.position, y: avgMiddle - nodeHeight / 2 }
+        };
+      });
     }
 
     case 'distribute-horizontal': {
       const sorted = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
       const leftMost = sorted[0].position.x;
-      const rightMost = sorted[sorted.length - 1].position.x + nodeWidth;
+      const lastNodeWidth = sorted[sorted.length - 1].width || NODE_WIDTH;
+      const rightMost = sorted[sorted.length - 1].position.x + lastNodeWidth;
       const totalWidth = rightMost - leftMost;
       const spacing = totalWidth / (sorted.length - 1);
 
@@ -295,7 +415,8 @@ export function alignNodes(
     case 'distribute-vertical': {
       const sorted = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
       const topMost = sorted[0].position.y;
-      const bottomMost = sorted[sorted.length - 1].position.y + nodeHeight;
+      const lastNodeHeight = sorted[sorted.length - 1].height || NODE_HEIGHT;
+      const bottomMost = sorted[sorted.length - 1].position.y + lastNodeHeight;
       const totalHeight = bottomMost - topMost;
       const spacing = totalHeight / (sorted.length - 1);
 

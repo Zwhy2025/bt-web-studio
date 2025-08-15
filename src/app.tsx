@@ -39,6 +39,8 @@ import {
     ClipboardPaste,
     Trash2,
     Info,
+    Grid3X3,
+    AlignLeft,
 } from "lucide-react"
 
 import ReactFlow, {
@@ -58,6 +60,7 @@ import ReactFlow, {
     ConnectionLineType,
     ConnectionMode,
     NodeDragHandler,
+    OnSelectionChangeParams,
 } from "reactflow"
 
 import "reactflow/dist/style.css"
@@ -71,6 +74,9 @@ import {
     ContextMenuSeparator,
     ContextMenuLabel,
     ContextMenuShortcut,
+    ContextMenuSub,
+    ContextMenuSubTrigger,
+    ContextMenuSubContent,
 } from "@/components/ui/context-menu"
 import {
     TooltipProvider,
@@ -80,6 +86,22 @@ import {
 } from "@/components/ui/tooltip"
 import { HistoryManager, HistoryState } from "@/lib/history-utils"
 import { autoLayoutTree, scatterNodes } from "@/lib/auto-layout-utils"
+import { 
+    calculateAlignmentGuides, 
+    alignNodes, 
+    snapToGrid, 
+    getNodesInSelectionBox,
+    GRID_SIZE,
+    AlignmentGuide 
+} from "@/lib/alignment-utils"
+import { 
+    AlignmentGuides, 
+    GridSnapIndicator, 
+    SelectionBox, 
+    GridBackground,
+    AlignmentToolbar 
+} from "@/components/canvas/alignment-guides"
+import { BlackboardPanel } from "@/components/blackboard-panel"
 
 // ---------- Left Palette ----------
 function LeftPalette() {
@@ -187,6 +209,10 @@ function RightInspector() {
                         </div>
                     </div>
                 </div>
+            </div>
+            <Separator />
+            <div className="flex-1 p-3">
+                <BlackboardPanel />
             </div>
         </aside>
     )
@@ -346,13 +372,50 @@ function CanvasInner({
         if (onNodesExport) onNodesExport(nodes);
         if (onEdgesExport) onEdgesExport(edges);
     }, [nodes, edges, onNodesExport, onEdgesExport]);
-    const { project } = useReactFlow()
+    const { project, screenToFlowPosition } = useReactFlow()
     const { toast } = useToast()
 
     // selection state
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
     const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
     
+    // 对齐与吸附状态
+    const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([])
+    const [snapToGridEnabled, setSnapToGridEnabled] = useState(true)
+    const [showGrid, setShowGrid] = useState(true)
+    const [isDragging, setIsDragging] = useState(false)
+    
+    // 橡皮框选择状态
+    const [isSelecting, setIsSelecting] = useState(false)
+    const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
+    const [selectionCurrent, setSelectionCurrent] = useState({ x: 0, y: 0 })
+    const canvasRef = useRef<HTMLDivElement>(null)
+    
+    // 画布尺寸状态
+    const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 })
+    
+    // 监听画布尺寸变化
+    useEffect(() => {
+        const updateCanvasSize = () => {
+            if (canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect()
+                setCanvasSize({ width: rect.width, height: rect.height })
+            }
+        }
+        
+        // 初始化尺寸
+        updateCanvasSize()
+        
+        // 监听窗口大小变化
+        const resizeObserver = new ResizeObserver(updateCanvasSize)
+        if (canvasRef.current) {
+            resizeObserver.observe(canvasRef.current)
+        }
+        
+        return () => {
+            resizeObserver.disconnect()
+        }
+    }, [])
     
     // 历史记录管理
     const historyManagerRef = useRef<HistoryManager | null>(null)
@@ -379,6 +442,131 @@ function CanvasInner({
     }, [nodes, edges])
 
     const findNode = (id: string) => nodes.find((n) => n.id === id)
+    
+    // 节点拖拽处理 - 添加对齐吸附
+    const onNodeDrag: NodeDragHandler = useCallback((event, node, draggedNodes) => {
+        setIsDragging(true)
+        
+        // 使用当前完整的节点列表而不是拖拽回调中的节点列表
+        const otherNodes = nodes.filter(n => n.id !== node.id)
+        const snapResult = calculateAlignmentGuides(node, otherNodes, snapToGridEnabled)
+        
+        // 更新指导线
+        setAlignmentGuides(snapResult.guides)
+        
+        // 只有当位置需要调整时才更新节点位置
+        if (snapResult.x !== node.position.x || snapResult.y !== node.position.y) {
+            // 使用 setNodes 的函数形式来确保基于最新状态更新
+            setNodes(currentNodes => 
+                currentNodes.map(n => 
+                    n.id === node.id 
+                        ? { ...n, position: { x: snapResult.x, y: snapResult.y } }
+                        : n
+                )
+            )
+        }
+    }, [nodes, snapToGridEnabled, setNodes])
+    
+    // 节点拖拽结束
+    const onNodeDragStop = useCallback(() => {
+        setIsDragging(false)
+        setAlignmentGuides([])
+        saveToHistory()
+    }, [saveToHistory])
+    
+    // 橡皮框选择开始
+    const onSelectionStart = useCallback((event: React.MouseEvent) => {
+        // 只在空白区域开始选择
+        if (event.target === event.currentTarget) {
+            const rect = canvasRef.current?.getBoundingClientRect()
+            if (rect) {
+                const startPos = screenToFlowPosition({
+                    x: event.clientX - rect.left,
+                    y: event.clientY - rect.top,
+                })
+                setSelectionStart(startPos)
+                setSelectionCurrent(startPos)
+                setIsSelecting(true)
+            }
+        }
+    }, [screenToFlowPosition])
+    
+    // 橡皮框选择移动 - 优化性能，避免频繁重渲染
+    const onSelectionMove = useCallback((event: React.MouseEvent) => {
+        if (isSelecting && canvasRef.current) {
+            const rect = canvasRef.current.getBoundingClientRect()
+            const currentPos = screenToFlowPosition({
+                x: event.clientX - rect.left,
+                y: event.clientY - rect.top,
+            })
+            setSelectionCurrent(currentPos)
+            
+            // 计算选择框内的节点
+            const selectionBox = {
+                x: Math.min(selectionStart.x, currentPos.x),
+                y: Math.min(selectionStart.y, currentPos.y),
+                width: Math.abs(currentPos.x - selectionStart.x),
+                height: Math.abs(currentPos.y - selectionStart.y),
+            }
+            
+            const selectedNodes = getNodesInSelectionBox(nodes, selectionBox)
+            const selectedIds = selectedNodes.map(n => n.id)
+            
+            // 只有当选中的节点ID集合发生变化时才更新状态
+            const currentSelectedIds = new Set(selectedNodeIds)
+            const newSelectedIds = new Set(selectedIds)
+            const hasChanged = currentSelectedIds.size !== newSelectedIds.size || 
+                              selectedIds.some(id => !currentSelectedIds.has(id))
+            
+            if (hasChanged) {
+                setNodes(nds => nds.map(n => ({
+                    ...n,
+                    selected: selectedIds.includes(n.id)
+                })))
+                setSelectedNodeIds(selectedIds)
+            }
+        }
+    }, [isSelecting, selectionStart, nodes, setNodes, screenToFlowPosition, selectedNodeIds])
+    
+    // 橡皮框选择结束
+    const onSelectionEnd = useCallback(() => {
+        setIsSelecting(false)
+    }, [])
+    
+    // 批量对齐功能
+    const handleAlign = useCallback((alignType: 'left' | 'right' | 'center' | 'top' | 'bottom' | 'middle' | 'distribute-horizontal' | 'distribute-vertical') => {
+        const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id))
+        if (selectedNodes.length < 2) {
+            toast({
+                title: "对齐失败",
+                description: "请选择至少2个节点进行对齐",
+                variant: "destructive",
+            })
+            return
+        }
+        
+        const alignedNodes = alignNodes(selectedNodes, alignType)
+        const nodeMap = new Map(alignedNodes.map(n => [n.id, n]))
+        
+        setNodes(nds => nds.map(n => nodeMap.get(n.id) || n))
+        saveToHistory()
+        
+        const alignTypeNames = {
+            'left': '左对齐',
+            'right': '右对齐', 
+            'center': '水平居中',
+            'top': '顶部对齐',
+            'bottom': '底部对齐',
+            'middle': '垂直居中',
+            'distribute-horizontal': '水平分布',
+            'distribute-vertical': '垂直分布',
+        }
+        
+        toast({
+            title: "对齐完成",
+            description: `已对 ${selectedNodes.length} 个节点执行${alignTypeNames[alignType]}`,
+        })
+    }, [nodes, selectedNodeIds, setNodes, saveToHistory, toast])
     
     // 撤销功能
     const handleUndo = useCallback(() => {
@@ -600,6 +788,30 @@ function CanvasInner({
     // 快捷键：Delete 删除、Ctrl/Cmd+D 克隆、Ctrl/Cmd+A 全选、Ctrl/Cmd+Z 撤销、Ctrl/Cmd+Y 重做
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            // 检查焦点元素，如果是输入框则不处理
+            const activeElement = document.activeElement as HTMLElement
+            const isInputFocused = activeElement && (
+                activeElement.tagName === 'INPUT' || 
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.contentEditable === 'true'
+            )
+            
+            // 如果输入框有焦点，只处理特定的快捷键
+            if (isInputFocused) {
+                const meta = e.ctrlKey || e.metaKey
+                const key = e.key.toLowerCase()
+                // 只允许撤销/重做在输入框中工作
+                if (meta && key === "z" && !e.shiftKey) {
+                    // 让浏览器处理输入框的撤销
+                    return
+                } else if (meta && (key === "y" || (key === "z" && e.shiftKey))) {
+                    // 让浏览器处理输入框的重做
+                    return
+                }
+                // 其他快捷键在输入框中不处理
+                return
+            }
+            
             const meta = e.ctrlKey || e.metaKey
             const key = e.key.toLowerCase()
             if (key === "delete" || key === "backspace") {
@@ -630,7 +842,14 @@ function CanvasInner({
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
-                <div className="h-full relative">
+                <div 
+                    ref={canvasRef}
+                    className="h-full relative"
+                    onMouseDown={onSelectionStart}
+                    onMouseMove={onSelectionMove}
+                    onMouseUp={onSelectionEnd}
+                >
+                    {/* 工具栏 */}
                     <div className="absolute left-2 top-2 z-10 flex gap-1">
                         <TooltipProvider>
                             <Tooltip>
@@ -661,8 +880,42 @@ function CanvasInner({
                                 </TooltipTrigger>
                                 <TooltipContent>重做 (Ctrl+Shift+Z / Ctrl+Y)</TooltipContent>
                             </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        variant={snapToGridEnabled ? "default" : "ghost"}
+                                        onClick={() => setSnapToGridEnabled(!snapToGridEnabled)}
+                                        aria-label="网格吸附"
+                                    >
+                                        <Grid3X3 className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>网格吸附 {snapToGridEnabled ? '已启用' : '已禁用'}</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button
+                                        size="sm"
+                                        variant={showGrid ? "default" : "ghost"}
+                                        onClick={() => setShowGrid(!showGrid)}
+                                        aria-label="显示网格"
+                                    >
+                                        <AlignLeft className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>显示网格 {showGrid ? '已启用' : '已禁用'}</TooltipContent>
+                            </Tooltip>
                         </TooltipProvider>
                     </div>
+
+                    {/* 对齐工具栏 */}
+                    <AlignmentToolbar
+                        selectedCount={selectedNodeIds.length}
+                        onAlign={handleAlign}
+                        visible={selectedNodeIds.length >= 2}
+                    />
+
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -671,7 +924,9 @@ function CanvasInner({
                         onConnect={onConnect}
                         onDrop={onDrop}
                         onDragOver={onDragOver}
-                        onSelectionChange={(sel) => {
+                        onNodeDrag={onNodeDrag}
+                        onNodeDragStop={onNodeDragStop}
+                        onSelectionChange={(sel: OnSelectionChangeParams) => {
                             setSelectedNodeIds(sel.nodes.map((n) => n.id))
                             setSelectedEdgeIds(sel.edges.map((e) => e.id))
                         }}
@@ -684,15 +939,39 @@ function CanvasInner({
                         connectionLineType={ConnectionLineType.SmoothStep}
                         connectionLineStyle={{ strokeWidth: 2, stroke: "hsl(var(--muted-foreground))", strokeDasharray: 6 }}
                         fitView
+                        selectNodesOnDrag={false}
                     >
+                        {/* 网格背景 */}
+                        <GridBackground 
+                            gridSize={GRID_SIZE} 
+                            visible={showGrid}
+                            opacity={0.2}
+                        />
                         <Background 
                             variant={BackgroundVariant.Dots} 
-                            gap={20} 
+                            gap={GRID_SIZE} 
                             size={1}
+                            style={{ opacity: showGrid ? 0.3 : 0.1 }}
                         />
                         <MiniMap pannable zoomable />
                         <Controls showInteractive={false} />
                     </ReactFlow>
+
+                    {/* 对齐指导线 */}
+                    <AlignmentGuides
+                        guides={alignmentGuides}
+                        canvasWidth={canvasSize.width}
+                        canvasHeight={canvasSize.height}
+                    />
+
+                    {/* 橡皮框选择 */}
+                    <SelectionBox
+                        startX={selectionStart.x}
+                        startY={selectionStart.y}
+                        currentX={selectionCurrent.x}
+                        currentY={selectionCurrent.y}
+                        visible={isSelecting}
+                    />
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
@@ -734,6 +1013,54 @@ function CanvasInner({
                     <ContextMenuShortcut>Del</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
+                {selectedNodeIds.length >= 2 ? (
+                    <ContextMenuSub>
+                        <ContextMenuSubTrigger>
+                            <AlignLeft className="mr-2 h-4 w-4" />
+                            对齐
+                        </ContextMenuSubTrigger>
+                        <ContextMenuSubContent className="w-48">
+                            <ContextMenuItem onSelect={() => handleAlign('left')}>
+                                左对齐
+                            </ContextMenuItem>
+                            <ContextMenuItem onSelect={() => handleAlign('center')}>
+                                水平居中
+                            </ContextMenuItem>
+                            <ContextMenuItem onSelect={() => handleAlign('right')}>
+                                右对齐
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem onSelect={() => handleAlign('top')}>
+                                顶部对齐
+                            </ContextMenuItem>
+                            <ContextMenuItem onSelect={() => handleAlign('middle')}>
+                                垂直居中
+                            </ContextMenuItem>
+                            <ContextMenuItem onSelect={() => handleAlign('bottom')}>
+                                底部对齐
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem 
+                                onSelect={() => handleAlign('distribute-horizontal')}
+                                disabled={selectedNodeIds.length < 3}
+                            >
+                                水平分布
+                            </ContextMenuItem>
+                            <ContextMenuItem 
+                                onSelect={() => handleAlign('distribute-vertical')}
+                                disabled={selectedNodeIds.length < 3}
+                            >
+                                垂直分布
+                            </ContextMenuItem>
+                        </ContextMenuSubContent>
+                    </ContextMenuSub>
+                ) : (
+                    <ContextMenuItem disabled>
+                        <AlignLeft className="mr-2 h-4 w-4" />
+                        对齐
+                    </ContextMenuItem>
+                )}
+                <ContextMenuSeparator />
                 <ContextMenuLabel>布局</ContextMenuLabel>
                 <ContextMenuItem onSelect={handleAutoLayout}>
                     <GitBranch className="mr-2 h-4 w-4" />
@@ -742,6 +1069,14 @@ function CanvasInner({
                 <ContextMenuItem onSelect={handleScatterNodes}>
                     <RefreshCcw className="mr-2 h-4 w-4" />
                     散乱分布节点
+                </ContextMenuItem>
+                <ContextMenuSeparator />
+                <ContextMenuItem onSelect={() => setSnapToGridEnabled(!snapToGridEnabled)}>
+                    <Grid3X3 className="mr-2 h-4 w-4" />
+                    {snapToGridEnabled ? '禁用' : '启用'}网格吸附
+                </ContextMenuItem>
+                <ContextMenuItem onSelect={() => setShowGrid(!showGrid)}>
+                    显示网格 {showGrid ? '✓' : ''}
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem onSelect={() => toast({ title: "折叠子树（Mock）" })}>
@@ -810,12 +1145,12 @@ export default function App() {
         });
     };
     return (
-        <div className="h-screen w-screen bg-white dark:bg-[#0b0f17] text-foreground">
+        <div className="h-screen w-screen bg-white dark:bg-[#0b0f17] text-foreground flex flex-col overflow-hidden">
             <TopBar 
                 onImportClick={() => setImportDialogOpen(true)}
                 onExportClick={() => setExportDialogOpen(true)}
             />
-            <main className="h-[calc(100vh-40px-44px)] md:h-[calc(100vh-48px-48px)]">
+            <main className="flex-1 min-h-0">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
                     <ResizablePanel defaultSize={18} minSize={14} className="hidden md:block">
                         <LeftPalette />

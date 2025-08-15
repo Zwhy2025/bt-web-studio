@@ -10,8 +10,8 @@ export interface LayoutOptions {
 }
 
 const defaultLayoutOptions: LayoutOptions = {
-  nodeWidth: 200,
-  nodeHeight: 60,
+  nodeWidth: 180, // 与 alignment-utils.ts 中的 NODE_WIDTH 保持一致
+  nodeHeight: 60,  // 与 alignment-utils.ts 中的 NODE_HEIGHT 保持一致
   horizontalSpacing: 80,
   verticalSpacing: 100,
   rootX: 400,
@@ -73,20 +73,23 @@ export function autoLayoutTree(nodes: Node[], edges: Edge[], options: Partial<La
       }
     }
     
+    // 使用节点的实际宽度，如果没有则使用默认值
+    const nodeWidth = node.width || opts.nodeWidth;
+    
     return {
       id: nodeId,
       children,
       node,
       x: 0,
       y: 0,
-      width: opts.nodeWidth
+      width: nodeWidth
     };
   }
   
   // 计算每个子树的宽度
   function calculateSubtreeWidth(tree: TreeNode): number {
     if (tree.children.length === 0) {
-      return opts.nodeWidth;
+      return tree.width; // 使用节点的实际宽度
     }
     
     let totalChildWidth = 0;
@@ -95,7 +98,7 @@ export function autoLayoutTree(nodes: Node[], edges: Edge[], options: Partial<La
     });
     
     const spacingWidth = (tree.children.length - 1) * opts.horizontalSpacing;
-    tree.width = Math.max(opts.nodeWidth, totalChildWidth + spacingWidth);
+    tree.width = Math.max(tree.width, totalChildWidth + spacingWidth);
     return tree.width;
   }
   
@@ -136,9 +139,10 @@ export function autoLayoutTree(nodes: Node[], edges: Edge[], options: Partial<La
     
     // 收集所有节点的新位置
     function collectNodes(tree: TreeNode): void {
+      const nodeWidth = tree.node.width || opts.nodeWidth;
       const updatedNode: Node = {
         ...tree.node,
-        position: { x: tree.x - opts.nodeWidth / 2, y: tree.y }
+        position: { x: tree.x - nodeWidth / 2, y: tree.y }
       };
       layoutedNodes.push(updatedNode);
       
@@ -156,10 +160,11 @@ export function autoLayoutTree(nodes: Node[], edges: Edge[], options: Partial<La
   const orphanNodes = nodes.filter(n => !processedIds.has(n.id));
   
   orphanNodes.forEach((node, index) => {
+    const nodeWidth = node.width || opts.nodeWidth;
     layoutedNodes.push({
       ...node,
       position: {
-        x: currentRootX + index * (opts.nodeWidth + opts.horizontalSpacing),
+        x: currentRootX + index * (nodeWidth + opts.horizontalSpacing),
         y: opts.rootY
       }
     });
