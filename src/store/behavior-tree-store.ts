@@ -4,6 +4,7 @@ import { Node, Edge } from 'reactflow'
 // 注释掉之前的 mock-debugger-client 导入
 // import { startMockDebugSession, stopMockDebugSession } from '@/lib/mock-debugger-client' 
 import { MockWebSocketClient, DebuggerMessage } from '@/lib/mock-websocket-client' // 新增导入
+import { simulateSubtreeExecution } from '@/lib/subtree-mock-generator' // 导入子树模拟功能
 
 // 节点状态枚举
 export enum NodeStatus {
@@ -153,6 +154,8 @@ interface BehaviorTreeState {
     stopExecution: () => void
     stepExecution: () => void
     setExecutionSpeed: (speed: number) => void
+    // 新增：模拟导入的子树执行
+    simulateSubtree: () => void
     
     // 事件记录
     addExecutionEvent: (event: Omit<ExecutionEvent, 'id' | 'timestamp'>) => void
@@ -636,6 +639,39 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             set({ executionSpeed: newSpeed });
             console.log("Mock: Execution speed set to", newSpeed);
           }
+        },
+        
+        // 模拟导入的子树执行
+        simulateSubtree: () => {
+          const state = get();
+          console.log("Starting subtree simulation with nodes:", state.nodes);
+          
+          // 清除之前的执行事件
+          state.actions.clearExecutionEvents();
+          
+          // 启动模拟执行
+          const cleanup = simulateSubtreeExecution(
+            state.nodes,
+            (nodeId, status) => {
+              // 更新节点状态
+              state.actions.setNodeStatus(nodeId, status);
+              
+              // 添加执行事件
+              state.actions.addExecutionEvent({
+                nodeId,
+                type: 'tick',
+                status
+              });
+            },
+            () => {
+              // 模拟完成后的回调
+              console.log("Subtree simulation completed");
+              // 可以在这里添加完成后的操作，比如显示通知等
+            }
+          );
+          
+          // 可以将cleanup函数存储在状态中，以便在需要时停止模拟
+          // set({ subtreeSimulationCleanup: cleanup });
         },
         
         // 事件记录

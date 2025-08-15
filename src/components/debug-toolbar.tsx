@@ -8,7 +8,8 @@ import {
   Square, 
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  TreePine
 } from 'lucide-react';
 import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
 import { DebugState } from '@/store/behavior-tree-store';
@@ -49,6 +50,11 @@ export function DebugToolbar() {
   const handleStop = () => {
     // 发送停止命令
     actions.stopExecution();
+  };
+
+  const handleSimulateSubtree = () => {
+    // 模拟导入的子树执行
+    actions.simulateSubtree();
   };
 
   // 确定连接按钮的状态和图标
@@ -155,6 +161,22 @@ export function DebugToolbar() {
           title="停止执行"
         >
           <Square className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* 分隔符 */}
+      <div className="h-5 w-px bg-muted" />
+
+      {/* 子树模拟按钮 */}
+      <div className="flex items-center gap-1">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handleSimulateSubtree}
+          title="模拟子树执行"
+        >
+          <TreePine className="h-4 w-4" />
+          <span className="ml-1">模拟</span>
         </Button>
       </div>
 
