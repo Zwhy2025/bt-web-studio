@@ -1,3 +1,4 @@
 .codebuddy/
 node_modules/
 Web*
+dist/
