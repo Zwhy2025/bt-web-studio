@@ -365,26 +365,8 @@ function CanvasInner({
     const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes)
     const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges)
     
-    // 创建包装的变化处理函数，同步到状态管理系统
-    const wrappedOnNodesChange = useCallback((changes: any) => {
-        onNodesChange(changes)
-        // 延迟同步到状态管理系统，确保 React Flow 内部状态已更新
-        setTimeout(() => {
-            const currentNodes = nodes
-            const currentEdges = edges
-            actions.importData(currentNodes, currentEdges)
-        }, 0)
-    }, [onNodesChange, nodes, edges, actions])
-    
-    const wrappedOnEdgesChange = useCallback((changes: any) => {
-        onEdgesChange(changes)
-        // 延迟同步到状态管理系统，确保 React Flow 内部状态已更新
-        setTimeout(() => {
-            const currentNodes = nodes
-            const currentEdges = edges
-            actions.importData(currentNodes, currentEdges)
-        }, 0)
-    }, [onEdgesChange, nodes, edges, actions])
+    // 直接使用原始的变化处理函数，避免闭包陷阱
+    // 状态同步通过其他明确的操作点进行（如拖拽结束、连接等）
     
     // 当会话切换时，强制更新画布数据
     useEffect(() => {
@@ -967,8 +949,8 @@ function CanvasInner({
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
-                        onNodesChange={wrappedOnNodesChange}
-                        onEdgesChange={wrappedOnEdgesChange}
+                        onNodesChange={onNodesChange}
+                        onEdgesChange={onEdgesChange}
                         onConnect={onConnect}
                         onDrop={onDrop}
                         onDragOver={onDragOver}

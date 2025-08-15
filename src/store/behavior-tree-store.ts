@@ -526,28 +526,28 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         
         // 批量操作
         importData: (nodes: BehaviorTreeNode[], edges: BehaviorTreeEdge[]) => {
-          const state = get()
-          set({ 
-            nodes, 
-            edges,
-            // 同时更新当前会话的数据
-            currentSession: state.currentSession ? {
-              ...state.currentSession,
+          set(state => {
+            if (!state.currentSession) {
+              return { nodes, edges };
+            }
+            const modifiedAt = Date.now();
+            return {
               nodes,
               edges,
-              modifiedAt: Date.now()
-            } : null
-          })
-          
-          // 更新会话列表中的当前会话
-          if (state.currentSession) {
-            const updatedSessions = state.sessions.map(s => 
-              s.id === state.currentSession?.id 
-                ? { ...s, nodes, edges, modifiedAt: Date.now() }
-                : s
-            )
-            set({ sessions: updatedSessions })
-          }
+              sessions: state.sessions.map(s =>
+                s.id === state.currentSession.id
+                  ? { ...s, nodes, edges, blackboard: state.blackboard, modifiedAt }
+                  : s
+              ),
+              currentSession: {
+                ...state.currentSession,
+                nodes,
+                edges,
+                blackboard: state.blackboard,
+                modifiedAt,
+              },
+            };
+          });
         },
         
         exportData: () => {

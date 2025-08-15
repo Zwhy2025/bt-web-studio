@@ -21,11 +21,13 @@ export const TabBar: React.FC = () => {
 
   // 重命名会话
   const handleRenameSession = (sessionId: string) => {
-    if (editingName.trim()) {
-      actions.updateSession(sessionId, { name: editingName.trim() })
-      setEditingSessionId(null)
-      setEditingName('')
+    const newName = editingName.trim()
+    if (newName) {
+      actions.updateSession(sessionId, { name: newName })
     }
+    // 无论成功与否，都退出编辑模式
+    setEditingSessionId(null)
+    setEditingName('')
   }
 
   // 开始重命名
