@@ -7,10 +7,55 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Trash2, Database, Plus, Edit2, Check, X } from 'lucide-react'
 import { useBlackboard, useActions, BlackboardEntry } from '@/store/behavior-tree-store'
+import { useToast } from '@/hooks/use-toast'
+
+// 辅助函数：解析和验证输入值
+function parseAndValidateValue(value: string, type: BlackboardEntry['type'], toast: any): { success: boolean; parsedValue?: any } {
+  let parsedValue: any = value
+  
+  try {
+    switch (type) {
+      case 'number':
+        if (value.trim() === '') {
+          toast({ title: '请输入数字值', variant: 'destructive' })
+          return { success: false }
+        }
+        parsedValue = parseFloat(value)
+        if (isNaN(parsedValue)) {
+          toast({ title: '请输入有效的数字', variant: 'destructive' })
+          return { success: false }
+        }
+        break
+      case 'boolean':
+        const lowerValue = value.toLowerCase().trim()
+        if (lowerValue !== 'true' && lowerValue !== 'false') {
+          toast({ title: '布尔值请输入 true 或 false', variant: 'destructive' })
+          return { success: false }
+        }
+        parsedValue = lowerValue === 'true'
+        break
+      case 'object':
+        if (value.trim() === '') {
+          parsedValue = {}
+        } else {
+          parsedValue = JSON.parse(value)
+        }
+        break
+      default:
+        parsedValue = value
+    }
+  } catch (error) {
+    toast({ title: '对象格式错误，请输入有效的JSON格式', variant: 'destructive' })
+    return { success: false }
+  }
+  
+  return { success: true, parsedValue }
+}
 
 export function BlackboardPanel() {
   const blackboard = useBlackboard()
   const { setBlackboardValue, deleteBlackboardKey, clearBlackboard } = useActions()
+  const { toast } = useToast()
   
   const [newKey, setNewKey] = useState('')
   const [newValue, setNewValue] = useState('')
@@ -23,48 +68,16 @@ export function BlackboardPanel() {
 
   const handleAddEntry = () => {
     if (!newKey.trim()) {
-      alert('请输入键名')
+      toast({ title: '请输入键名', variant: 'destructive' })
       return
     }
     
-    let parsedValue: any = newValue
-    try {
-      switch (newType) {
-        case 'number':
-          if (newValue.trim() === '') {
-            alert('请输入数字值')
-            return
-          }
-          parsedValue = parseFloat(newValue)
-          if (isNaN(parsedValue)) {
-            alert('请输入有效的数字')
-            return
-          }
-          break
-        case 'boolean':
-          const lowerValue = newValue.toLowerCase().trim()
-          if (lowerValue !== 'true' && lowerValue !== 'false') {
-            alert('布尔值请输入 true 或 false')
-            return
-          }
-          parsedValue = lowerValue === 'true'
-          break
-        case 'object':
-          if (newValue.trim() === '') {
-            parsedValue = {}
-          } else {
-            parsedValue = JSON.parse(newValue)
-          }
-          break
-        default:
-          parsedValue = newValue
-      }
-    } catch (error) {
-      alert('对象格式错误，请输入有效的JSON格式')
+    const result = parseAndValidateValue(newValue, newType, toast)
+    if (!result.success) {
       return
     }
     
-    setBlackboardValue(newKey.trim(), parsedValue, newType, 'user')
+    setBlackboardValue(newKey.trim(), result.parsedValue, newType, 'user')
     setNewKey('')
     setNewValue('')
     setNewType('string')
@@ -77,44 +90,12 @@ export function BlackboardPanel() {
   }
 
   const handleSaveEdit = (key: string) => {
-    let parsedValue: any = editValue
-    try {
-      switch (editType) {
-        case 'number':
-          if (editValue.trim() === '') {
-            alert('请输入数字值')
-            return
-          }
-          parsedValue = parseFloat(editValue)
-          if (isNaN(parsedValue)) {
-            alert('请输入有效的数字')
-            return
-          }
-          break
-        case 'boolean':
-          const lowerValue = editValue.toLowerCase().trim()
-          if (lowerValue !== 'true' && lowerValue !== 'false') {
-            alert('布尔值请输入 true 或 false')
-            return
-          }
-          parsedValue = lowerValue === 'true'
-          break
-        case 'object':
-          if (editValue.trim() === '') {
-            parsedValue = {}
-          } else {
-            parsedValue = JSON.parse(editValue)
-          }
-          break
-        default:
-          parsedValue = editValue
-      }
-    } catch (error) {
-      alert('对象格式错误，请输入有效的JSON格式')
+    const result = parseAndValidateValue(editValue, editType, toast)
+    if (!result.success) {
       return
     }
     
-    setBlackboardValue(key, parsedValue, editType, 'user')
+    setBlackboardValue(key, result.parsedValue, editType, 'user')
     setEditingKey(null)
     setEditValue('')
     setEditType('string')

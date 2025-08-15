@@ -391,6 +391,31 @@ function CanvasInner({
     const [selectionCurrent, setSelectionCurrent] = useState({ x: 0, y: 0 })
     const canvasRef = useRef<HTMLDivElement>(null)
     
+    // 画布尺寸状态
+    const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 })
+    
+    // 监听画布尺寸变化
+    useEffect(() => {
+        const updateCanvasSize = () => {
+            if (canvasRef.current) {
+                const rect = canvasRef.current.getBoundingClientRect()
+                setCanvasSize({ width: rect.width, height: rect.height })
+            }
+        }
+        
+        // 初始化尺寸
+        updateCanvasSize()
+        
+        // 监听窗口大小变化
+        const resizeObserver = new ResizeObserver(updateCanvasSize)
+        if (canvasRef.current) {
+            resizeObserver.observe(canvasRef.current)
+        }
+        
+        return () => {
+            resizeObserver.disconnect()
+        }
+    }, [])
     
     // 历史记录管理
     const historyManagerRef = useRef<HistoryManager | null>(null)
@@ -466,7 +491,7 @@ function CanvasInner({
         }
     }, [screenToFlowPosition])
     
-    // 橡皮框选择移动
+    // 橡皮框选择移动 - 优化性能，避免频繁重渲染
     const onSelectionMove = useCallback((event: React.MouseEvent) => {
         if (isSelecting && canvasRef.current) {
             const rect = canvasRef.current.getBoundingClientRect()
@@ -487,14 +512,21 @@ function CanvasInner({
             const selectedNodes = getNodesInSelectionBox(nodes, selectionBox)
             const selectedIds = selectedNodes.map(n => n.id)
             
-            // 更新节点选择状态
-            setNodes(nds => nds.map(n => ({
-                ...n,
-                selected: selectedIds.includes(n.id)
-            })))
-            setSelectedNodeIds(selectedIds)
+            // 只有当选中的节点ID集合发生变化时才更新状态
+            const currentSelectedIds = new Set(selectedNodeIds)
+            const newSelectedIds = new Set(selectedIds)
+            const hasChanged = currentSelectedIds.size !== newSelectedIds.size || 
+                              selectedIds.some(id => !currentSelectedIds.has(id))
+            
+            if (hasChanged) {
+                setNodes(nds => nds.map(n => ({
+                    ...n,
+                    selected: selectedIds.includes(n.id)
+                })))
+                setSelectedNodeIds(selectedIds)
+            }
         }
-    }, [isSelecting, selectionStart, nodes, setNodes, screenToFlowPosition])
+    }, [isSelecting, selectionStart, nodes, setNodes, screenToFlowPosition, selectedNodeIds])
     
     // 橡皮框选择结束
     const onSelectionEnd = useCallback(() => {
@@ -757,7 +789,7 @@ function CanvasInner({
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             // 检查焦点元素，如果是输入框则不处理
-            const activeElement = document.activeElement
+            const activeElement = document.activeElement as HTMLElement
             const isInputFocused = activeElement && (
                 activeElement.tagName === 'INPUT' || 
                 activeElement.tagName === 'TEXTAREA' ||
@@ -928,8 +960,8 @@ function CanvasInner({
                     {/* 对齐指导线 */}
                     <AlignmentGuides
                         guides={alignmentGuides}
-                        canvasWidth={1000}
-                        canvasHeight={800}
+                        canvasWidth={canvasSize.width}
+                        canvasHeight={canvasSize.height}
                     />
 
                     {/* 橡皮框选择 */}
