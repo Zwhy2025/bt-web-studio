@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, FileDown, FileUp, Copy, CheckCircle, Eye, EyeOff, Info, Upload, X, TestTube } from "lucide-react";
-import { parseXML, generateXML, sampleXML } from "@/lib/xml-utils";
+import { parseXML, generateXML, sampleXML, formatXMLString } from "@/lib/xml-utils";
 import { Node, Edge } from "reactflow";
 import { useToast } from "@/hooks/use-toast";
 
@@ -27,6 +27,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
   const [xml, setXml] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [fileName, setFileName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -115,6 +116,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
             
             <div className="flex gap-2">
               <input
+                ref={fileInputRef}
                 id="xml-file-input"
                 type="file"
                 accept=".xml"
@@ -123,7 +125,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
               />
               <Button
                 variant="outline"
-                onClick={() => document.getElementById('xml-file-input')?.click()}
+                onClick={() => fileInputRef.current?.click()}
                 className="flex-1"
               >
                 <FileUp className="mr-2 h-4 w-4" />
@@ -301,36 +303,6 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
     }
   };
 
-  const formatXML = (xmlString: string): string => {
-    if (!showFormatted) return xmlString;
-    
-    try {
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-      const serializer = new XMLSerializer();
-      let formatted = serializer.serializeToString(xmlDoc);
-      
-      // 简单的格式化
-      formatted = formatted.replace(/></g, '>\n<');
-      const lines = formatted.split('\n');
-      let indentLevel = 0;
-      const indentedLines = lines.map(line => {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('</')) {
-          indentLevel = Math.max(0, indentLevel - 1);
-        }
-        const indented = '  '.repeat(indentLevel) + trimmed;
-        if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>')) {
-          indentLevel++;
-        }
-        return indented;
-      });
-      
-      return indentedLines.join('\n');
-    } catch (e) {
-      return xmlString;
-    }
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -413,7 +385,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
             </Alert>
           ) : (
             <Textarea
-              value={formatXML(xml)}
+              value={showFormatted ? formatXMLString(xml) : xml}
               readOnly
               className="font-mono text-xs h-[300px] resize-none"
               placeholder="生成的 XML 将显示在这里..."

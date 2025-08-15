@@ -42,6 +42,9 @@ import {
     Grid3X3,
     AlignLeft,
 } from "lucide-react"
+// 移除未使用的导入
+// import { DebugToolbar } from "@/components/debug-toolbar" // 移除导入
+import { DebugPanel } from "@/components/debug-panel" // 新增导入
 
 import ReactFlow, {
     Background,
@@ -159,6 +162,7 @@ function LeftPalette() {
 }
 
 // ---------- Right Inspector ----------
+/*
 function RightInspector() {
     return (
         <aside className="h-full flex flex-col">
@@ -219,6 +223,7 @@ function RightInspector() {
         </aside>
     )
 }
+*/
 
 // ---------- Top Bar ----------
 function TopBar({ onImportClick, onExportClick, onNewProject }: { 
@@ -281,6 +286,9 @@ function TopBar({ onImportClick, onExportClick, onNewProject }: {
                         </MenubarContent>
                     </MenubarMenu>
                 </Menubar>
+                {/* 调试工具栏已移至 DebugPanel
+                <DebugToolbar />
+                */}
                 <div className="ml-auto flex items-center gap-2">
                     <div className="relative w-64 max-w-[40vw]">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1043,6 +1051,33 @@ function CanvasInner({
                     <ContextMenuShortcut>Del</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
+                {/* 断点管理 */}
+                {selectedNodeIds.length === 1 && (
+                  <ContextMenuItem 
+                    onSelect={() => {
+                      const nodeId = selectedNodeIds[0];
+                      actions.toggleBreakpoint(nodeId);
+                    }}
+                  >
+                    <div className="mr-2 h-4 w-4 flex items-center justify-center">
+                      {(() => {
+                        const node = nodes.find(n => n.id === selectedNodeIds[0]);
+                        const hasBreakpoint = node?.data?.breakpoint;
+                        return hasBreakpoint ? (
+                          <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                        ) : (
+                          <div className="h-3 w-3 rounded-full border border-muted-foreground"></div>
+                        );
+                      })()}
+                    </div>
+                    {(() => {
+                      const node = nodes.find(n => n.id === selectedNodeIds[0]);
+                      const hasBreakpoint = node?.data?.breakpoint;
+                      return hasBreakpoint ? '清除断点' : '设置断点';
+                    })()}
+                  </ContextMenuItem>
+                )}
+                <ContextMenuSeparator />
                 {selectedNodeIds.length >= 2 ? (
                     <ContextMenuSub>
                         <ContextMenuSubTrigger>
@@ -1114,9 +1149,6 @@ function CanvasInner({
                 </ContextMenuItem>
                 <ContextMenuItem onSelect={() => toast({ title: "展开子树（Mock）" })}>
                     展开子树
-                </ContextMenuItem>
-                <ContextMenuItem onSelect={() => toast({ title: "添加断点（Mock）" })}>
-                    添加断点
                 </ContextMenuItem>
                 <ContextMenuSeparator />
             </ContextMenuContent>
@@ -1207,7 +1239,7 @@ export default function App() {
                     </ResizablePanel>
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={18} minSize={16} className="hidden lg:block">
-                        <RightInspector />
+                        <DebugPanel /> {/* 使用 DebugPanel 替换 RightInspector */}
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </main>
