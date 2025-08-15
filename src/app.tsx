@@ -103,7 +103,7 @@ import {
 } from "@/components/canvas/alignment-guides"
 import { BlackboardPanel } from "@/components/blackboard-panel"
 import { TabBar } from "@/components/tab-bar"
-import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
+import { useBehaviorTreeStore, DebugState } from "@/store/behavior-tree-store"
 
 // ---------- Left Palette ----------
 function LeftPalette() {
@@ -302,28 +302,96 @@ function TopBar({ onImportClick, onExportClick, onNewProject }: {
 
 // ---------- Bottom Timeline ----------
 function BottomTimeline() {
-    const [playing, setPlaying] = useState(false)
+    const debugState = useBehaviorTreeStore((state) => state.debugState)
+    const { startExecution, pauseExecution, stopExecution, stepExecution } = useBehaviorTreeStore(
+        (state) => state.actions
+    )
+
+    const isRunning = debugState === DebugState.RUNNING
+    const isPaused = debugState === DebugState.PAUSED
+    const isStopped = debugState === DebugState.STOPPED
+
+    const handlePlayPause = () => {
+        if (isRunning) {
+            pauseExecution()
+        } else {
+            startExecution()
+        }
+    }
+
     return (
         <div className="w-full border-t bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="px-3 py-2 flex items-center gap-2">
+            <div className="px-3 py-2 flex items-center gap-3">
                 <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "暂停" : "播放"}>
-                        {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    </Button>
-                    <Button size="sm" variant="ghost" aria-label="单步">
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" aria-label="重置">
-                        <RefreshCcw className="h-4 w-4" />
-                    </Button>
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handlePlayPause}
+                                    aria-label={isRunning ? "暂停" : "运行"}
+                                >
+                                    {isRunning ? (
+                                        <Pause className="h-4 w-4" />
+                                    ) : (
+                                        <Play className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{isRunning ? "暂停" : "运行"}</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={stepExecution}
+                                    disabled={!isPaused}
+                                    aria-label="单步"
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>单步 (仅在暂停时可用)</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={stopExecution}
+                                    disabled={isStopped}
+                                    aria-label="重置"
+                                >
+                                    <RefreshCcw className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>重置</TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
                 <Separator orientation="vertical" className="h-6" />
-                <div className="text-xs text-muted-foreground">时间轴</div>
+                <div className="text-xs text-muted-foreground hidden sm:block">时间轴</div>
                 <div className="flex-1 h-8 rounded-md border bg-card/60 backdrop-blur relative overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 w-1/3 bg-primary/20" />
-                    <div className="absolute inset-y-0 left-1/3 w-0.5 bg-primary/60" />
+                    {/* Visual feedback for state */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary">
+                            State: {debugState}
+                        </span>
+                    </div>
+                    <div
+                        className="absolute inset-y-0 left-0 bg-primary/20 transition-all duration-300"
+                        style={{ width: `${isStopped ? 0 : isPaused ? 33 : 100}%` }}
+                    />
+                    <div
+                        className="absolute inset-y-0 left-1/3 w-0.5 bg-primary/60"
+                        style={{ display: isPaused ? "block" : "none" }}
+                    />
                 </div>
-                <div className="text-xs tabular-nums w-28 text-right text-muted-foreground">00:00:00.000</div>
+                <div className="text-xs tabular-nums w-28 text-right text-muted-foreground hidden md:block">
+                    00:00:00.000
+                </div>
             </div>
         </div>
     )
