@@ -319,7 +319,7 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
  * @param xmlString 原始XML字符串
  * @returns 格式化后的XML字符串
  */
-function formatXMLString(xmlString: string): string {
+export function formatXMLString(xmlString: string): string {
   try {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
