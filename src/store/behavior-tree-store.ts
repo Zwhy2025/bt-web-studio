@@ -590,8 +590,8 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         startExecution: () => {
           const state = get();
           if (state.isDebuggerConnected && state.debuggerClient) {
-            set({ debugState: DebugState.RUNNING });
             console.log("Execution started/resumed");
+            set({ debugState: DebugState.RUNNING });
             // 通过 WebSocket 客户端发送开始命令
             state.debuggerClient.send({ type: 'start' });
           }
@@ -600,8 +600,8 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         pauseExecution: () => {
           const state = get();
           if (state.isDebuggerConnected && state.debuggerClient) {
-            set({ debugState: DebugState.PAUSED });
             console.log("Execution paused");
+            set({ debugState: DebugState.PAUSED });
             // 通过 WebSocket 客户端发送暂停命令
             state.debuggerClient.send({ type: 'pause' });
           }
@@ -610,11 +610,11 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         stopExecution: () => {
           const state = get();
           if (state.isDebuggerConnected && state.debuggerClient) {
+            console.log("Execution stopped");
             set({ 
               debugState: DebugState.STOPPED,
               currentExecutingNode: null,
             });
-            console.log("Execution stopped");
             // 通过 WebSocket 客户端发送停止命令
             state.debuggerClient.send({ type: 'stop' });
           }
@@ -623,15 +623,10 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         stepExecution: () => {
           const state = get();
           if (state.isDebuggerConnected && state.debuggerClient) {
-            set({ debugState: DebugState.STEPPING });
             console.log("Execution stepped");
+            set({ debugState: DebugState.STEPPING });
             // 通过 WebSocket 客户端发送步进命令
             state.debuggerClient.send({ type: 'step' });
-            
-            // 模拟步进后自动暂停 (实际应用中可能由后端控制)
-            setTimeout(() => {
-              set({ debugState: DebugState.PAUSED });
-            }, 500);
           }
         },
         

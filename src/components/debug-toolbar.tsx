@@ -2,12 +2,10 @@ import React from 'react';
 import { Button } from "@/components/ui/button";
 import { 
   Plug, 
-  Power, 
   Play, 
   Pause, 
   StepForward, 
   Square, 
-  Zap,
   CheckCircle,
   XCircle,
   AlertCircle
@@ -35,22 +33,22 @@ export function DebugToolbar() {
 
   const handleStart = () => {
     // 发送开始命令
-    actions.sendDebuggerCommand('start');
+    actions.startExecution();
   };
 
   const handlePause = () => {
     // 发送暂停命令
-    actions.sendDebuggerCommand('pause');
+    actions.pauseExecution();
   };
 
   const handleStep = () => {
     // 发送步进命令
-    actions.sendDebuggerCommand('step');
+    actions.stepExecution();
   };
 
   const handleStop = () => {
     // 发送停止命令
-    actions.sendDebuggerCommand('stop');
+    actions.stopExecution();
   };
 
   // 确定连接按钮的状态和图标
@@ -71,6 +69,12 @@ export function DebugToolbar() {
   const isExecutionControlDisabled = !isDebuggerConnected || 
     debugState === DebugState.CONNECTING || 
     debugState === DebugState.DISCONNECTED;
+    
+  // 确定各个执行控制按钮的禁用状态
+  const isStartDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
+  const isPauseDisabled = isExecutionControlDisabled || debugState !== DebugState.RUNNING;
+  const isStepDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
+  const isStopDisabled = isExecutionControlDisabled || debugState === DebugState.STOPPED || debugState === DebugState.DISCONNECTED;
 
   return (
     <div className="flex items-center gap-2">
@@ -120,7 +124,7 @@ export function DebugToolbar() {
           size="sm" 
           variant="outline" 
           onClick={handleStart}
-          disabled={isExecutionControlDisabled || debugState === DebugState.RUNNING}
+          disabled={isStartDisabled}
           title="开始/继续执行"
         >
           <Play className="h-4 w-4" />
@@ -129,7 +133,7 @@ export function DebugToolbar() {
           size="sm" 
           variant="outline" 
           onClick={handlePause}
-          disabled={isExecutionControlDisabled || debugState !== DebugState.RUNNING}
+          disabled={isPauseDisabled}
           title="暂停执行"
         >
           <Pause className="h-4 w-4" />
@@ -138,7 +142,7 @@ export function DebugToolbar() {
           size="sm" 
           variant="outline" 
           onClick={handleStep}
-          disabled={isExecutionControlDisabled || debugState === DebugState.RUNNING}
+          disabled={isStepDisabled}
           title="单步执行"
         >
           <StepForward className="h-4 w-4" />
@@ -147,7 +151,7 @@ export function DebugToolbar() {
           size="sm" 
           variant="outline" 
           onClick={handleStop}
-          disabled={isExecutionControlDisabled || debugState === DebugState.STOPPED}
+          disabled={isStopDisabled}
           title="停止执行"
         >
           <Square className="h-4 w-4" />

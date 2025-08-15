@@ -17,11 +17,12 @@ export class MockWebSocketClient {
   private onMessageCallback: OnMessageCallback | null = null;
   private onOpenCallback: OnOpenCallback | null = null;
   private onCloseCallback: OnCloseCallback | null = null;
-  private OnErrorCallback: OnErrorCallback | null = null;
+  private onErrorCallback: OnErrorCallback | null = null;
   private isConnected: boolean = false;
   private mockIntervalId: NodeJS.Timeout | null = null;
   private executionState: 'stopped' | 'running' | 'paused' = 'stopped'; // 新增：模拟执行状态
   private currentNodes: string[] = ['root']; // 新增：存储当前节点ID列表，默认包含root
+  private executionCounter: number = 0; // 用于跟踪执行步骤
 
   constructor(url: string) {
     this.url = url;
@@ -46,7 +47,7 @@ export class MockWebSocketClient {
   }
 
   onError(callback: OnErrorCallback) {
-    this.OnErrorCallback = callback;
+    this.onErrorCallback = callback;
   }
 
   // 连接到调试器 (模拟)
@@ -57,6 +58,7 @@ export class MockWebSocketClient {
     setTimeout(() => {
       this.isConnected = true;
       this.executionState = 'stopped'; // 连接后重置状态
+      this.executionCounter = 0;
       if (this.onOpenCallback) {
         this.onOpenCallback();
       }
@@ -71,6 +73,7 @@ export class MockWebSocketClient {
     console.log(`[MockWebSocketClient] Disconnecting from ${this.url}`);
     this.isConnected = false;
     this.executionState = 'stopped';
+    this.executionCounter = 0;
     
     if (this.mockIntervalId) {
       clearInterval(this.mockIntervalId);
@@ -95,19 +98,30 @@ export class MockWebSocketClient {
     if (message.type === 'start') {
       this.executionState = 'running';
       console.log('[MockWebSocketClient] Execution started');
-      // 可以在这里发送一个状态更新消息来反映状态变化
+      // 发送状态更新消息来反映状态变化
+      this.sendStatusUpdate('running');
     } else if (message.type === 'pause') {
       this.executionState = 'paused';
       console.log('[MockWebSocketClient] Execution paused');
+      // 发送状态更新消息来反映状态变化
+      this.sendStatusUpdate('paused');
     } else if (message.type === 'stop') {
       this.executionState = 'stopped';
       console.log('[MockWebSocketClient] Execution stopped');
-      // 可以在这里发送一个状态更新消息来反映状态变化
+      // 发送状态更新消息来反映状态变化
+      this.sendStatusUpdate('stopped');
+      // 清除所有节点状态
+      this.clearAllNodeStatuses();
     } else if (message.type === 'step') {
-      this.executionState = 'paused'; // Step 通常执行一步然后暂停
+      this.executionState = 'running'; // Step 开始时设置为运行
       console.log('[MockWebSocketClient] Execution stepped');
       // 模拟单步执行的效果
       this.sendMockStepEvent();
+      // 步进后自动暂停
+      setTimeout(() => {
+        this.executionState = 'paused';
+        this.sendStatusUpdate('paused');
+      }, 300);
     }
     
     // 模拟处理发送的消息，例如 ack
@@ -125,21 +139,84 @@ export class MockWebSocketClient {
     }
   }
 
-  // 模拟单步执行事件
-  private sendMockStepEvent() {
-    // 这里可以发送一个模拟的执行事件或状态更新
-    // 为了简单起见，我们发送一个通用的成功事件
+  // 发送状态更新消息
+  private sendStatusUpdate(status: string) {
     if (this.onMessageCallback) {
-        this.onMessageCallback({
-          type: 'execution_event',
+      this.onMessageCallback({
+        type: 'status_update',
+        payload: {
+          nodeId: 'root',
+          status: status,
+          timestamp: Date.now()
+        }
+      });
+    }
+  }
+
+  // 清除所有节点状态
+  private clearAllNodeStatuses() {
+    if (this.onMessageCallback && this.currentNodes.length > 0) {
+      this.currentNodes.forEach(nodeId => {
+        this.onMessageCallback!({
+          type: 'status_update',
           payload: {
-            nodeId: 'root', // 或者随机选择一个节点
-            type: 'tick',
-            status: 'success',
+            nodeId: nodeId,
+            status: 'idle',
             timestamp: Date.now()
           }
         });
+      });
+    }
+  }
+
+  // 模拟单步执行事件
+  private sendMockStepEvent() {
+    // 发送一个模拟的执行事件或状态更新
+    if (this.onMessageCallback && this.currentNodes.length > 0) {
+      // 随机选择一个节点
+      const nodeId = this.currentNodes[Math.floor(Math.random() * this.currentNodes.length)];
+      
+      // 更符合实际行为树执行的节点状态概率分布
+      const statusProbabilities = [
+        { status: 'running', probability: 0.7 },
+        { status: 'success', probability: 0.2 },
+        { status: 'failure', probability: 0.1 }
+      ];
+      
+      // 根据概率分布选择状态
+      const rand = Math.random();
+      let cumulativeProbability = 0;
+      let selectedStatus = 'running'; // 默认状态
+      
+      for (const { status, probability } of statusProbabilities) {
+        cumulativeProbability += probability;
+        if (rand <= cumulativeProbability) {
+          selectedStatus = status;
+          break;
+        }
       }
+      
+      // 发送节点状态更新
+      this.onMessageCallback({
+        type: 'status_update',
+        payload: {
+          nodeId: nodeId,
+          status: selectedStatus,
+          timestamp: Date.now()
+        }
+      });
+      
+      // 发送执行事件
+      this.onMessageCallback({
+        type: 'execution_event',
+        payload: {
+          nodeId: nodeId,
+          type: 'tick',
+          status: selectedStatus,
+          timestamp: Date.now()
+        }
+      });
+    }
   }
 
   // 启动模拟消息流
@@ -148,10 +225,16 @@ export class MockWebSocketClient {
       clearInterval(this.mockIntervalId);
     }
     
-    let counter = 0;
-    const mockStatuses = ['idle', 'running', 'success', 'failure'];
-    const mockBlackboardKeys = ['health', 'target', 'ammo', 'state'];
-    const mockBlackboardValues = [100, 'enemy1', 30, 'patrolling', true, false];
+    // 更符合实际行为树执行的节点状态概率分布
+    const statusProbabilities = [
+      { status: 'running', probability: 0.7 },
+      { status: 'success', probability: 0.2 },
+      { status: 'failure', probability: 0.1 }
+    ];
+    
+    const mockBlackboardKeys = ['health', 'target', 'ammo', 'state', 'position', 'energy'];
+    const mockBlackboardValues = [100, 'enemy1', 30, 'patrolling', true, false, 
+                                {x: 10, y: 20}, 'idle', 'moving', 'attacking'];
     
     this.mockIntervalId = setInterval(() => {
       if (!this.isConnected) return;
@@ -159,28 +242,40 @@ export class MockWebSocketClient {
       // 只有在运行状态下才发送模拟消息
       if (this.executionState !== 'running') return;
       
-      counter++;
+      this.executionCounter++;
       
       // 每隔几秒发送不同类型的消息
-      if (counter % 5 === 1) {
+      if (this.executionCounter % 5 === 1) {
         // 发送节点状态更新
         // 从当前节点列表中随机选择一个
         if (this.currentNodes.length > 0) {
           const nodeId = this.currentNodes[Math.floor(Math.random() * this.currentNodes.length)];
-          const status = mockStatuses[Math.floor(Math.random() * mockStatuses.length)];
+          
+          // 根据概率分布选择状态
+          const rand = Math.random();
+          let cumulativeProbability = 0;
+          let selectedStatus = 'running'; // 默认状态
+          
+          for (const { status, probability } of statusProbabilities) {
+            cumulativeProbability += probability;
+            if (rand <= cumulativeProbability) {
+              selectedStatus = status;
+              break;
+            }
+          }
           
           if (this.onMessageCallback) {
             this.onMessageCallback({
               type: 'status_update',
               payload: {
                 nodeId,
-                status,
+                status: selectedStatus,
                 timestamp: Date.now()
               }
             });
           }
         }
-      } else if (counter % 5 === 2) {
+      } else if (this.executionCounter % 5 === 2) {
         // 发送黑板更新
         const key = mockBlackboardKeys[Math.floor(Math.random() * mockBlackboardKeys.length)];
         const value = mockBlackboardValues[Math.floor(Math.random() * mockBlackboardValues.length)];
@@ -197,13 +292,25 @@ export class MockWebSocketClient {
             }
           });
         }
-      } else if (counter % 5 === 3) {
+      } else if (this.executionCounter % 5 === 3) {
         // 发送执行事件
         if (this.currentNodes.length > 0) {
           const nodeId = this.currentNodes[Math.floor(Math.random() * this.currentNodes.length)];
           const eventTypes = ['enter', 'exit', 'tick'];
           const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
-          const status = mockStatuses[Math.floor(Math.random() * mockStatuses.length)];
+          
+          // 根据概率分布选择状态
+          const rand = Math.random();
+          let cumulativeProbability = 0;
+          let selectedStatus = 'running'; // 默认状态
+          
+          for (const { status, probability } of statusProbabilities) {
+            cumulativeProbability += probability;
+            if (rand <= cumulativeProbability) {
+              selectedStatus = status;
+              break;
+            }
+          }
           
           if (this.onMessageCallback) {
             this.onMessageCallback({
@@ -211,7 +318,7 @@ export class MockWebSocketClient {
               payload: {
                 nodeId,
                 type: eventType,
-                status,
+                status: selectedStatus,
                 timestamp: Date.now()
               }
             });
@@ -220,6 +327,6 @@ export class MockWebSocketClient {
       }
       // 其他情况不发送消息，模拟真实世界的不规律性
       
-    }, 2000); // 每2秒尝试发送一次消息
+    }, 1000); // 每1秒尝试发送一次消息，使模拟更流畅
   }
 }
