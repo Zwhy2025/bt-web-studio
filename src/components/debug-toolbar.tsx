@@ -1,0 +1,166 @@
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { 
+  Plug, 
+  Power, 
+  Play, 
+  Pause, 
+  StepForward, 
+  Square, 
+  Zap,
+  CheckCircle,
+  XCircle,
+  AlertCircle
+} from 'lucide-react';
+import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
+import { DebugState } from '@/store/behavior-tree-store';
+
+export function DebugToolbar() {
+  const { 
+    debugState, 
+    isDebuggerConnected, 
+    debuggerConnectionError,
+    actions 
+  } = useBehaviorTreeStore();
+
+  const handleConnect = () => {
+    // 这里应该弹出一个对话框让用户输入 WebSocket URL
+    // 现在我们使用一个默认的 mock URL
+    actions.connectToDebugger('ws://localhost:8080'); // Mock URL
+  };
+
+  const handleDisconnect = () => {
+    actions.disconnectFromDebugger();
+  };
+
+  const handleStart = () => {
+    // 发送开始命令
+    actions.sendDebuggerCommand('start');
+  };
+
+  const handlePause = () => {
+    // 发送暂停命令
+    actions.sendDebuggerCommand('pause');
+  };
+
+  const handleStep = () => {
+    // 发送步进命令
+    actions.sendDebuggerCommand('step');
+  };
+
+  const handleStop = () => {
+    // 发送停止命令
+    actions.sendDebuggerCommand('stop');
+  };
+
+  // 确定连接按钮的状态和图标
+  let connectButtonVariant: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive" = "outline";
+  let connectButtonIcon = <Plug className="h-4 w-4" />;
+  let connectButtonText = "连接调试器";
+  
+  if (debugState === DebugState.CONNECTING) {
+    connectButtonVariant = "secondary";
+    connectButtonText = "连接中...";
+  } else if (isDebuggerConnected) {
+    connectButtonVariant = "default";
+    connectButtonIcon = <CheckCircle className="h-4 w-4" />;
+    connectButtonText = "已连接";
+  }
+
+  // 确定执行控制按钮是否禁用
+  const isExecutionControlDisabled = !isDebuggerConnected || 
+    debugState === DebugState.CONNECTING || 
+    debugState === DebugState.DISCONNECTED;
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* 连接状态指示器和控制按钮 */}
+      <div className="flex items-center gap-1">
+        {/* 状态指示灯 */}
+        {debugState === DebugState.CONNECTING && (
+          <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" title="正在连接" />
+        )}
+        {isDebuggerConnected && debugState !== DebugState.CONNECTING && (
+          <div className="h-2 w-2 rounded-full bg-green-500" title="已连接" />
+        )}
+        {!isDebuggerConnected && debugState !== DebugState.CONNECTING && (
+          <div className="h-2 w-2 rounded-full bg-gray-500" title="未连接" />
+        )}
+        
+        {/* 连接/断开按钮 */}
+        {isDebuggerConnected ? (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleDisconnect}
+            disabled={debugState === DebugState.CONNECTING}
+          >
+            <XCircle className="h-4 w-4 mr-1" />
+            断开
+          </Button>
+        ) : (
+          <Button 
+            size="sm" 
+            variant={connectButtonVariant} 
+            onClick={handleConnect}
+            disabled={debugState === DebugState.CONNECTING}
+          >
+            {connectButtonIcon}
+            <span className="ml-1">{connectButtonText}</span>
+          </Button>
+        )}
+      </div>
+
+      {/* 分隔符 */}
+      <div className="h-5 w-px bg-muted" />
+
+      {/* 执行控制按钮 */}
+      <div className="flex items-center gap-1">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handleStart}
+          disabled={isExecutionControlDisabled || debugState === DebugState.RUNNING}
+          title="开始/继续执行"
+        >
+          <Play className="h-4 w-4" />
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handlePause}
+          disabled={isExecutionControlDisabled || debugState !== DebugState.RUNNING}
+          title="暂停执行"
+        >
+          <Pause className="h-4 w-4" />
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handleStep}
+          disabled={isExecutionControlDisabled || debugState === DebugState.RUNNING}
+          title="单步执行"
+        >
+          <StepForward className="h-4 w-4" />
+        </Button>
+        <Button 
+          size="sm" 
+          variant="outline" 
+          onClick={handleStop}
+          disabled={isExecutionControlDisabled || debugState === DebugState.STOPPED}
+          title="停止执行"
+        >
+          <Square className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* 错误信息显示 */}
+      {debuggerConnectionError && (
+        <div className="flex items-center text-destructive text-xs">
+          <AlertCircle className="h-4 w-4 mr-1" />
+          <span>{debuggerConnectionError}</span>
+        </div>
+      )}
+    </div>
+  );
+}

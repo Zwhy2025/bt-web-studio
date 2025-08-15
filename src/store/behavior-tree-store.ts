@@ -1,6 +1,9 @@
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { Node, Edge } from 'reactflow'
+// 注释掉之前的 mock-debugger-client 导入
+// import { startMockDebugSession, stopMockDebugSession } from '@/lib/mock-debugger-client' 
+import { MockWebSocketClient, DebuggerMessage } from '@/lib/mock-websocket-client' // 新增导入
 
 // 节点状态枚举
 export enum NodeStatus {
@@ -42,6 +45,9 @@ export interface BehaviorTreeEdge extends Omit<Edge, 'data'> {
 
 // 调试状态
 export enum DebugState {
+  DISCONNECTED = 'disconnected', // 新增：未连接到调试器
+  CONNECTING = 'connecting',     // 新增：正在连接到调试器
+  CONNECTED = 'connected',       // 新增：已连接到调试器
   STOPPED = 'stopped',
   RUNNING = 'running',
   PAUSED = 'paused',
@@ -90,6 +96,8 @@ interface BehaviorTreeState {
   
   // 调试状态
   debugState: DebugState
+  isDebuggerConnected: boolean // 新增：调试器是否已连接
+  debuggerConnectionError: string | null // 新增：调试器连接错误信息
   breakpoints: Set<string>
   currentExecutingNode: string | null
   executionEvents: ExecutionEvent[]
@@ -105,6 +113,9 @@ interface BehaviorTreeState {
   showGrid: boolean
   snapToGrid: boolean
   panelSizes: Record<string, number>
+  
+  // 新增：WebSocket 客户端实例
+  debuggerClient: MockWebSocketClient | null
   
   // 操作方法
   actions: {
@@ -205,7 +216,9 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
       blackboard: {},
       blackboardHistory: {},
       
-      debugState: DebugState.STOPPED,
+      debugState: DebugState.DISCONNECTED, // 初始状态为未连接
+      isDebuggerConnected: false,
+      debuggerConnectionError: null,
       breakpoints: new Set(),
       currentExecutingNode: null,
       executionEvents: [],
@@ -223,6 +236,8 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         rightPanel: 18,
         bottomPanel: 200,
       },
+      
+      debuggerClient: null, // 初始化为 null
       
       actions: {
         // 会话管理
@@ -263,7 +278,8 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             }
             
             // 切换到新会话
-            set({
+            // 通知 MockWebSocketClient 更新节点列表
+            const newState: Partial<BehaviorTreeState> = {
               currentSession: session,
               activeSessionId: sessionId,
               nodes: session.nodes,
@@ -271,7 +287,14 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
               blackboard: session.blackboard,
               selectedNodeIds: [],
               selectedEdgeIds: [],
-            })
+            };
+            
+            // 如果已连接，更新调试器客户端的节点列表
+            if (state.isDebuggerConnected && state.debuggerClient) {
+              state.debuggerClient.setNodes(session.nodes.map(n => n.id));
+            }
+            
+            set(newState);
           }
         },
         
@@ -360,24 +383,48 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
           }))
         },
         
+        // --- 断点管理 ---
         toggleBreakpoint: (nodeId: string) => {
           set(state => {
             const newBreakpoints = new Set(state.breakpoints)
-            if (newBreakpoints.has(nodeId)) {
+            const wasBreakpointSet = newBreakpoints.has(nodeId);
+            
+            if (wasBreakpointSet) {
               newBreakpoints.delete(nodeId)
             } else {
               newBreakpoints.add(nodeId)
+            }
+            
+            // 如果已连接到调试器，发送消息
+            if (state.isDebuggerConnected && state.debuggerClient) {
+              const command = wasBreakpointSet ? 'clear_breakpoint' : 'set_breakpoint';
+              state.debuggerClient.send({ 
+                type: command, 
+                payload: { nodeId } 
+              });
             }
             
             return {
               breakpoints: newBreakpoints,
               nodes: state.nodes.map(n => 
                 n.id === nodeId 
-                  ? { ...n, data: { ...n.data, breakpoint: newBreakpoints.has(nodeId) } }
+                  ? { ...n, data: { ...n.data, breakpoint: !wasBreakpointSet } }
                   : n
               ),
             }
           })
+        },
+
+        // --- 发送调试命令 ---
+        sendDebuggerCommand: (command: string, payload?: any) => {
+          const state = get();
+          if (state.isDebuggerConnected && state.debuggerClient) {
+            console.log("Sending command to debugger:", command, payload);
+            // 通过 WebSocket 客户端发送命令
+            state.debuggerClient.send({ type: command, payload });
+          } else {
+            console.warn("Cannot send command, debugger not connected");
+          }
         },
         
         // 边操作
@@ -449,27 +496,151 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         },
         
         // 调试操作
+        // --- 连接管理 ---
+        connectToDebugger: (url: string) => {
+          console.log("Connecting to debugger at", url);
+          set({ 
+            debugState: DebugState.CONNECTING, 
+            debuggerConnectionError: null 
+          });
+          
+          // 创建 Mock WebSocket 客户端实例
+          const client = new MockWebSocketClient(url);
+          
+          // 设置回调函数
+          client.onOpen(() => {
+            console.log("Connected to debugger");
+            set({ 
+              debugState: DebugState.CONNECTED, 
+              isDebuggerConnected: true,
+              debuggerConnectionError: null,
+              debuggerClient: client // 保存客户端实例
+            });
+          });
+          
+          client.onClose(() => {
+            console.log("Disconnected from debugger");
+            set({ 
+              debugState: DebugState.DISCONNECTED, 
+              isDebuggerConnected: false,
+              debuggerConnectionError: null,
+              debuggerClient: null // 清除客户端实例
+            });
+          });
+          
+          client.onError((error: string) => {
+            console.error("Debugger connection error:", error);
+            set({ 
+              debugState: DebugState.DISCONNECTED, 
+              isDebuggerConnected: false,
+              debuggerConnectionError: error,
+              debuggerClient: null // 清除客户端实例
+            });
+          });
+          
+          // 处理接收到的消息
+          client.onMessage((message: DebuggerMessage) => {
+            console.log("Received message from debugger:", message);
+            const { type, payload } = message;
+            
+            switch (type) {
+              case 'status_update':
+                // 更新节点状态
+                get().actions.setNodeStatus(payload.nodeId, payload.status);
+                break;
+                
+              case 'blackboard_update':
+                // 更新黑板
+                get().actions.setBlackboardValue(payload.key, payload.value, payload.type);
+                break;
+                
+              case 'execution_event':
+                // 添加执行事件
+                get().actions.addExecutionEvent({
+                  nodeId: payload.nodeId,
+                  type: payload.type,
+                  status: payload.status,
+                  // blackboardSnapshot 可以从 payload 中获取，如果有的话
+                });
+                break;
+                
+              case 'ack':
+                // 处理确认消息，例如设置断点的确认
+                console.log("Received ACK:", payload);
+                break;
+                
+              default:
+                console.warn("Unknown message type:", type);
+            }
+          });
+          
+          // 启动连接
+          client.connect();
+        },
+
+        disconnectFromDebugger: () => {
+          console.log("Disconnecting from debugger");
+          const state = get();
+          if (state.debuggerClient) {
+            state.debuggerClient.disconnect();
+          }
+          // 状态更新在 onClose 回调中处理
+        },
+
         startExecution: () => {
-          set({ debugState: DebugState.RUNNING })
+          const state = get();
+          if (state.isDebuggerConnected && state.debuggerClient) {
+            set({ debugState: DebugState.RUNNING });
+            console.log("Execution started/resumed");
+            // 通过 WebSocket 客户端发送开始命令
+            state.debuggerClient.send({ type: 'start' });
+          }
         },
         
         pauseExecution: () => {
-          set({ debugState: DebugState.PAUSED })
+          const state = get();
+          if (state.isDebuggerConnected && state.debuggerClient) {
+            set({ debugState: DebugState.PAUSED });
+            console.log("Execution paused");
+            // 通过 WebSocket 客户端发送暂停命令
+            state.debuggerClient.send({ type: 'pause' });
+          }
         },
         
         stopExecution: () => {
-          set({ 
-            debugState: DebugState.STOPPED,
-            currentExecutingNode: null,
-          })
+          const state = get();
+          if (state.isDebuggerConnected && state.debuggerClient) {
+            set({ 
+              debugState: DebugState.STOPPED,
+              currentExecutingNode: null,
+            });
+            console.log("Execution stopped");
+            // 通过 WebSocket 客户端发送停止命令
+            state.debuggerClient.send({ type: 'stop' });
+          }
         },
         
         stepExecution: () => {
-          set({ debugState: DebugState.STEPPING })
+          const state = get();
+          if (state.isDebuggerConnected && state.debuggerClient) {
+            set({ debugState: DebugState.STEPPING });
+            console.log("Execution stepped");
+            // 通过 WebSocket 客户端发送步进命令
+            state.debuggerClient.send({ type: 'step' });
+            
+            // 模拟步进后自动暂停 (实际应用中可能由后端控制)
+            setTimeout(() => {
+              set({ debugState: DebugState.PAUSED });
+            }, 500);
+          }
         },
         
         setExecutionSpeed: (speed: number) => {
-          set({ executionSpeed: Math.max(0.1, Math.min(5.0, speed)) })
+          if (get().isDebuggerConnected) {
+            const newSpeed = Math.max(0.1, Math.min(5.0, speed));
+            set({ executionSpeed: newSpeed });
+            console.log("Mock: Execution speed set to", newSpeed);
+          }
         },
         
         // 事件记录
@@ -531,6 +702,10 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
               return { nodes, edges };
             }
             const modifiedAt = Date.now();
+            // 通知 MockWebSocketClient 更新节点列表
+            if (state.debuggerClient) {
+              state.debuggerClient.setNodes(nodes.map(n => n.id));
+            }
             return {
               nodes,
               edges,
@@ -588,6 +763,8 @@ export const useNodes = () => useBehaviorTreeStore(state => state.nodes)
 export const useEdges = () => useBehaviorTreeStore(state => state.edges)
 export const useBlackboard = () => useBehaviorTreeStore(state => state.blackboard)
 export const useDebugState = () => useBehaviorTreeStore(state => state.debugState)
+export const useIsDebuggerConnected = () => useBehaviorTreeStore(state => state.isDebuggerConnected)
+export const useDebuggerConnectionError = () => useBehaviorTreeStore(state => state.debuggerConnectionError)
 export const useExecutionEvents = () => useBehaviorTreeStore(state => state.executionEvents)
 export const useSelectedNodes = () => useBehaviorTreeStore(state => state.selectedNodeIds)
 export const useSelectedEdges = () => useBehaviorTreeStore(state => state.selectedEdgeIds)
