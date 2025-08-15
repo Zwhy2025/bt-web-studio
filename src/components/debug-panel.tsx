@@ -99,7 +99,7 @@ export function DebugPanel() {
                   <select 
                     className="border rounded-md px-2 text-sm"
                     value={newType}
-                    onChange={(e) => setNewType(e.target.value as any)}
+                    onChange={(e) => setNewType(e.target.value as 'string' | 'number' | 'boolean' | 'object')}
                   >
                     <option value="string">String</option>
                     <option value="number">Number</option>

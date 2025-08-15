@@ -1060,13 +1060,21 @@ function CanvasInner({
                     }}
                   >
                     <div className="mr-2 h-4 w-4 flex items-center justify-center">
-                      {nodes.find(n => n.id === selectedNodeIds[0])?.data?.breakpoint ? (
-                        <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                      ) : (
-                        <div className="h-3 w-3 rounded-full border border-muted-foreground"></div>
-                      )}
+                      {(() => {
+                        const node = nodes.find(n => n.id === selectedNodeIds[0]);
+                        const hasBreakpoint = node?.data?.breakpoint;
+                        return hasBreakpoint ? (
+                          <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                        ) : (
+                          <div className="h-3 w-3 rounded-full border border-muted-foreground"></div>
+                        );
+                      })()}
                     </div>
-                    {nodes.find(n => n.id === selectedNodeIds[0])?.data?.breakpoint ? '清除断点' : '设置断点'}
+                    {(() => {
+                      const node = nodes.find(n => n.id === selectedNodeIds[0]);
+                      const hasBreakpoint = node?.data?.breakpoint;
+                      return hasBreakpoint ? '清除断点' : '设置断点';
+                    })()}
                   </ContextMenuItem>
                 )}
                 <ContextMenuSeparator />

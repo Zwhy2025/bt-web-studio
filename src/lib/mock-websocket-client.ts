@@ -155,9 +155,10 @@ export class MockWebSocketClient {
 
   // 清除所有节点状态
   private clearAllNodeStatuses() {
-    if (this.onMessageCallback && this.currentNodes.length > 0) {
+    const callback = this.onMessageCallback;
+    if (callback && this.currentNodes.length > 0) {
       this.currentNodes.forEach(nodeId => {
-        this.onMessageCallback!({
+        callback({
           type: 'status_update',
           payload: {
             nodeId: nodeId,
