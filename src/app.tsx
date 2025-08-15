@@ -1162,8 +1162,11 @@ function BtCanvas({
     onNodesExport?: (nodes: Node[]) => void;
     onEdgesExport?: (edges: Edge[]) => void;
 }) {
+    // 获取当前会话ID作为key，强制重新渲染
+    const currentSessionId = useBehaviorTreeStore(state => state.currentSession?.id)
+    
     return (
-        <ReactFlowProvider>
+        <ReactFlowProvider key={currentSessionId}>
             <CanvasInner 
                 importedNodes={importedNodes}
                 importedEdges={importedEdges}
