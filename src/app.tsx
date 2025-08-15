@@ -38,15 +38,6 @@ import {
     Copy,
     ClipboardPaste,
     Trash2,
-    AlignLeft,
-    AlignRight,
-    AlignCenter,
-    AlignVerticalJustifyCenter,
-    AlignHorizontalJustifyCenter,
-    AlignVerticalJustifyStart,
-    AlignVerticalJustifyEnd,
-    Grid3X3,
-    HelpCircle,
     Info,
 } from "lucide-react"
 
@@ -87,13 +78,8 @@ import {
     TooltipTrigger,
     TooltipContent,
 } from "@/components/ui/tooltip"
-import { 
-    calculateAlignmentGuides, 
-    alignNodes, 
-    AlignmentGuide,
-    SNAP_THRESHOLD 
-} from "@/lib/alignment-utils"
-import { AlignmentGuides } from "@/components/canvas/alignment-guides"
+import { HistoryManager, HistoryState } from "@/lib/history-utils"
+import { autoLayoutTree, scatterNodes } from "@/lib/auto-layout-utils"
 
 // ---------- Left Palette ----------
 function LeftPalette() {
@@ -240,8 +226,6 @@ function TopBar({ onImportClick, onExportClick }: {
                         <MenubarContent>
                             <MenubarItem>撤销</MenubarItem>
                             <MenubarItem>重做</MenubarItem>
-                            <MenubarSeparator />
-                            <MenubarItem>对齐到网格</MenubarItem>
                         </MenubarContent>
                     </MenubarMenu>
                     <MenubarMenu>
@@ -271,35 +255,6 @@ function TopBar({ onImportClick, onExportClick }: {
                     <div className="relative w-64 max-w-[40vw]">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input className="pl-8" placeholder="搜索节点、模板或命令..." aria-label="全局搜索" />
-                    </div>
-                    <div className="flex items-center gap-1 mr-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                        <AlignLeft className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>左对齐</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                        <AlignCenter className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>水平居中</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                        <AlignRight className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>右对齐</TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
-                        <Separator orientation="vertical" className="h-6 mx-1" />
                     </div>
                     <Button variant="outline" size="sm" onClick={onImportClick}>
                         <Import className="mr-2 h-4 w-4" />
@@ -398,12 +353,88 @@ function CanvasInner({
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
     const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
     
-    // 对齐吸附状态
-    const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([])
-    const [isDragging, setIsDragging] = useState(false)
-    const [snapToGridEnabled, setSnapToGridEnabled] = useState(true)
+    
+    // 历史记录管理
+    const historyManagerRef = useRef<HistoryManager | null>(null)
+    const [canUndo, setCanUndo] = useState(false)
+    const [canRedo, setCanRedo] = useState(false)
+    
+    // 初始化历史记录管理器 - 当导入新图时重新初始化
+    useEffect(() => {
+        historyManagerRef.current = new HistoryManager({ 
+            nodes: importedNodes || initialNodes, 
+            edges: importedEdges || initialEdges 
+        })
+        setCanUndo(false) // 新的历史记录，不能撤销
+        setCanRedo(false) // 也不能重做
+    }, [importedNodes, importedEdges])
+    
+    // 保存状态到历史记录
+    const saveToHistory = useCallback(() => {
+        if (historyManagerRef.current) {
+            historyManagerRef.current.push({ nodes, edges })
+            setCanUndo(historyManagerRef.current.canUndo())
+            setCanRedo(historyManagerRef.current.canRedo())
+        }
+    }, [nodes, edges])
 
     const findNode = (id: string) => nodes.find((n) => n.id === id)
+    
+    // 撤销功能
+    const handleUndo = useCallback(() => {
+        if (historyManagerRef.current && historyManagerRef.current.canUndo()) {
+            const previousState = historyManagerRef.current.undo()
+            if (previousState) {
+                setNodes(previousState.nodes)
+                setEdges(previousState.edges)
+                setCanUndo(historyManagerRef.current.canUndo())
+                setCanRedo(historyManagerRef.current.canRedo())
+                toast({
+                    title: "撤销成功",
+                    description: "已恢复到上一个状态",
+                })
+            }
+        }
+    }, [setNodes, setEdges, toast])
+    
+    // 重做功能
+    const handleRedo = useCallback(() => {
+        if (historyManagerRef.current && historyManagerRef.current.canRedo()) {
+            const nextState = historyManagerRef.current.redo()
+            if (nextState) {
+                setNodes(nextState.nodes)
+                setEdges(nextState.edges)
+                setCanUndo(historyManagerRef.current.canUndo())
+                setCanRedo(historyManagerRef.current.canRedo())
+                toast({
+                    title: "重做成功",
+                    description: "已前进到下一个状态",
+                })
+            }
+        }
+    }, [setNodes, setEdges, toast])
+    
+    // 自动布局功能
+    const handleAutoLayout = useCallback(() => {
+        const layoutedNodes = autoLayoutTree(nodes, edges)
+        setNodes(layoutedNodes)
+        saveToHistory()
+        toast({
+            title: "自动布局完成",
+            description: "已将节点排列成清晰的树形结构",
+        })
+    }, [nodes, edges, setNodes, saveToHistory, toast])
+    
+    // 散乱分布功能
+    const handleScatterNodes = useCallback(() => {
+        const scatteredNodes = scatterNodes(nodes)
+        setNodes(scatteredNodes)
+        saveToHistory()
+        toast({
+            title: "散乱分布完成",
+            description: "已将节点随机分布到画布上",
+        })
+    }, [nodes, setNodes, saveToHistory, toast])
 
     function isDownwardConnection(conn: Connection): boolean {
         if (!conn.source || !conn.target) return false
@@ -438,80 +469,6 @@ function CanvasInner({
         return dfs(target)
     }
 
-    // 节点拖拽处理
-    const onNodeDragStart: NodeDragHandler = useCallback((event, node) => {
-        // 防止意外触发
-        if (event.type !== 'mousedown' && event.type !== 'touchstart') return
-        setIsDragging(true)
-        setAlignmentGuides([])
-    }, [])
-
-    const onNodeDrag: NodeDragHandler = useCallback((event, node) => {
-        if (!isDragging) return
-        
-        // 暂时禁用对齐参考线功能，避免误导用户
-        setAlignmentGuides([])
-        
-        // 只保留网格吸附功能
-        if (snapToGridEnabled) {
-            const gridSnap = {
-                x: Math.round(node.position.x / 20) * 20,
-                y: Math.round(node.position.y / 20) * 20
-            }
-            
-            const updatedNode = {
-                ...node,
-                position: gridSnap
-            }
-            
-            setNodes(nds => nds.map(n => n.id === node.id ? updatedNode : n))
-        }
-    }, [isDragging, snapToGridEnabled, setNodes])
-
-    const onNodeDragStop: NodeDragHandler = useCallback((event, node) => {
-        setIsDragging(false)
-        setAlignmentGuides([])
-        
-        // 确保清理任何残留的拖拽状态
-        setTimeout(() => {
-            setAlignmentGuides([])
-        }, 100)
-    }, [])
-
-    // 批量对齐功能
-    const handleAlignNodes = useCallback((alignType: 'left' | 'right' | 'center' | 'top' | 'bottom' | 'middle' | 'distribute-horizontal' | 'distribute-vertical') => {
-        const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id))
-        if (selectedNodes.length < 2) {
-            toast({
-                title: "对齐失败",
-                description: "请选择至少2个节点进行对齐",
-                variant: "destructive" as any,
-            })
-            return
-        }
-
-        const alignedNodes = alignNodes(selectedNodes, alignType)
-        setNodes(nds => nds.map(n => {
-            const aligned = alignedNodes.find(an => an.id === n.id)
-            return aligned || n
-        }))
-
-        const alignTypeNames = {
-            'left': '左对齐',
-            'right': '右对齐', 
-            'center': '水平居中',
-            'top': '顶部对齐',
-            'bottom': '底部对齐',
-            'middle': '垂直居中',
-            'distribute-horizontal': '水平分布',
-            'distribute-vertical': '垂直分布'
-        }
-
-        toast({
-            title: "对齐完成",
-            description: `已应用${alignTypeNames[alignType]}到${selectedNodes.length}个节点`,
-        })
-    }, [nodes, selectedNodeIds, setNodes, toast])
 
     const onConnect = useCallback(
         (params: Edge | Connection) => {
@@ -585,11 +542,12 @@ function CanvasInner({
         const removedEdgesCount = edges.length - nextEdges.length
         setNodes(nextNodes)
         setEdges(nextEdges)
+        saveToHistory()
         toast({
             title: "已删除",
             description: `节点 ${selectedNodeIds.length} 个，连线 ${removedEdgesCount} 条`,
         })
-    }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, toast])
+    }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, saveToHistory, toast])
 
     // 克隆所选（带位移与内部连线重映射）
     const cloneSelection = useCallback(() => {
@@ -622,11 +580,12 @@ function CanvasInner({
             }))
         setNodes([...nodes.map((n) => ({ ...n, selected: false })), ...clones])
         setEdges([...edges, ...newEdges])
+        saveToHistory()
         toast({
             title: "已克隆",
             description: `节点 ${clones.length} 个，连线 ${newEdges.length} 条`,
         })
-    }, [nodes, edges, selectedNodeIds, setNodes, setEdges, toast])
+    }, [nodes, edges, selectedNodeIds, setNodes, setEdges, saveToHistory, toast])
 
     // 全选功能
     const selectAllNodes = useCallback(() => {
@@ -638,7 +597,7 @@ function CanvasInner({
         })
     }, [nodes, setNodes, toast])
 
-    // 快捷键：Delete 删除、Ctrl/Cmd+D 克隆、Ctrl/Cmd+A 全选
+    // 快捷键：Delete 删除、Ctrl/Cmd+D 克隆、Ctrl/Cmd+A 全选、Ctrl/Cmd+Z 撤销、Ctrl/Cmd+Y 重做
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             const meta = e.ctrlKey || e.metaKey
@@ -652,6 +611,12 @@ function CanvasInner({
             } else if (meta && key === "a") {
                 e.preventDefault()
                 selectAllNodes()
+            } else if (meta && key === "z" && !e.shiftKey) {
+                e.preventDefault()
+                handleUndo()
+            } else if (meta && (key === "y" || (key === "z" && e.shiftKey))) {
+                e.preventDefault()
+                handleRedo()
             } else if (meta && key === "c") {
                 toast({ title: "复制（Mock）", description: "剪贴板功能稍后提供" })
             } else if (meta && key === "v") {
@@ -660,7 +625,7 @@ function CanvasInner({
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)
-    }, [deleteSelection, cloneSelection, selectAllNodes, toast])
+    }, [deleteSelection, cloneSelection, selectAllNodes, handleUndo, handleRedo, toast])
 
     return (
         <ContextMenu>
@@ -673,12 +638,8 @@ function CanvasInner({
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() =>
-                                            toast({
-                                                title: "撤销",
-                                                description: "已触发撤销（Mock）",
-                                            })
-                                        }
+                                        onClick={handleUndo}
+                                        disabled={!canUndo}
                                         aria-label="撤销"
                                     >
                                         <RotateCcw className="h-4 w-4" />
@@ -691,12 +652,8 @@ function CanvasInner({
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={() =>
-                                            toast({
-                                                title: "重做",
-                                                description: "已触发重做（Mock）",
-                                            })
-                                        }
+                                        onClick={handleRedo}
+                                        disabled={!canRedo}
                                         aria-label="重做"
                                     >
                                         <RotateCw className="h-4 w-4" />
@@ -714,9 +671,6 @@ function CanvasInner({
                         onConnect={onConnect}
                         onDrop={onDrop}
                         onDragOver={onDragOver}
-                        onNodeDragStart={onNodeDragStart}
-                        onNodeDrag={onNodeDrag}
-                        onNodeDragStop={onNodeDragStop}
                         onSelectionChange={(sel) => {
                             setSelectedNodeIds(sel.nodes.map((n) => n.id))
                             setSelectedEdgeIds(sel.edges.map((e) => e.id))
@@ -729,37 +683,25 @@ function CanvasInner({
                         }}
                         connectionLineType={ConnectionLineType.SmoothStep}
                         connectionLineStyle={{ strokeWidth: 2, stroke: "hsl(var(--muted-foreground))", strokeDasharray: 6 }}
-                        snapToGrid={snapToGridEnabled}
-                        snapGrid={[20, 20]}
                         fitView
                     >
                         <Background 
                             variant={BackgroundVariant.Dots} 
                             gap={20} 
                             size={1}
-                            color={snapToGridEnabled ? "hsl(var(--muted-foreground))" : "transparent"}
                         />
                         <MiniMap pannable zoomable />
                         <Controls showInteractive={false} />
-                        
-                        {/* 对齐参考线 */}
-                        {alignmentGuides.length > 0 && (
-                            <AlignmentGuides 
-                                guides={alignmentGuides}
-                                canvasWidth={1000}
-                                canvasHeight={800}
-                            />
-                        )}
                     </ReactFlow>
                 </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
                 <ContextMenuLabel>编辑</ContextMenuLabel>
-                <ContextMenuItem onSelect={() => toast({ title: "撤销", description: "已触发撤销（Mock）" })}>
+                <ContextMenuItem onSelect={handleUndo} disabled={!canUndo}>
                     撤销
                     <ContextMenuShortcut>Ctrl/Cmd+Z</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuItem onSelect={() => toast({ title: "重做", description: "已触发重做（Mock）" })}>
+                <ContextMenuItem onSelect={handleRedo} disabled={!canRedo}>
                     重做
                     <ContextMenuShortcut>Ctrl+Shift+Z</ContextMenuShortcut>
                 </ContextMenuItem>
@@ -792,67 +734,16 @@ function CanvasInner({
                     <ContextMenuShortcut>Del</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuLabel>对齐</ContextMenuLabel>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('left')}
-                    disabled={selectedNodeIds.length < 2}
-                >
-                    <AlignLeft className="mr-2 h-4 w-4" />
-                    左对齐
+                <ContextMenuLabel>布局</ContextMenuLabel>
+                <ContextMenuItem onSelect={handleAutoLayout}>
+                    <GitBranch className="mr-2 h-4 w-4" />
+                    自动布局为树形结构
                 </ContextMenuItem>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('center')}
-                    disabled={selectedNodeIds.length < 2}
-                >
-                    <AlignCenter className="mr-2 h-4 w-4" />
-                    水平居中
-                </ContextMenuItem>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('right')}
-                    disabled={selectedNodeIds.length < 2}
-                >
-                    <AlignRight className="mr-2 h-4 w-4" />
-                    右对齐
-                </ContextMenuItem>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('top')}
-                    disabled={selectedNodeIds.length < 2}
-                >
-                    <AlignVerticalJustifyStart className="mr-2 h-4 w-4" />
-                    顶部对齐
-                </ContextMenuItem>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('middle')}
-                    disabled={selectedNodeIds.length < 2}
-                >
-                    <AlignVerticalJustifyCenter className="mr-2 h-4 w-4" />
-                    垂直居中
-                </ContextMenuItem>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('bottom')}
-                    disabled={selectedNodeIds.length < 2}
-                >
-                    <AlignVerticalJustifyEnd className="mr-2 h-4 w-4" />
-                    底部对齐
+                <ContextMenuItem onSelect={handleScatterNodes}>
+                    <RefreshCcw className="mr-2 h-4 w-4" />
+                    散乱分布节点
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('distribute-horizontal')}
-                    disabled={selectedNodeIds.length < 3}
-                >
-                    水平分布
-                </ContextMenuItem>
-                <ContextMenuItem 
-                    onSelect={() => handleAlignNodes('distribute-vertical')}
-                    disabled={selectedNodeIds.length < 3}
-                >
-                    垂直分布
-                </ContextMenuItem>
-                <ContextMenuSeparator />
-                <ContextMenuItem onSelect={() => setSnapToGridEnabled(!snapToGridEnabled)}>
-                    <Grid3X3 className="mr-2 h-4 w-4" />
-                    {snapToGridEnabled ? '禁用' : '启用'}网格吸附
-                </ContextMenuItem>
                 <ContextMenuItem onSelect={() => toast({ title: "折叠子树（Mock）" })}>
                     折叠子树
                 </ContextMenuItem>
@@ -863,14 +754,6 @@ function CanvasInner({
                     添加断点
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem onSelect={() => toast({ 
-                    title: "功能说明", 
-                    description: "🎯 对齐功能：让节点整齐排列，提升行为树可读性\n📐 网格吸附：拖拽时自动对齐到网格点，保持整洁布局\n📏 参考线：拖拽时显示蓝色对齐线，精确定位",
-                    duration: 8000
-                })}>
-                    <HelpCircle className="mr-2 h-4 w-4" />
-                    功能说明
-                </ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
     )
