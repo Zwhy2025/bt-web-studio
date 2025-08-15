@@ -222,6 +222,7 @@ export class MockWebSocketClient {
 
   // 启动模拟消息流
   private startMockMessages() {
+    console.log('[MockWebSocketClient] Starting mock messages');
     if (this.mockIntervalId) {
       clearInterval(this.mockIntervalId);
     }
@@ -238,11 +239,18 @@ export class MockWebSocketClient {
                                 {x: 10, y: 20}, 'idle', 'moving', 'attacking'];
     
     this.mockIntervalId = setInterval(() => {
-      if (!this.isConnected) return;
+      if (!this.isConnected) {
+        console.log('[MockWebSocketClient] Not connected, skipping message');
+        return;
+      }
       
       // 只有在运行状态下才发送模拟消息
-      if (this.executionState !== 'running') return;
+      if (this.executionState !== 'running') {
+        console.log('[MockWebSocketClient] Not in running state, current state:', this.executionState);
+        return;
+      }
       
+      console.log('[MockWebSocketClient] Sending mock message, executionCounter:', this.executionCounter);
       this.executionCounter++;
       
       // 每隔几秒发送不同类型的消息
