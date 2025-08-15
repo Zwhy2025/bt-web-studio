@@ -102,6 +102,8 @@ import {
     AlignmentToolbar 
 } from "@/components/canvas/alignment-guides"
 import { BlackboardPanel } from "@/components/blackboard-panel"
+import { TabBar } from "@/components/tab-bar"
+import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
 
 // ---------- Left Palette ----------
 function LeftPalette() {
@@ -219,9 +221,10 @@ function RightInspector() {
 }
 
 // ---------- Top Bar ----------
-function TopBar({ onImportClick, onExportClick }: { 
+function TopBar({ onImportClick, onExportClick, onNewProject }: { 
     onImportClick: () => void;
     onExportClick: () => void;
+    onNewProject: () => void;
 }) {
     return (
         <header className="w-full border-b bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -232,9 +235,10 @@ function TopBar({ onImportClick, onExportClick }: {
                     <MenubarMenu>
                         <MenubarTrigger>文件</MenubarTrigger>
                         <MenubarContent>
-                            <MenubarItem>
-                                <Plus className="mr-2 h-4 w-4" /> 新建
+                            <MenubarItem onSelect={onNewProject}>
+                                <Plus className="mr-2 h-4 w-4" /> 新建项目
                             </MenubarItem>
+                            <MenubarSeparator />
                             <MenubarItem onSelect={onImportClick}>
                                 <Import className="mr-2 h-4 w-4" /> 导入 XML
                             </MenubarItem>
@@ -346,26 +350,31 @@ const initialNodes: Node[] = [
 const initialEdges: Edge[] = []
 
 function CanvasInner({ 
-    importedNodes = null, 
-    importedEdges = null,
     onNodesExport,
     onEdgesExport
 }: { 
-    importedNodes?: Node[] | null;
-    importedEdges?: Edge[] | null;
     onNodesExport?: (nodes: Node[]) => void;
     onEdgesExport?: (edges: Edge[]) => void;
 }) {
-    const [nodes, setNodes, onNodesChange] = useNodesState(importedNodes || initialNodes)
-    const [edges, setEdges, onEdgesChange] = useEdgesState(importedEdges || initialEdges)
+    // 从状态管理系统获取当前会话的节点和边
+    const storeNodes = useBehaviorTreeStore(state => state.nodes)
+    const storeEdges = useBehaviorTreeStore(state => state.edges)
+    const currentSession = useBehaviorTreeStore(state => state.currentSession)
+    const actions = useBehaviorTreeStore(state => state.actions)
     
-    // 当导入新数据时更新画布
+    const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes)
+    const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges)
+    
+    // 直接使用原始的变化处理函数，避免闭包陷阱
+    // 状态同步通过其他明确的操作点进行（如拖拽结束、连接等）
+    
+    // 当会话切换时，强制更新画布数据
     useEffect(() => {
-        if (importedNodes && importedEdges) {
-            setNodes(importedNodes);
-            setEdges(importedEdges);
+        if (currentSession) {
+            setNodes(storeNodes)
+            setEdges(storeEdges)
         }
-    }, [importedNodes, importedEdges, setNodes, setEdges]);
+    }, [currentSession?.id, storeNodes, storeEdges, setNodes, setEdges])
     
     // 当需要导出数据时提供当前画布数据
     useEffect(() => {
@@ -422,15 +431,15 @@ function CanvasInner({
     const [canUndo, setCanUndo] = useState(false)
     const [canRedo, setCanRedo] = useState(false)
     
-    // 初始化历史记录管理器 - 当导入新图时重新初始化
+    // 初始化历史记录管理器
     useEffect(() => {
         historyManagerRef.current = new HistoryManager({ 
-            nodes: importedNodes || initialNodes, 
-            edges: importedEdges || initialEdges 
+            nodes: initialNodes, 
+            edges: initialEdges 
         })
         setCanUndo(false) // 新的历史记录，不能撤销
         setCanRedo(false) // 也不能重做
-    }, [importedNodes, importedEdges])
+    }, [])
     
     // 保存状态到历史记录
     const saveToHistory = useCallback(() => {
@@ -471,8 +480,10 @@ function CanvasInner({
     const onNodeDragStop = useCallback(() => {
         setIsDragging(false)
         setAlignmentGuides([])
+        // 同步到状态管理系统
+        actions.importData(nodes, edges)
         saveToHistory()
-    }, [saveToHistory])
+    }, [saveToHistory, actions, nodes, edges])
     
     // 橡皮框选择开始
     const onSelectionStart = useCallback((event: React.MouseEvent) => {
@@ -548,7 +559,10 @@ function CanvasInner({
         const alignedNodes = alignNodes(selectedNodes, alignType)
         const nodeMap = new Map(alignedNodes.map(n => [n.id, n]))
         
-        setNodes(nds => nds.map(n => nodeMap.get(n.id) || n))
+        const newNodes = nodes.map(n => nodeMap.get(n.id) || n)
+        setNodes(newNodes)
+        // 同步到状态管理系统
+        actions.importData(newNodes, edges)
         saveToHistory()
         
         const alignTypeNames = {
@@ -566,7 +580,7 @@ function CanvasInner({
             title: "对齐完成",
             description: `已对 ${selectedNodes.length} 个节点执行${alignTypeNames[alignType]}`,
         })
-    }, [nodes, selectedNodeIds, setNodes, saveToHistory, toast])
+    }, [nodes, selectedNodeIds, setNodes, saveToHistory, toast, edges, actions])
     
     // 撤销功能
     const handleUndo = useCallback(() => {
@@ -606,23 +620,27 @@ function CanvasInner({
     const handleAutoLayout = useCallback(() => {
         const layoutedNodes = autoLayoutTree(nodes, edges)
         setNodes(layoutedNodes)
+        // 同步到状态管理系统
+        actions.importData(layoutedNodes, edges)
         saveToHistory()
         toast({
             title: "自动布局完成",
             description: "已将节点排列成清晰的树形结构",
         })
-    }, [nodes, edges, setNodes, saveToHistory, toast])
+    }, [nodes, edges, setNodes, saveToHistory, toast, actions])
     
     // 散乱分布功能
     const handleScatterNodes = useCallback(() => {
         const scatteredNodes = scatterNodes(nodes)
         setNodes(scatteredNodes)
+        // 同步到状态管理系统
+        actions.importData(scatteredNodes, edges)
         saveToHistory()
         toast({
             title: "散乱分布完成",
             description: "已将节点随机分布到画布上",
         })
-    }, [nodes, setNodes, saveToHistory, toast])
+    }, [nodes, setNodes, saveToHistory, toast, edges, actions])
 
     function isDownwardConnection(conn: Connection): boolean {
         if (!conn.source || !conn.target) return false
@@ -677,9 +695,12 @@ function CanvasInner({
                 })
                 return
             }
-            setEdges((eds) => addEdge({ ...params, animated: false }, eds))
+            const newEdges = addEdge({ ...params, animated: false }, edges)
+            setEdges(newEdges)
+            // 同步到状态管理系统
+            actions.importData(nodes, newEdges)
         },
-        [setEdges, edges, nodes, toast]
+        [setEdges, edges, nodes, toast, actions]
     )
 
     const onDragOver = useCallback((event: React.DragEvent) => {
@@ -709,9 +730,12 @@ function CanvasInner({
                 data: { label: `${labelMap[type]}` },
                 type: type as any,
             }
-            setNodes((nds) => nds.concat(newNode))
+            const newNodes = [...nodes, newNode]
+            setNodes(newNodes)
+            // 同步到状态管理系统
+            actions.importData(newNodes, edges)
         },
-        [project, setNodes]
+        [project, setNodes, nodes, edges, actions]
     )
 
     // 删除所选
@@ -730,12 +754,14 @@ function CanvasInner({
         const removedEdgesCount = edges.length - nextEdges.length
         setNodes(nextNodes)
         setEdges(nextEdges)
+        // 同步到状态管理系统
+        actions.importData(nextNodes, nextEdges)
         saveToHistory()
         toast({
             title: "已删除",
             description: `节点 ${selectedNodeIds.length} 个，连线 ${removedEdgesCount} 条`,
         })
-    }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, saveToHistory, toast])
+        }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, saveToHistory, toast, actions])
 
     // 克隆所选（带位移与内部连线重映射）
     const cloneSelection = useCallback(() => {
@@ -766,14 +792,18 @@ function CanvasInner({
                 target: idMap[e.target],
                 selected: true,
             }))
-        setNodes([...nodes.map((n) => ({ ...n, selected: false })), ...clones])
-        setEdges([...edges, ...newEdges])
+        const finalNodes = [...nodes.map((n) => ({ ...n, selected: false })), ...clones]
+        const finalEdges = [...edges, ...newEdges]
+        setNodes(finalNodes)
+        setEdges(finalEdges)
+        // 同步到状态管理系统
+        actions.importData(finalNodes, finalEdges)
         saveToHistory()
         toast({
             title: "已克隆",
             description: `节点 ${clones.length} 个，连线 ${newEdges.length} 条`,
         })
-    }, [nodes, edges, selectedNodeIds, setNodes, setEdges, saveToHistory, toast])
+        }, [nodes, edges, selectedNodeIds, setNodes, setEdges, saveToHistory, toast, actions])
 
     // 全选功能
     const selectAllNodes = useCallback(() => {
@@ -1095,21 +1125,18 @@ function CanvasInner({
 }
 
 function BtCanvas({ 
-    importedNodes, 
-    importedEdges,
     onNodesExport,
     onEdgesExport
 }: { 
-    importedNodes?: Node[] | null;
-    importedEdges?: Edge[] | null;
     onNodesExport?: (nodes: Node[]) => void;
     onEdgesExport?: (edges: Edge[]) => void;
 }) {
+    // 获取当前会话ID作为key，强制重新渲染
+    const currentSessionId = useBehaviorTreeStore(state => state.currentSession?.id)
+    
     return (
-        <ReactFlowProvider>
+        <ReactFlowProvider key={currentSessionId}>
             <CanvasInner 
-                importedNodes={importedNodes}
-                importedEdges={importedEdges}
                 onNodesExport={onNodesExport}
                 onEdgesExport={onEdgesExport}
             />
@@ -1119,6 +1146,10 @@ function BtCanvas({
 
 // ---------- Main App Layout ----------
 export default function App() {
+    // 状态管理
+    const actions = useBehaviorTreeStore(state => state.actions)
+    const { toast } = useToast()
+    
     // XML导入/导出对话框状态
     const [importDialogOpen, setImportDialogOpen] = useState(false);
     const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -1131,17 +1162,25 @@ export default function App() {
     const [nodesToExport, setNodesToExport] = useState<Node[]>([]);
     const [edgesToExport, setEdgesToExport] = useState<Edge[]>([]);
     
-    // 处理导入
+    // 处理新建项目
+    const handleNewProject = () => {
+        const projectName = `新建项目 ${new Date().toLocaleTimeString()}`
+        actions.createSession(projectName)
+        toast({
+            title: "项目创建成功",
+            description: `已创建新项目：${projectName}`,
+        })
+    }
+    
+    // 处理导入 - 直接导入到当前会话，不使用全局导入状态
     const handleImport = (nodes: Node[], edges: Edge[]) => {
-        setImportedNodes(nodes);
-        setImportedEdges(edges);
+        // 直接更新当前会话的数据
+        actions.importData(nodes, edges);
         setImportDialogOpen(false);
         
-        // 显示导入成功提示
-        const { toast } = require("@/hooks/use-toast");
         toast({
             title: "导入成功",
-            description: `已导入 ${nodes.length} 个节点和 ${edges.length} 条连线`,
+            description: `已导入 ${nodes.length} 个节点和 ${edges.length} 条连线到当前项目`,
         });
     };
     return (
@@ -1149,7 +1188,9 @@ export default function App() {
             <TopBar 
                 onImportClick={() => setImportDialogOpen(true)}
                 onExportClick={() => setExportDialogOpen(true)}
+                onNewProject={handleNewProject}
             />
+            <TabBar />
             <main className="flex-1 min-h-0">
                 <ResizablePanelGroup direction="horizontal" className="h-full">
                     <ResizablePanel defaultSize={18} minSize={14} className="hidden md:block">
@@ -1159,8 +1200,6 @@ export default function App() {
                     <ResizablePanel defaultSize={64} minSize={40}>
                         <div className="h-full">
                             <BtCanvas 
-                                importedNodes={importedNodes}
-                                importedEdges={importedEdges}
                                 onNodesExport={setNodesToExport}
                                 onEdgesExport={setEdgesToExport}
                             />
