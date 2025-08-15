@@ -359,12 +359,15 @@ function CanvasInner({
     const [canUndo, setCanUndo] = useState(false)
     const [canRedo, setCanRedo] = useState(false)
     
-    // 初始化历史记录管理器
+    // 初始化历史记录管理器 - 当导入新图时重新初始化
     useEffect(() => {
-        if (!historyManagerRef.current) {
-            historyManagerRef.current = new HistoryManager({ nodes, edges })
-        }
-    }, [])
+        historyManagerRef.current = new HistoryManager({ 
+            nodes: importedNodes || initialNodes, 
+            edges: importedEdges || initialEdges 
+        })
+        setCanUndo(false) // 新的历史记录，不能撤销
+        setCanRedo(false) // 也不能重做
+    }, [importedNodes, importedEdges])
     
     // 保存状态到历史记录
     const saveToHistory = useCallback(() => {

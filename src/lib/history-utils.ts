@@ -20,11 +20,8 @@ export class HistoryManager {
       this.history = this.history.slice(0, this.currentIndex + 1);
     }
 
-    // 添加新状态
-    this.history.push({
-      nodes: JSON.parse(JSON.stringify(state.nodes)),
-      edges: JSON.parse(JSON.stringify(state.edges))
-    });
+    // 添加新状态（使用 structuredClone 进行深拷贝）
+    this.history.push(structuredClone(state));
 
     // 限制历史记录大小
     if (this.history.length > this.maxHistorySize) {

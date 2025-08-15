@@ -171,17 +171,10 @@ export function autoLayoutTree(nodes: Node[], edges: Edge[], options: Partial<La
 // 散乱分布功能
 export function scatterNodes(nodes: Node[], canvasWidth = 1200, canvasHeight = 800): Node[] {
   const margin = 100;
-  const minDistance = 150; // 节点之间的最小距离
   
-  return nodes.map((node, index) => {
-    let attempts = 0;
-    let newX, newY;
-    
-    do {
-      newX = margin + Math.random() * (canvasWidth - 2 * margin);
-      newY = margin + Math.random() * (canvasHeight - 2 * margin);
-      attempts++;
-    } while (attempts < 50); // 最多尝试50次
+  return nodes.map((node) => {
+    const newX = margin + Math.random() * (canvasWidth - 2 * margin);
+    const newY = margin + Math.random() * (canvasHeight - 2 * margin);
     
     return {
       ...node,
