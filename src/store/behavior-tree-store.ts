@@ -3,8 +3,11 @@ import { subscribeWithSelector } from 'zustand/middleware'
 import { Node, Edge } from 'reactflow'
 // 注释掉之前的 mock-debugger-client 导入
 // import { startMockDebugSession, stopMockDebugSession } from '@/lib/mock-debugger-client' 
-import { MockWebSocketClient, DebuggerMessage } from '@/lib/mock-websocket-client' // 新增导入
+// import { MockWebSocketClient, DebuggerMessage } from '@/lib/mock-websocket-client' // 注释掉旧的导入
+import { RealWebSocketClient, DebuggerMessage } from '@/lib/real-websocket-client' // 新增导入
 import { simulateSubtreeExecution } from '@/lib/subtree-mock-generator' // 导入子树模拟功能
+import { parseXmlToBehaviorTree } from '@/lib/xml-parser' // 导入XML解析函数
+import { applyBehaviorTreeLayout } from '@/lib/behavior-tree-layout' // 导入布局算法
 
 // 节点状态枚举
 export enum NodeStatus {
@@ -115,8 +118,8 @@ interface BehaviorTreeState {
   snapToGrid: boolean
   panelSizes: Record<string, number>
   
-  // 新增：WebSocket 客户端实例
-  debuggerClient: MockWebSocketClient | null
+  // 新增：WebSocket 客户端实例 (使用 RealWebSocketClient)
+  debuggerClient: RealWebSocketClient | null
   
   // 操作方法
   actions: {
@@ -153,6 +156,7 @@ interface BehaviorTreeState {
     pauseExecution: () => void
     stopExecution: () => void
     stepExecution: () => void
+    continueExecution: () => void // 新增：继续执行（解锁断点）
     setExecutionSpeed: (speed: number) => void
     // 新增：模拟导入的子树执行
     simulateSubtree: () => void
@@ -281,7 +285,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             }
             
             // 切换到新会话
-            // 通知 MockWebSocketClient 更新节点列表
+            // 通知 RealWebSocketClient 更新节点列表
             const newState: Partial<BehaviorTreeState> = {
               currentSession: session,
               activeSessionId: sessionId,
@@ -400,11 +404,10 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             
             // 如果已连接到调试器，发送消息
             if (state.isDebuggerConnected && state.debuggerClient) {
-              const command = wasBreakpointSet ? 'clear_breakpoint' : 'set_breakpoint';
-              state.debuggerClient.send({ 
-                type: command, 
-                payload: { nodeId } 
-              });
+              const command = wasBreakpointSet ? 'removeBreakpoint' : 'setBreakpoint';
+              // 对于 setBreakpoint，我们需要发送节点 UID
+              // 对于 removeBreakpoint，我们也需要发送节点 UID
+              state.debuggerClient.sendCommand(command, { nodeId: nodeId });
             }
             
             return {
@@ -501,14 +504,14 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         // 调试操作
         // --- 连接管理 ---
         connectToDebugger: (url: string) => {
-          console.log("Connecting to debugger at", url);
+          console.log("🔗 Connecting to debugger at", url);
           set({ 
             debugState: DebugState.CONNECTING, 
             debuggerConnectionError: null 
           });
           
-          // 创建 Mock WebSocket 客户端实例
-          const client = new MockWebSocketClient(url);
+          // 创建 Real WebSocket 客户端实例
+          const client = new RealWebSocketClient(url);
           
           // 设置回调函数
           client.onOpen(() => {
@@ -547,33 +550,204 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             const { type, payload } = message;
             
             switch (type) {
-              case 'status_update':
+              case 'treeData':
+                // 处理树数据
+                if (payload && payload.xml) {
+                  parseXmlToBehaviorTree(payload.xml)
+                    .then(({ nodes, edges }) => {
+                      console.log("Parsed tree data:", nodes, edges);
+                      // 应用行为树专用布局算法
+                      const layoutedNodes = applyBehaviorTreeLayout(nodes, edges);
+                      console.log("Applied behavior tree layout:", layoutedNodes);
+                      // 更新 Zustand store 中的节点和边
+                      set({ nodes: layoutedNodes, edges });
+                      // 如果有当前会话，也更新会话数据
+                      const state = get();
+                      if (state.currentSession) {
+                        const updatedSessions = state.sessions.map(s => 
+                          s.id === state.currentSession?.id 
+                            ? { 
+                                ...s, 
+                                nodes: layoutedNodes,
+                                edges,
+                                modifiedAt: Date.now()
+                              }
+                            : s
+                        );
+                        set({ sessions: updatedSessions });
+                        
+                        // 更新当前会话引用
+                        set({ 
+                          currentSession: {
+                            ...state.currentSession,
+                            nodes: layoutedNodes,
+                            edges,
+                            modifiedAt: Date.now()
+                          }
+                        });
+                      }
+                    })
+                    .catch((error) => {
+                      console.error("Failed to parse tree XML:", error);
+                      set({ 
+                        debuggerConnectionError: `Failed to parse tree XML: ${error.message}`
+                      });
+                    });
+                }
+                break;
+                
+              case 'statusUpdate':
                 // 更新节点状态
-                get().actions.setNodeStatus(payload.nodeId, payload.status);
+                if (payload && payload.data) {
+                  // Python 代理发送的数据是 msgpack 格式，其中包含一个对象，
+                  // 该对象的键是节点 UID，值是状态码
+                  const nodeStatusMap = payload.data;
+                  Object.entries(nodeStatusMap).forEach(([nodeUid, statusCode]) => {
+                    // 将状态码映射到 NodeStatus 枚举
+                    let status: NodeStatus;
+                    switch (statusCode) {
+                      case 0: // SKIPPED or IDLE
+                        status = NodeStatus.IDLE;
+                        break;
+                      case 1: // RUNNING
+                        status = NodeStatus.RUNNING;
+                        break;
+                      case 2: // SUCCESS
+                        status = NodeStatus.SUCCESS;
+                        break;
+                      case 3: // FAILURE
+                        status = NodeStatus.FAILURE;
+                        break;
+                      default:
+                        status = NodeStatus.IDLE;
+                    }
+                    get().actions.setNodeStatus(nodeUid, status);
+                  });
+                }
                 break;
                 
-              case 'blackboard_update':
+              case 'blackboardUpdate':
                 // 更新黑板
-                get().actions.setBlackboardValue(payload.key, payload.value, payload.type);
+                if (payload && payload.data) {
+                  // Python 代理发送的数据是 msgpack 格式，其中包含一个对象，
+                  // 该对象的键是黑板键名，值是包含类型和值的对象
+                  const blackboardData = payload.data;
+                  Object.entries(blackboardData).forEach(([key, entry]: [string, any]) => {
+                    // entry 应该有 { type: string, value: any } 的结构
+                    // 我们需要将 type 字符串映射到 BlackboardEntry 的 type 枚举
+                    let type: 'string' | 'number' | 'boolean' | 'object' = 'string';
+                    if (entry.type === 'int' || entry.type === 'double') {
+                      type = 'number';
+                    } else if (entry.type === 'bool') {
+                      type = 'boolean';
+                    } else if (entry.type === 'str') {
+                      type = 'string';
+                    } else {
+                      type = 'object'; // For other types, treat as object
+                    }
+                    
+                    get().actions.setBlackboardValue(key, entry.value, type);
+                  });
+                }
                 break;
                 
-              case 'execution_event':
-                // 添加执行事件
-                get().actions.addExecutionEvent({
-                  nodeId: payload.nodeId,
-                  type: payload.type,
-                  status: payload.status,
-                  // blackboardSnapshot 可以从 payload 中获取，如果有的话
+              case 'breakpointReached':
+                // 处理断点触发
+                if (payload && payload.nodeId) {
+                  console.log("Breakpoint reached at node:", payload.nodeId);
+                  set({ 
+                    debugState: DebugState.PAUSED,
+                    currentExecutingNode: payload.nodeId
+                  });
+                }
+                break;
+                
+              case 'breakpointSet':
+                // 处理断点设置确认
+                console.log("Breakpoint set:", payload);
+                break;
+                
+              case 'breakpointRemoved':
+                // 处理断点移除确认
+                console.log("Breakpoint removed:", payload);
+                break;
+                
+              case 'breakpointUnlocked':
+                // 处理断点解锁确认
+                console.log("Breakpoint unlocked:", payload);
+                // 可能需要更新调试状态
+                set({ 
+                  debugState: DebugState.RUNNING,
+                  currentExecutingNode: null
                 });
                 break;
                 
-              case 'ack':
-                // 处理确认消息，例如设置断点的确认
-                console.log("Received ACK:", payload);
+              case 'executionStarted':
+                // 处理执行开始确认
+                console.log("Execution started:", payload);
+                break;
+                
+              case 'executionPaused':
+                // 处理执行暂停确认
+                console.log("Execution paused:", payload);
+                break;
+                
+              case 'executionStopped':
+                // 处理执行停止确认
+                console.log("Execution stopped:", payload);
+                set({ 
+                  debugState: DebugState.STOPPED,
+                  currentExecutingNode: null
+                });
+                break;
+                
+              case 'executionStepped':
+                // 处理执行步进确认
+                console.log("Execution stepped:", payload);
+                // 步进后可能会暂停在下一个节点
+                // Python 代理应该会在断点触发时发送 breakpointReached 消息
+                break;
+                
+              case 'error':
+                // 处理错误消息
+                console.error("❌ Error from proxy:", payload);
+                
+                // Check if this is a protocol state error
+                if (payload.message && payload.message.includes('Operation cannot be accomplished in current state')) {
+                  console.warn('⚠️ Backend not ready - tree may not be loaded or running');
+                  set({ 
+                    debuggerConnectionError: 'Backend not ready: ' + payload.message,
+                    debugState: DebugState.DISCONNECTED
+                  });
+                } else {
+                  set({ 
+                    debuggerConnectionError: payload.message || 'Unknown error from proxy'
+                  });
+                }
+                
+                // Enhanced tree data handling with backend state checking
+                if (payload.xml && payload.xml.length > 0) {
+                  console.log('✅ Tree loaded successfully from backend');
+                  // Tree is loaded, we can now safely request status and blackboard
+                  setTimeout(() => {
+                    const client = get().debuggerClient;
+                    if (client) {
+                      console.log('🔄 Requesting status and blackboard after tree confirmation');
+                      client.sendCommand('getStatus');
+                      client.sendCommand('getBlackboard');
+                    }
+                  }, 500);
+                } else {
+                  console.warn('⚠️ Empty tree received - backend may not have a tree loaded');
+                }
+                break;
+                
+              case 'subscribed':
+                console.log('📡 Subscribed to notifications:', payload);
                 break;
                 
               default:
-                console.warn("Unknown message type:", type);
+                console.warn("❓ Unknown message type:", type);
             }
           });
           
@@ -596,7 +770,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             console.log("Execution started/resumed");
             set({ debugState: DebugState.RUNNING });
             // 通过 WebSocket 客户端发送开始命令
-            state.debuggerClient.send({ type: 'start' });
+            state.debuggerClient.sendCommand('start');
           }
         },
         
@@ -606,7 +780,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             console.log("Execution paused");
             set({ debugState: DebugState.PAUSED });
             // 通过 WebSocket 客户端发送暂停命令
-            state.debuggerClient.send({ type: 'pause' });
+            state.debuggerClient.sendCommand('pause');
           }
         },
         
@@ -619,7 +793,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
               currentExecutingNode: null,
             });
             // 通过 WebSocket 客户端发送停止命令
-            state.debuggerClient.send({ type: 'stop' });
+            state.debuggerClient.sendCommand('stop');
           }
         },
         
@@ -629,7 +803,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             console.log("Execution stepped");
             set({ debugState: DebugState.STEPPING });
             // 通过 WebSocket 客户端发送步进命令
-            state.debuggerClient.send({ type: 'step' });
+            state.debuggerClient.sendCommand('step');
           }
         },
         
@@ -733,7 +907,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
               return { nodes, edges };
             }
             const modifiedAt = Date.now();
-            // 通知 MockWebSocketClient 更新节点列表
+            // 通知 RealWebSocketClient 更新节点列表
             if (state.debuggerClient) {
               state.debuggerClient.setNodes(nodes.map(n => n.id));
             }

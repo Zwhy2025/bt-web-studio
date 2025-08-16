@@ -3,3 +3,6 @@ node_modules/
 Web*
 dist/
 QWEN.md
+GEMINI.md
+groot2_protocol_analysis/
+venv/
