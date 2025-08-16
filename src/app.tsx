@@ -21,6 +21,7 @@ import {
     Play,
     Pause,
     ChevronRight,
+    ChevronDown,
     RefreshCcw,
     Save,
     Import,
@@ -41,6 +42,10 @@ import {
     Info,
     Grid3X3,
     AlignLeft,
+    Zap,
+    HelpCircle,
+    Wrench,
+    Layers,
 } from "lucide-react"
 // 移除未使用的导入
 // import { DebugToolbar } from "@/components/debug-toolbar" // 移除导入
@@ -64,6 +69,10 @@ import ReactFlow, {
     ConnectionMode,
     NodeDragHandler,
     OnSelectionChangeParams,
+    OnNodesChange,
+    OnEdgesChange,
+    applyNodeChanges,
+    applyEdgeChanges,
 } from "reactflow"
 
 import "reactflow/dist/style.css"
@@ -108,16 +117,135 @@ import { BlackboardPanel } from "@/components/blackboard-panel"
 import { TabBar } from "@/components/tab-bar"
 import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
 
+// ---------- Node Category Section Component ----------
+function NodeCategorySection({ 
+    category, 
+    onDragStart 
+}: { 
+    category: {
+        name: string;
+        icon: React.ReactNode;
+        items: Array<{ label: string; type: string; desc: string }>;
+    };
+    onDragStart: (e: React.DragEvent, type: string) => void;
+}) {
+    const [isExpanded, setIsExpanded] = useState(true);
+
+    return (
+        <div className="space-y-1">
+            {/* 分类标题 */}
+            <div 
+                className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/30 cursor-pointer select-none"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+                {category.icon}
+                <span className="text-sm font-medium">{category.name}</span>
+                <span className="text-xs text-muted-foreground ml-auto">
+                    {category.items.length}
+                </span>
+            </div>
+            
+            {/* 节点列表 */}
+            {isExpanded && (
+                <div className="ml-6 space-y-1">
+                    {category.items.map((item, index) => (
+                        <div
+                            key={`${category.name}-${item.label}-${index}`}
+                            draggable
+                            onDragStart={(e) => onDragStart(e, item.type)}
+                            role="button"
+                            aria-label={`拖拽以创建 ${item.label}`}
+                            className="rounded-md border bg-card/60 backdrop-blur hover:bg-accent/50 transition-colors p-2 cursor-grab active:cursor-grabbing"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="text-sm font-medium">{item.label}</div>
+                                <GitBranch className="h-3 w-3 text-muted-foreground" />
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">{item.desc}</div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ---------- Left Palette ----------
 function LeftPalette() {
-    const items = useMemo(
+    // 分层分组的节点库，像Groot一样的二级目录结构
+    const nodeCategories = useMemo(
         () => [
-            { label: "Action", type: "action", desc: "执行型节点" },
-            { label: "Condition", type: "condition", desc: "条件判断" },
-            { label: "Sequence", type: "control-sequence", desc: "控制-顺序" },
-            { label: "Selector", type: "control-selector", desc: "控制-选择" },
-            { label: "Decorator", type: "decorator", desc: "装饰器" },
-            { label: "SubTree", type: "subtree", desc: "子树引用" },
+            {
+                name: "Action",
+                icon: <Zap className="h-4 w-4" />,
+                items: [
+                    { label: "AlwaysFailure", type: "ForceFailure", desc: "始终失败" },
+                    { label: "AlwaysSuccess", type: "ForceSuccess", desc: "始终成功" },
+                    { label: "Script", type: "Script", desc: "脚本执行" },
+                    { label: "SetBlackboard", type: "SetBlackboard", desc: "设置黑板" },
+                    { label: "Sleep", type: "Sleep", desc: "休眠等待" },
+                    { label: "Log", type: "Log", desc: "日志输出" },
+                    { label: "Action", type: "action", desc: "通用动作节点" },
+                ]
+            },
+            {
+                name: "Condition", 
+                icon: <HelpCircle className="h-4 w-4" />,
+                items: [
+                    { label: "ScriptCondition", type: "CheckBlackboard", desc: "脚本条件" },
+                    { label: "CheckBlackboard", type: "CheckBlackboard", desc: "检查黑板" },
+                    { label: "CompareBlackboard", type: "CompareBlackboard", desc: "比较黑板" },
+                    { label: "Condition", type: "condition", desc: "通用条件节点" },
+                ]
+            },
+            {
+                name: "Control",
+                icon: <GitBranch className="h-4 w-4" />,
+                items: [
+                    { label: "AsyncFallback", type: "ReactiveFallback", desc: "异步回退" },
+                    { label: "AsyncSequence", type: "ReactiveSequence", desc: "异步顺序" },
+                    { label: "Fallback", type: "Fallback", desc: "回退选择" },
+                    { label: "IfThenElse", type: "IfThenElse", desc: "条件分支" },
+                    { label: "Parallel", type: "Parallel", desc: "并行执行" },
+                    { label: "ParallelAll", type: "Parallel", desc: "并行全部" },
+                    { label: "ReactiveFallback", type: "ReactiveFallback", desc: "响应式回退" },
+                    { label: "ReactiveSequence", type: "ReactiveSequence", desc: "响应式顺序" },
+                    { label: "Sequence", type: "Sequence", desc: "顺序执行" },
+                    { label: "SequenceWithMemory", type: "Sequence*", desc: "带记忆顺序" },
+                    { label: "Switch", type: "Switch", desc: "开关选择" },
+                ]
+            },
+            {
+                name: "Decorator",
+                icon: <Wrench className="h-4 w-4" />,
+                items: [
+                    { label: "Delay", type: "Delay", desc: "延迟执行" },
+                    { label: "ForceFailure", type: "ForceFailure", desc: "强制失败" },
+                    { label: "ForceSuccess", type: "ForceSuccess", desc: "强制成功" },
+                    { label: "Inverter", type: "Inverter", desc: "结果取反" },
+                    { label: "KeepRunningUntilFailure", type: "Repeat", desc: "运行直到失败" },
+                    { label: "LoopDouble", type: "Repeat", desc: "循环(数字)" },
+                    { label: "LoopString", type: "Repeat", desc: "循环(字符串)" },
+                    { label: "Precondition", type: "decorator", desc: "前置条件" },
+                    { label: "Repeat", type: "Repeat", desc: "重复执行" },
+                    { label: "RetryUntilSuccessful", type: "Retry", desc: "重试直到成功" },
+                    { label: "RunOnce", type: "decorator", desc: "只运行一次" },
+                    { label: "Timeout", type: "Timeout", desc: "超时控制" },
+                ]
+            },
+            {
+                name: "SubTree",
+                icon: <Layers className="h-4 w-4" />,
+                items: [
+                    { label: "Untitled", type: "subtree", desc: "未命名子树" },
+                    { label: "SubTree", type: "subtree", desc: "子树引用" },
+                ]
+            }
         ],
         []
     )
@@ -138,22 +266,13 @@ function LeftPalette() {
             </div>
             <Separator />
             <ScrollArea className="flex-1">
-                <div className="p-3 grid gap-2">
-                    {items.map((it) => (
-                        <div
-                            key={it.type}
-                            draggable
-                            onDragStart={(e) => onDragStart(e, it.type)}
-                            role="button"
-                            aria-label={`拖拽以创建 ${it.label}`}
-                            className="rounded-md border bg-card/60 backdrop-blur hover:bg-accent/50 transition-colors p-3 cursor-grab active:cursor-grabbing"
-                        >
-                            <div className="flex items-center justify-between">
-                                <div className="text-sm font-medium">{it.label}</div>
-                                <GitBranch className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-1">{it.desc}</div>
-                        </div>
+                <div className="p-3 space-y-2">
+                    {nodeCategories.map((category) => (
+                        <NodeCategorySection 
+                            key={category.name} 
+                            category={category} 
+                            onDragStart={onDragStart}
+                        />
                     ))}
                 </div>
             </ScrollArea>
@@ -367,22 +486,55 @@ function CanvasInner({
     // 从状态管理系统获取当前会话的节点和边
     const storeNodes = useBehaviorTreeStore(state => state.nodes)
     const storeEdges = useBehaviorTreeStore(state => state.edges)
+    const expandedSubTrees = useBehaviorTreeStore(state => state.expandedSubTrees)
     const currentSession = useBehaviorTreeStore(state => state.currentSession)
     const actions = useBehaviorTreeStore(state => state.actions)
     
-    const [nodes, setNodes, onNodesChange] = useNodesState(storeNodes)
-    const [edges, setEdges, onEdgesChange] = useEdgesState(storeEdges)
-    
-    // 直接使用原始的变化处理函数，避免闭包陷阱
-    // 状态同步通过其他明确的操作点进行（如拖拽结束、连接等）
-    
-    // 当会话切换时，强制更新画布数据
+    const [nodes, setNodes] = useNodesState(storeNodes)
+    const [edges, setEdges] = useEdgesState(storeEdges)
+
+    const onNodesChange: OnNodesChange = useCallback(
+        (changes) => {
+            const newNodes = applyNodeChanges(changes, nodes);
+            actions.importData(newNodes, edges);
+        },
+        [nodes, edges, actions]
+    );
+
+    const onEdgesChange: OnEdgesChange = useCallback(
+        (changes) => {
+            const newEdges = applyEdgeChanges(changes, edges);
+            actions.importData(nodes, newEdges);
+        },
+        [nodes, edges, actions]
+    );
+
+    // 当 Zustand store 中的节点或边发生变化时，更新 React Flow 的状态
     useEffect(() => {
-        if (currentSession) {
-            setNodes(storeNodes)
-            setEdges(storeEdges)
+        const nodeParentMap = new Map<string, string>()
+        for (const edge of storeEdges) {
+            nodeParentMap.set(edge.target, edge.source)
         }
-    }, [currentSession?.id, storeNodes, storeEdges, setNodes, setEdges])
+
+        const visibleNodes = storeNodes.filter(node => {
+            // 如果节点没有父节点，则始终可见
+            let parentId = nodeParentMap.get(node.id)
+            if (!parentId) return true
+
+            // 检查所有父级子树是否都已展开
+            let parent = storeNodes.find(n => n.id === parentId)
+            while (parent) {
+                if (parent.type === 'subtree' && !expandedSubTrees.has(parent.id)) {
+                    return false
+                }
+                parentId = nodeParentMap.get(parent.id)
+                parent = parentId ? storeNodes.find(n => n.id === parentId) : undefined
+            }
+            return true
+        })
+        setNodes(visibleNodes)
+        setEdges(storeEdges)
+    }, [storeNodes, storeEdges, expandedSubTrees, setNodes, setEdges])
     
     // 当需要导出数据时提供当前画布数据
     useEffect(() => {
@@ -724,13 +876,49 @@ function CanvasInner({
             const bounds = event.currentTarget.getBoundingClientRect()
             const position = project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
             const id = `${type}-${Date.now()}`
-            const labelMap: Record<PaletteType, string> = {
+            // 扩展的节点类型映射，支持所有BehaviorTree.CPP标准节点
+            const labelMap: Record<string, string> = {
+                // 基础节点类型
                 action: "Action",
                 condition: "Condition",
-                "control-sequence": "Sequence",
-                "control-selector": "Selector",
-                decorator: "Decorator",
                 subtree: "SubTree",
+                
+                // 控制节点
+                "Sequence": "Sequence",
+                "Sequence*": "Sequence*",
+                "Fallback": "Fallback", 
+                "Fallback*": "Fallback*",
+                "Parallel": "Parallel",
+                "ReactiveSequence": "ReactiveSequence",
+                "ReactiveFallback": "ReactiveFallback",
+                "Switch": "Switch",
+                "IfThenElse": "IfThenElse",
+                "WhileDoElse": "WhileDoElse",
+                "ManualSelector": "ManualSelector",
+                
+                // 装饰器节点
+                "Inverter": "Inverter",
+                "Retry": "Retry",
+                "Repeat": "Repeat",
+                "Timeout": "Timeout",
+                "Delay": "Delay",
+                "ForceSuccess": "ForceSuccess",
+                "ForceFailure": "ForceFailure",
+                
+                // 常用Action节点
+                "Script": "Script",
+                "SetBlackboard": "SetBlackboard",
+                "Sleep": "Sleep",
+                "Log": "Log",
+                
+                // 常用Condition节点
+                "CheckBlackboard": "CheckBlackboard",
+                "CompareBlackboard": "CompareBlackboard",
+                
+                // 兼容旧的类型
+                "control-sequence": "Sequence",
+                "control-selector": "Fallback",
+                "decorator": "Decorator",
             }
             const newNode: Node = {
                 id,

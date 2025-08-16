@@ -1,8 +1,9 @@
-.codebuddy/
+# cache
 node_modules/
-Web*
+venv/
 dist/
+
+# Agentics
 QWEN.md
 GEMINI.md
-groot2_protocol_analysis/
-venv/
+CLAUDE.md

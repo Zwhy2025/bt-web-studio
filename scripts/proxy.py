@@ -23,10 +23,6 @@ PROXY_WS_PORT = 8080
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(funcName)s:%(lineno)d - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('./proxy_debug.log')
-    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -144,11 +140,18 @@ async def listen_to_client(websocket, req_socket, sub_socket):
                 await handle_get_status(websocket, req_socket, logger)
 
             elif command_type == "getBlackboard":
-                await handle_get_blackboard(websocket, req_socket, logger)
+                # Allow optional payload to specify blackboard names (semicolon-separated)
+                await handle_get_blackboard(websocket, req_socket, logger, payload)
+
+            elif command_type == "getHooks":
+                await handle_get_hooks(websocket, req_socket, logger)
 
             elif command_type == "setBreakpoint":
                 # payload should contain the breakpoint definition (nodeId, etc.)
-                breakpoint_data = payload.get("params", {})
+                # Accept both top-level {params} and payload.params
+                breakpoint_data = (data.get("params")
+                                   or payload.get("params")
+                                   or {})
                 # Convert breakpoint data to JSON string for ZMQ
                 import json as json_lib
                 breakpoint_json = json_lib.dumps(breakpoint_data)
@@ -156,36 +159,35 @@ async def listen_to_client(websocket, req_socket, sub_socket):
                 
                 unique_id = get_next_request_id()
                 header = serialize_request_header(2, 'I', unique_id) # 'I' for HOOK_INSERT
-                await req_socket.send([header, breakpoint_json_buffer])
-                reply_raw = await req_socket.recv()
-                
-                # Check reply
-                if len(reply_raw) >= 6:
+                # Send multipart: [6-byte header, JSON payload]
+                await req_socket.send_multipart([header, breakpoint_json_buffer])
+                reply_parts = await req_socket.recv_multipart()
+                # Error reply: ['error', message]
+                if len(reply_parts) >= 2:
+                    try:
+                        first = reply_parts[0].decode('utf-8', errors='ignore')
+                        if first == 'error':
+                            error_message = reply_parts[1].decode('utf-8', errors='replace')
+                            raise Exception(error_message)
+                    except UnicodeDecodeError:
+                        pass
+                # Normal reply: first part contains header (at least 22 bytes)
+                reply_raw = reply_parts[0]
+                if len(reply_raw) >= 22:
                     reply_header = deserialize_reply_header(reply_raw[:22])
                     await websocket.send(json.dumps({
                         "type": "breakpointSet",
                         "payload": {"success": True, "header": reply_header}
                     }))
                 else:
-                    # If it's an error, it might come as ['error', errorMessage]
-                    try:
-                        error_parts = await req_socket.recv_multipart()
-                        if len(error_parts) >= 2 and error_parts[0].decode('utf-8') == 'error':
-                            error_message = error_parts[1].decode('utf-8')
-                            raise Exception(error_message)
-                        else:
-                            raise Exception('Unexpected reply format for setBreakpoint')
-                    except Exception as e:
-                        print(f"Error setting breakpoint: {e}")
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "replyTo": command_type,
-                            "payload": {"message": f"Failed to set breakpoint: {e}"}
-                        }))
+                    # Short or unexpected
+                    raise Exception(reply_raw.decode('utf-8', errors='replace'))
 
             elif command_type == "removeBreakpoint":
                 # payload should contain the breakpoint ID or node UID to remove
-                remove_data = payload.get("params", {})
+                remove_data = (data.get("params")
+                               or payload.get("params")
+                               or {})
                 # Convert remove data to JSON string for ZMQ
                 import json as json_lib
                 remove_json = json_lib.dumps(remove_data)
@@ -193,36 +195,32 @@ async def listen_to_client(websocket, req_socket, sub_socket):
                 
                 unique_id = get_next_request_id()
                 header = serialize_request_header(2, 'R', unique_id) # 'R' for HOOK_REMOVE
-                await req_socket.send([header, remove_json_buffer])
-                reply_raw = await req_socket.recv()
-                
-                # Check reply
-                if len(reply_raw) >= 6:
+                # Send multipart: [6-byte header, JSON payload]
+                await req_socket.send_multipart([header, remove_json_buffer])
+                reply_parts = await req_socket.recv_multipart()
+                if len(reply_parts) >= 2:
+                    try:
+                        first = reply_parts[0].decode('utf-8', errors='ignore')
+                        if first == 'error':
+                            error_message = reply_parts[1].decode('utf-8', errors='replace')
+                            raise Exception(error_message)
+                    except UnicodeDecodeError:
+                        pass
+                reply_raw = reply_parts[0]
+                if len(reply_raw) >= 22:
                     reply_header = deserialize_reply_header(reply_raw[:22])
                     await websocket.send(json.dumps({
                         "type": "breakpointRemoved",
                         "payload": {"success": True, "header": reply_header}
                     }))
                 else:
-                    # If it's an error, it might come as ['error', errorMessage]
-                    try:
-                        error_parts = await req_socket.recv_multipart()
-                        if len(error_parts) >= 2 and error_parts[0].decode('utf-8') == 'error':
-                            error_message = error_parts[1].decode('utf-8')
-                            raise Exception(error_message)
-                        else:
-                            raise Exception('Unexpected reply format for removeBreakpoint')
-                    except Exception as e:
-                        print(f"Error removing breakpoint: {e}")
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "replyTo": command_type,
-                            "payload": {"message": f"Failed to remove breakpoint: {e}"}
-                        }))
+                    raise Exception(reply_raw.decode('utf-8', errors='replace'))
 
             elif command_type == "unlockBreakpoint":
                 # payload should contain the unlock parameters (e.g., node UID)
-                unlock_data = payload.get("params", {})
+                unlock_data = (data.get("params")
+                               or payload.get("params")
+                               or {})
                 # Convert unlock data to JSON string for ZMQ
                 import json as json_lib
                 unlock_json = json_lib.dumps(unlock_data)
@@ -230,62 +228,75 @@ async def listen_to_client(websocket, req_socket, sub_socket):
                 
                 unique_id = get_next_request_id()
                 header = serialize_request_header(2, 'U', unique_id) # 'U' for BREAKPOINT_UNLOCK
-                await req_socket.send([header, unlock_json_buffer])
-                reply_raw = await req_socket.recv()
-                
-                # Check reply
-                if len(reply_raw) >= 6:
+                # Send multipart: [6-byte header, JSON payload]
+                await req_socket.send_multipart([header, unlock_json_buffer])
+                reply_parts = await req_socket.recv_multipart()
+                if len(reply_parts) >= 2:
+                    try:
+                        first = reply_parts[0].decode('utf-8', errors='ignore')
+                        if first == 'error':
+                            error_message = reply_parts[1].decode('utf-8', errors='replace')
+                            raise Exception(error_message)
+                    except UnicodeDecodeError:
+                        pass
+                reply_raw = reply_parts[0]
+                if len(reply_raw) >= 22:
                     reply_header = deserialize_reply_header(reply_raw[:22])
                     await websocket.send(json.dumps({
                         "type": "breakpointUnlocked",
                         "payload": {"success": True, "header": reply_header}
                     }))
                 else:
-                    # If it's an error, it might come as ['error', errorMessage]
-                    try:
-                        error_parts = await req_socket.recv_multipart()
-                        if len(error_parts) >= 2 and error_parts[0].decode('utf-8') == 'error':
-                            error_message = error_parts[1].decode('utf-8')
-                            raise Exception(error_message)
-                        else:
-                            raise Exception('Unexpected reply format for unlockBreakpoint')
-                    except Exception as e:
-                        print(f"Error unlocking breakpoint: {e}")
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "replyTo": command_type,
-                            "payload": {"message": f"Failed to unlock breakpoint: {e}"}
-                        }))
+                    raise Exception(reply_raw.decode('utf-8', errors='replace'))
 
             elif command_type == "start":
-                unique_id = get_next_request_id()
-                header = serialize_request_header(2, '>', unique_id) # '>' for START
-                await req_socket.send(header)
-                reply_raw = await req_socket.recv()
-                
-                # Check reply
-                if len(reply_raw) >= 6:
-                    reply_header = deserialize_reply_header(reply_raw[:22])
-                    await websocket.send(json.dumps({
-                        "type": "executionStarted",
-                        "payload": {"success": True, "header": reply_header}
-                    }))
-                else:
-                    # If it's an error, it might come as ['error', errorMessage]
-                    try:
-                        error_parts = await req_socket.recv_multipart()
-                        if len(error_parts) >= 2 and error_parts[0].decode('utf-8') == 'error':
-                            error_message = error_parts[1].decode('utf-8')
-                            raise Exception(error_message)
-                        else:
-                            raise Exception('Unexpected reply format for start')
-                    except Exception as e:
-                        print(f"Error starting execution: {e}")
+                try:
+                    unique_id = get_next_request_id()
+                    header = serialize_request_header(2, '>', unique_id) # '>' for START
+                    logger.info(f"🚀 Sending start execution request with ID: {unique_id}")
+                    await req_socket.send(header)
+                    
+                    # Use recv_multipart to handle both normal and error responses
+                    reply_parts = await req_socket.recv_multipart()
+                    logger.debug(f"Received {len(reply_parts)} parts in start reply")
+                    
+                    # Check if this is an error response
+                    if len(reply_parts) >= 2:
+                        try:
+                            first_part_str = reply_parts[0].decode('utf-8', errors='ignore')
+                            if first_part_str == 'error':
+                                error_message = reply_parts[1].decode('utf-8', errors='replace')
+                                logger.error(f"❌ Start execution error from backend: {error_message}")
+                                raise Exception(error_message)
+                        except UnicodeDecodeError:
+                            # Not a text error, continue with normal processing
+                            pass
+                    
+                    # Normal response - use first part
+                    reply_raw = reply_parts[0]
+                    logger.debug(f"Start execution reply length: {len(reply_raw)}")
+                    
+                    # Check reply format
+                    if len(reply_raw) >= 22:
+                        reply_header = deserialize_reply_header(reply_raw[:22])
+                        logger.info("✅ Execution started successfully")
                         await websocket.send(json.dumps({
-                            "type": "error",
-                            "replyTo": command_type,
-                            "payload": {"message": f"Failed to start execution: {e}"}
+                            "type": "executionStarted",
+                            "payload": {"success": True, "header": reply_header}
                         }))
+                    else:
+                        # Short response might be an error
+                        error_msg = reply_raw.decode('utf-8', errors='replace')
+                        logger.error(f"❌ Short start reply: {error_msg}")
+                        raise Exception(f"Short reply: {error_msg}")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Start execution failed: {e}")
+                    await websocket.send(json.dumps({
+                        "type": "error",
+                        "replyTo": command_type,
+                        "payload": {"message": f"Failed to start execution: {e}"}
+                    }))
 
             elif command_type == "pause":
                 unique_id = get_next_request_id()
@@ -567,28 +578,126 @@ async def handle_get_status(websocket, req_socket, logger):
             "payload": {"message": f"Operation cannot be accomplished in current state: {e}"}
         }))
 
-async def handle_get_blackboard(websocket, req_socket, logger):
-    """Handle getBlackboard request with enhanced error checking."""
+async def handle_get_hooks(websocket, req_socket, logger):
+    """Handle getHooks request to retrieve current breakpoint hooks."""
     try:
         unique_id = get_next_request_id()
-        header = serialize_request_header(2, 'B', unique_id)
-        logger.info(f"📋 Sending getBlackboard request with ID: {unique_id}")
+        header = serialize_request_header(2, 'D', unique_id)
+        logger.info(f"🔗 Sending getHooks request with ID: {unique_id}")
         
         await req_socket.send(header)
         
         # Handle potential multipart error responses
         try:
             reply_parts = await req_socket.recv_multipart()
+            logger.debug(f"Received {len(reply_parts)} parts in getHooks reply")
+            
+            # Check if this is an error response
+            if len(reply_parts) >= 2 and reply_parts[0].decode('utf-8', errors='replace') == 'error':
+                error_msg = reply_parts[1].decode('utf-8', errors='replace')
+                logger.error(f"❌ getHooks multipart error: {error_msg}")
+                raise ValueError(f"Backend error: {error_msg}")
+            
+            # Normal response should be single part
+            reply_raw = reply_parts[0] if len(reply_parts) == 1 else b''.join(reply_parts)
+            logger.debug(f"Received getHooks reply, length: {len(reply_raw)}")
+            
+            if len(reply_raw) < 22:
+                raise ValueError(f"Invalid reply length: {len(reply_raw)}, expected at least 22 bytes")
+                
+        except zmq.Again:
+            logger.error("❌ getHooks request timeout")
+            raise ValueError("Request timeout")
+        
+        header_data = deserialize_reply_header(reply_raw[:22])
+        hooks_payload = reply_raw[22:]
+        
+        logger.debug(f"Hooks payload length: {len(hooks_payload)}")
+        
+        if len(hooks_payload) == 0:
+            logger.info("✅ No hooks currently set")
+            hooks_data = []
+        else:
+            # Parse as JSON
+            try:
+                hooks_json = hooks_payload.decode('utf-8')
+                hooks_data = json.loads(hooks_json)
+                logger.info(f"✅ Hooks data parsed successfully: {len(hooks_data) if isinstance(hooks_data, list) else 'unknown'} hooks")
+                if isinstance(hooks_data, list):
+                    for i, hook in enumerate(hooks_data):
+                        if isinstance(hook, dict):
+                            logger.debug(f"Hook {i}: uid={hook.get('uid', 'N/A')}, position={hook.get('position', 'N/A')}, enabled={hook.get('enabled', 'N/A')}")
+            except Exception as json_error:
+                logger.error(f"❌ Failed to parse hooks data as JSON: {json_error}")
+                logger.debug(f"Raw hooks payload: {hooks_payload[:200]}")
+                hooks_data = []
+        
+        await websocket.send(json.dumps({
+            "type": "hooksDump",
+            "payload": {"data": hooks_data, "header": header_data}
+        }))
+        
+    except Exception as e:
+        logger.error(f"❌ getHooks failed: {e}")
+        await websocket.send(json.dumps({
+            "type": "error",
+            "replyTo": "getHooks",
+            "payload": {"message": f"Failed to get hooks: {e}"}
+        }))
+
+async def handle_get_blackboard(websocket, req_socket, logger, payload=None):
+    """Handle getBlackboard request with enhanced error checking."""
+    try:
+        unique_id = get_next_request_id()
+        header = serialize_request_header(2, 'B', unique_id)
+        logger.info(f"📋 Sending getBlackboard request with ID: {unique_id}")
+        # Groot2 BLACKBOARD expects 2-part message: header + semicolon-separated bb names
+        bb_names = "MainTree"
+        if payload:
+            names = (payload.get("names") or (payload.get("params", {}) or {}).get("names"))
+            if isinstance(names, str) and names.strip():
+                bb_names = names.strip()
+        await req_socket.send_multipart([header, bb_names.encode('utf-8')])
+        
+        # Handle potential multipart error responses
+        try:
+            reply_parts = await req_socket.recv_multipart()
             logger.debug(f"Received {len(reply_parts)} parts in getBlackboard reply")
             
-            # For Blackboard responses, we expect binary data in multipart format
-            # Blackboard data is always binary, so we should NOT check for text-based errors
-            # Only check for errors if we get a very short response that could be a text error
-            logger.debug("Processing blackboard multipart response - treating as normal binary data")
+            # Check if this is an error response first
+            if len(reply_parts) >= 2:
+                try:
+                    first_part_str = reply_parts[0].decode('utf-8', errors='ignore')
+                    if first_part_str == 'error':
+                        error_msg = reply_parts[1].decode('utf-8', errors='replace')
+                        logger.error(f"❌ getBlackboard error from backend: {error_msg}")
+                        raise ValueError(f"Backend error: {error_msg}")
+                except UnicodeDecodeError:
+                    # Not a text error, continue with normal processing
+                    pass
             
-            # Normal response - join all parts for blackboard data
-            reply_raw = b''.join(reply_parts)
-            logger.debug(f"Joined {len(reply_parts)} parts into {len(reply_raw)} bytes")
+            # Also check if the first part itself contains an error message
+            if len(reply_parts) >= 1:
+                try:
+                    first_part_str = reply_parts[0].decode('utf-8', errors='ignore')
+                    if 'must be 2 parts message' in first_part_str or 'error' in first_part_str.lower():
+                        logger.error(f"❌ getBlackboard error from backend: {first_part_str}")
+                        raise ValueError(f"Backend error: {first_part_str}")
+                except UnicodeDecodeError:
+                    # Not a text error, continue with normal processing
+                    pass
+            
+            # Normal response - use first part as header, rest as data
+            if len(reply_parts) == 1:
+                reply_raw = reply_parts[0]
+            else:
+                # First part should be header (22 bytes), rest is data
+                reply_raw = reply_parts[0]
+                if len(reply_parts) > 1:
+                    blackboard_data_raw = b''.join(reply_parts[1:])
+                else:
+                    blackboard_data_raw = b''
+                    
             logger.debug(f"Received getBlackboard reply, length: {len(reply_raw)}")
             
             # Check if this is a short error response
@@ -601,28 +710,38 @@ async def handle_get_blackboard(websocket, req_socket, logger):
             logger.error("❌ getBlackboard request timeout")
             raise ValueError("Request timeout")
         
-        header_data = deserialize_reply_header(reply_raw[:22])
-        blackboard_payload = reply_raw[22:]
-        
-        logger.debug(f"Blackboard payload length: {len(blackboard_payload)}")
-        
-        if len(blackboard_payload) == 0:
-            logger.warning("⚠️  Empty blackboard payload - no blackboard data available")
+        # Deserialize header
+        try:
+            header_data = deserialize_reply_header(reply_raw[:22])
+            # Use the separated blackboard data if available, otherwise extract from reply_raw
+            if 'blackboard_data_raw' in locals():
+                blackboard_payload = blackboard_data_raw
+            else:
+                blackboard_payload = reply_raw[22:]
+            logger.debug(f"Blackboard payload length: {len(blackboard_payload)}")
+        except Exception as header_error:
+            logger.error(f"❌ Failed to deserialize blackboard header: {header_error}")
             await websocket.send(json.dumps({
                 "type": "blackboardUpdate",
-                "payload": {"data": {}, "header": header_data, "warning": "No blackboard data available"}
+                "payload": {"data": {"error": f"Failed to deserialize header: {header_error}"}}
             }))
             return
         
         # Try to parse as msgpack
         try:
-            blackboard_data = msgpack.unpackb(blackboard_payload, raw=False)
-            logger.info(f"✅ Blackboard data parsed successfully: {type(blackboard_data)}")
-            if isinstance(blackboard_data, dict):
-                logger.debug(f"Blackboard keys: {list(blackboard_data.keys())}")
+            if len(blackboard_payload) == 0:
+                logger.info("✅ Empty blackboard data - no entries")
+                blackboard_data = {}
+            else:
+                blackboard_data = msgpack.unpackb(blackboard_payload, raw=False)
+                logger.info(f"✅ Blackboard data parsed successfully: {type(blackboard_data)}")
+                if isinstance(blackboard_data, dict):
+                    logger.debug(f"Blackboard keys: {list(blackboard_data.keys())}")
         except Exception as msgpack_error:
             logger.error(f"❌ Failed to parse blackboard data as msgpack: {msgpack_error}")
-            blackboard_data = {"error": "Failed to parse blackboard data"}
+            logger.debug(f"Raw blackboard payload (first 100 bytes): {blackboard_payload[:100]}")
+            # Try to parse as raw binary data or return empty dict
+            blackboard_data = {}
         
         await websocket.send(json.dumps({
             "type": "blackboardUpdate",

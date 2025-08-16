@@ -1,19 +1,40 @@
-import React, { useState } from "react"
-import { cn } from "@/lib/utils"
+import React from "react"
 import { Handle, Position, type NodeProps } from "reactflow"
 import { 
-    GitBranch, Layers, ChevronDown, ChevronRight,
-    ArrowRight, RotateCcw, Timer, Zap, Shield, 
-    CheckCircle, XCircle, Clock, Repeat, FastForward,
-    AlertTriangle, Wrench, HelpCircle, Workflow, Shuffle, Brackets
+    ChevronDown, ChevronRight, GitBranch, ArrowRight, Shield, Zap, RotateCcw, Repeat, Clock, Timer, CheckCircle, XCircle, Code, Database, FileText, Layers, Workflow, Target, Filter, ToggleLeft, Shuffle, Split, Activity, 
+    AlertTriangle, Wrench, HelpCircle, Brackets, FastForward, LogIn, LogOut, ArrowRightLeft, Info
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger,
+} from "@/components/ui/accordion"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
+import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
 
 export type NodeData = {
     label: string
     subtitle?: string
     status?: "idle" | "running" | "success" | "failure"
     breakpoint?: boolean // 新增断点字段
+    // 子树相关属性
+    subtreeId?: string
+    subtreeParameters?: Record<string, string>
+    isSubtreeReference?: boolean
+    subtreeDefinition?: {
+        id: string;
+        type: string;
+        ports: Array<{
+            type: string;
+            name: string;
+            dataType: string;
+            default: string;
+            description: string;
+        }>;
+    };
 }
 
 function StatusDot({ status }: { status?: NodeData["status"] }) {
@@ -199,14 +220,25 @@ export function DecoratorNode({ data, selected }: NodeProps<NodeData>) {
     )
 }
 
-export function SubTreeNode({ data, selected }: NodeProps<NodeData>) {
-    const [isExpanded, setIsExpanded] = useState(false);
-    
+export function SubTreeNode({ data, selected, id }: NodeProps<NodeData>) {
+    const { expandedSubTrees, actions } = useBehaviorTreeStore()
+    const nodeId = id || 'unknown'
+    const isExpanded = expandedSubTrees.has(nodeId)
+
+    const PortIcon = ({ type }: { type: string }) => {
+        switch (type) {
+            case 'input': return <LogIn className="h-3 w-3 text-sky-500" />;
+            case 'output': return <LogOut className="h-3 w-3 text-amber-500" />;
+            case 'inout': return <ArrowRightLeft className="h-3 w-3 text-violet-500" />;
+            default: return <Info className="h-3 w-3" />;
+        }
+    };
+
     return (
         <div>
             <NodeShell
                 icon={<GitBranch className="h-4 w-4 text-foreground/80" />}
-                title={data?.label ?? "SubTree"}
+                title={data?.subtreeId ?? "SubTree"}
                 subtitle={data?.subtitle}
                 breakpoint={data?.breakpoint}
                 status={data?.status}
@@ -220,19 +252,69 @@ export function SubTreeNode({ data, selected }: NodeProps<NodeData>) {
                         className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700"
                         onClick={(e) => {
                             e.stopPropagation();
-                            setIsExpanded(!isExpanded);
+                            actions.toggleSubTreeExpansion(nodeId);
                         }}
                         title={isExpanded ? "折叠子树" : "展开子树"}
                     >
                         {isExpanded ? (
-                            <ChevronDown className="h-3 w-3" />
+                            <ChevronDown className="h-4 w-4" />
                         ) : (
-                            <ChevronRight className="h-3 w-3" />
+                            <ChevronRight className="h-4 w-4" />
                         )}
                     </Button>
                 }
             />
             <Ports />
+
+            {isExpanded && (
+                <div className="mt-2 w-[300px] p-3 bg-slate-50 dark:bg-slate-900/80 rounded-md border border-dashed border-slate-300 dark:border-slate-700">
+                    <Accordion type="multiple" defaultValue={['parameters', 'ports']} className="w-full">
+                        {data?.subtreeParameters && Object.keys(data.subtreeParameters).length > 0 && (
+                            <AccordionItem value="parameters">
+                                <AccordionTrigger className="text-xs font-medium">
+                                    参数
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="space-y-2 text-xs">
+                                        {Object.entries(data.subtreeParameters).map(([key, value]) => (
+                                            <div key={key} className="flex justify-between items-center">
+                                                <span className="text-muted-foreground">{key}:</span>
+                                                <Badge variant="outline" className="font-mono">{String(value)}</Badge>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                        {data?.subtreeDefinition?.ports && data.subtreeDefinition.ports.length > 0 && (
+                            <AccordionItem value="ports">
+                                <AccordionTrigger className="text-xs font-medium">
+                                    端口
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                    <div className="space-y-3 text-xs">
+                                        {data.subtreeDefinition.ports.map((port, index) => (
+                                            <div key={index} className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <PortIcon type={port.type} />
+                                                    <span className="font-semibold">{port.name}</span>
+                                                    <Badge variant="secondary" className="font-mono">{port.dataType}</Badge>
+                                                </div>
+                                                {port.description && (
+                                                    <p className="text-muted-foreground pl-5">{port.description}</p>
+                                                )}
+                                                {port.default && (
+                                                    <p className="text-muted-foreground pl-5">默认: <code className="font-mono">{port.default}</code></p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </AccordionContent>
+                            </AccordionItem>
+                        )}
+                    </Accordion>
+                </div>
+            )}
         </div>
     )
 }
@@ -455,6 +537,187 @@ export function ForceFailureNode({ data, selected }: NodeProps<NodeData>) {
     )
 }
 
+// 新增的BehaviorTree.CPP标准节点组件
+export function SwitchNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<ToggleLeft className="h-4 w-4 text-purple-600" />}
+                title={data?.label ?? "Switch"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-purple-50 dark:bg-purple-900/20"
+                borderTint="border-purple-300/60 dark:border-purple-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function IfThenElseNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Split className="h-4 w-4 text-indigo-600" />}
+                title={data?.label ?? "IfThenElse"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-indigo-50 dark:bg-indigo-900/20"
+                borderTint="border-indigo-300/60 dark:border-indigo-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function WhileDoElseNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<RotateCcw className="h-4 w-4 text-cyan-600" />}
+                title={data?.label ?? "WhileDoElse"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-cyan-50 dark:bg-cyan-900/20"
+                borderTint="border-cyan-300/60 dark:border-cyan-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function ManualSelectorNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Target className="h-4 w-4 text-pink-600" />}
+                title={data?.label ?? "ManualSelector"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-pink-50 dark:bg-pink-900/20"
+                borderTint="border-pink-300/60 dark:border-pink-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function ScriptNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Code className="h-4 w-4 text-green-600" />}
+                title={data?.label ?? "Script"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-green-50 dark:bg-green-900/20"
+                borderTint="border-green-300/60 dark:border-green-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function SetBlackboardNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Database className="h-4 w-4 text-blue-600" />}
+                title={data?.label ?? "SetBlackboard"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-blue-50 dark:bg-blue-900/20"
+                borderTint="border-blue-300/60 dark:border-blue-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function SleepNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Pause className="h-4 w-4 text-gray-600" />}
+                title={data?.label ?? "Sleep"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-gray-50 dark:bg-gray-900/20"
+                borderTint="border-gray-300/60 dark:border-gray-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function LogNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<FileText className="h-4 w-4 text-yellow-600" />}
+                title={data?.label ?? "Log"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-yellow-50 dark:bg-yellow-900/20"
+                borderTint="border-yellow-300/60 dark:border-yellow-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function CheckBlackboardNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Filter className="h-4 w-4 text-teal-600" />}
+                title={data?.label ?? "CheckBlackboard"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-teal-50 dark:bg-teal-900/20"
+                borderTint="border-teal-300/60 dark:border-teal-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
+export function CompareBlackboardNode({ data, selected }: NodeProps<NodeData>) {
+    return (
+        <div>
+            <NodeShell
+                icon={<Activity className="h-4 w-4 text-violet-600" />}
+                title={data?.label ?? "CompareBlackboard"}
+                subtitle={data?.subtitle}
+                breakpoint={data?.breakpoint}
+                status={data?.status}
+                tint="bg-violet-50 dark:bg-violet-900/20"
+                borderTint="border-violet-300/60 dark:border-violet-600/60"
+                selected={selected}
+            />
+            <Ports />
+        </div>
+    )
+}
+
 // 扩展的节点类型映射
 export const nodeTypes = {
     // 基础节点类型
@@ -491,6 +754,22 @@ export const nodeTypes = {
     ForceSuccess: ForceSuccessNode,
     ForceFailure: ForceFailureNode,
     
+    // 更多BehaviorTree.CPP标准节点
+    Switch: SwitchNode,
+    IfThenElse: IfThenElseNode,
+    WhileDoElse: WhileDoElseNode,
+    ManualSelector: ManualSelectorNode,
+    
+    // 常见的Action节点类型
+    Script: ScriptNode,
+    SetBlackboard: SetBlackboardNode,
+    Sleep: SleepNode,
+    Log: LogNode,
+    
+    // 常见的Condition节点类型
+    CheckBlackboard: CheckBlackboardNode,
+    CompareBlackboard: CompareBlackboardNode,
+    
     // 别名和兼容性
     "NOT": InverterNode,
     "AlwaysSuccess": ForceSuccessNode,
@@ -499,6 +778,11 @@ export const nodeTypes = {
     "RepeatUntilFailure": RepeatNode,
     "SubTree": SubTreeNode,
     "SubTreePlus": SubTreeNode,
+    
+    // 用户自定义节点的通用映射
+    "UpdatePosition": ActionNode,
+    "IsDoorClosed": ConditionNode,
+    "PassThroughDoor": ActionNode,
     
     // Fallback for unknown types
     unknown: ActionNode,

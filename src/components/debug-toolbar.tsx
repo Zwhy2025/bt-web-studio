@@ -167,18 +167,20 @@ export function DebugToolbar() {
       {/* 分隔符 */}
       <div className="h-5 w-px bg-muted" />
 
-      {/* 子树模拟按钮 */}
-      <div className="flex items-center gap-1">
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleSimulateSubtree}
-          title="模拟子树执行"
-        >
-          <TreePine className="h-4 w-4" />
-          <span className="ml-1">模拟</span>
-        </Button>
-      </div>
+      {/* 子树模拟按钮 - 隐藏，因为用户有真实后端 */}
+      {false && (
+        <div className="flex items-center gap-1">
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={handleSimulateSubtree}
+            title="模拟子树执行"
+          >
+            <TreePine className="h-4 w-4" />
+            <span className="ml-1">模拟</span>
+          </Button>
+        </div>
+      )}
 
       {/* 错误信息显示 */}
       {debuggerConnectionError && (
