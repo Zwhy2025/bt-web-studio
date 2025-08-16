@@ -77,6 +77,26 @@ export function applyBehaviorTreeLayout(nodes: BehaviorTreeNode[], edges: Behavi
       const levelWidth = nodesAtDepth.length * nodeWidth + (nodesAtDepth.length - 1) * 50;
       const startX = -levelWidth / 2;
       
+      // 对同一层级的节点按x坐标排序，使布局更整齐
+      nodesAtDepth.sort((a, b) => {
+        // 如果有父节点，尝试按父节点位置排序
+        const parentA = parentMap.get(a.id);
+        const parentB = parentMap.get(b.id);
+        
+        if (parentA && parentB) {
+          // 获取父节点位置
+          const parentNodeA = nodeMap.get(parentA);
+          const parentNodeB = nodeMap.get(parentB);
+          
+          if (parentNodeA && parentNodeB) {
+            return parentNodeA.position.x - parentNodeB.position.x;
+          }
+        }
+        
+        // 默认按ID排序
+        return a.id.localeCompare(b.id);
+      });
+      
       nodesAtDepth.forEach((node, index) => {
         layoutedNodes.push({
           ...node,

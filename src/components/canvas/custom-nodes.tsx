@@ -234,6 +234,10 @@ export function SubTreeNode({ data, selected, id }: NodeProps<NodeData>) {
         }
     };
 
+    // 计算参数和端口的数量
+    const paramCount = data?.subtreeParameters ? Object.keys(data.subtreeParameters).length : 0;
+    const portCount = data?.subtreeDefinition?.ports ? data.subtreeDefinition.ports.length : 0;
+
     return (
         <div>
             <NodeShell
@@ -246,50 +250,62 @@ export function SubTreeNode({ data, selected, id }: NodeProps<NodeData>) {
                 borderTint="border-slate-300/60 dark:border-slate-600/60"
                 selected={selected}
                 extraContent={
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            actions.toggleSubTreeExpansion(nodeId);
-                        }}
-                        title={isExpanded ? "折叠子树" : "展开子树"}
-                    >
-                        {isExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                        ) : (
-                            <ChevronRight className="h-4 w-4" />
+                    <div className="flex items-center gap-1">
+                        {paramCount > 0 && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                                {paramCount}
+                            </Badge>
                         )}
-                    </Button>
+                        {portCount > 0 && (
+                            <Badge variant="outline" className="h-5 px-1.5 text-xs">
+                                {portCount}
+                            </Badge>
+                        )}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                actions.toggleSubTreeExpansion(nodeId);
+                            }}
+                            title={isExpanded ? "折叠子树" : "展开子树"}
+                        >
+                            {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                            ) : (
+                                <ChevronRight className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </div>
                 }
             />
             <Ports />
 
-            {isExpanded && (
-                <div className="mt-2 w-[300px] p-3 bg-slate-50 dark:bg-slate-900/80 rounded-md border border-dashed border-slate-300 dark:border-slate-700">
+            {isExpanded && data?.subtreeDefinition && (
+                <div className="mt-2 w-[350px] p-3 bg-slate-50 dark:bg-slate-900/80 rounded-md border border-dashed border-slate-300 dark:border-slate-700">
                     <Accordion type="multiple" defaultValue={['parameters', 'ports']} className="w-full">
                         {data?.subtreeParameters && Object.keys(data.subtreeParameters).length > 0 && (
                             <AccordionItem value="parameters">
                                 <AccordionTrigger className="text-xs font-medium">
-                                    参数
+                                    参数 ({Object.keys(data.subtreeParameters).length})
                                 </AccordionTrigger>
                                 <AccordionContent>
                                     <div className="space-y-2 text-xs">
                                         {Object.entries(data.subtreeParameters).map(([key, value]) => (
                                             <div key={key} className="flex justify-between items-center">
                                                 <span className="text-muted-foreground">{key}:</span>
-                                                <Badge variant="outline" className="font-mono">{String(value)}</Badge>
+                                                <Badge variant="outline" className="font-mono max-w-[200px] truncate">{String(value)}</Badge>
                                             </div>
                                         ))}
                                     </div>
                                 </AccordionContent>
                             </AccordionItem>
                         )}
-                        {data?.subtreeDefinition?.ports && data.subtreeDefinition.ports.length > 0 && (
+                        {data.subtreeDefinition.ports && data.subtreeDefinition.ports.length > 0 && (
                             <AccordionItem value="ports">
                                 <AccordionTrigger className="text-xs font-medium">
-                                    端口
+                                    端口 ({data.subtreeDefinition.ports.length})
                                 </AccordionTrigger>
                                 <AccordionContent>
                                     <div className="space-y-3 text-xs">
@@ -301,10 +317,10 @@ export function SubTreeNode({ data, selected, id }: NodeProps<NodeData>) {
                                                     <Badge variant="secondary" className="font-mono">{port.dataType}</Badge>
                                                 </div>
                                                 {port.description && (
-                                                    <p className="text-muted-foreground pl-5">{port.description}</p>
+                                                    <p className="text-muted-foreground pl-5 text-xs">{port.description}</p>
                                                 )}
                                                 {port.default && (
-                                                    <p className="text-muted-foreground pl-5">默认: <code className="font-mono">{port.default}</code></p>
+                                                    <p className="text-muted-foreground pl-5 text-xs">默认: <code className="font-mono">{port.default}</code></p>
                                                 )}
                                             </div>
                                         ))}
@@ -650,7 +666,7 @@ export function SleepNode({ data, selected }: NodeProps<NodeData>) {
     return (
         <div>
             <NodeShell
-                icon={<Pause className="h-4 w-4 text-gray-600" />}
+                icon={<Clock className="h-4 w-4 text-gray-600" />}
                 title={data?.label ?? "Sleep"}
                 subtitle={data?.subtitle}
                 breakpoint={data?.breakpoint}

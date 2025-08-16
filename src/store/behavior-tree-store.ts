@@ -6,8 +6,7 @@ import { Node, Edge } from 'reactflow'
 // import { MockWebSocketClient, DebuggerMessage } from '@/lib/mock-websocket-client' // 注释掉旧的导入
 import { RealWebSocketClient, DebuggerMessage } from '@/lib/real-websocket-client' // 新增导入
 import { simulateSubtreeExecution } from '@/lib/subtree-mock-generator' // 导入子树模拟功能
-import { parseXmlToBehaviorTree } from '@/lib/xml-parser' // 导入XML解析函数
-import { applyBehaviorTreeLayout } from '@/lib/behavior-tree-layout' // 导入布局算法
+import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager } from '@/lib/unified-behavior-tree-manager';
 
 // 节点状态枚举
 export enum NodeStatus {
@@ -604,14 +603,21 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
               case 'treeData':
                 // 处理树数据
                 if (payload && payload.xml) {
-                  parseXmlToBehaviorTree(payload.xml)
-                    .then(({ nodes, edges }) => {
-                      console.log("Parsed tree data:", nodes, edges);
+                  parseXMLUnified(payload.xml, 'remote', payload.treeId || `remote_${Date.now()}`)
+                    .then(async (behaviorTreeData) => {
+                      console.log("Parsed tree data:", behaviorTreeData);
                       // 应用行为树专用布局算法
-                      const layoutedNodes = applyBehaviorTreeLayout(nodes, edges);
+                      const layoutedNodes = await applyLayoutUnified(behaviorTreeData.id);
                       console.log("Applied behavior tree layout:", layoutedNodes);
+                      
+                      // 获取运行时数据
+                      const runtimeData = behaviorTreeManager.getRuntimeData(behaviorTreeData.id);
+                      if (!runtimeData) {
+                        throw new Error('Failed to get runtime data');
+                      }
+                      
                       // 更新 Zustand store 中的节点和边
-                      set({ nodes: layoutedNodes, edges });
+                      set({ nodes: layoutedNodes, edges: runtimeData.edges });
                       // 如果有当前会话，也更新会话数据
                       const state = get();
                       if (state.currentSession) {
@@ -620,7 +626,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
                             ? {
                               ...s,
                               nodes: layoutedNodes,
-                              edges,
+                              edges: runtimeData.edges,
                               modifiedAt: Date.now()
                             }
                             : s
@@ -632,7 +638,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
                           currentSession: {
                             ...state.currentSession,
                             nodes: layoutedNodes,
-                            edges,
+                            edges: runtimeData.edges,
                             modifiedAt: Date.now()
                           }
                         });
@@ -972,6 +978,8 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             if (state.debuggerClient) {
               state.debuggerClient.setNodes(nodes.map(n => n.id));
             }
+            
+            // 更新当前状态
             return {
               nodes,
               edges,

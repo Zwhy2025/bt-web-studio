@@ -496,45 +496,26 @@ function CanvasInner({
     const onNodesChange: OnNodesChange = useCallback(
         (changes) => {
             const newNodes = applyNodeChanges(changes, nodes);
-            actions.importData(newNodes, edges);
+            setNodes(newNodes); // 先更新本地状态
+            actions.importData(newNodes, edges); // 再同步到全局状态
         },
-        [nodes, edges, actions]
+        [nodes, edges, actions, setNodes]
     );
 
     const onEdgesChange: OnEdgesChange = useCallback(
         (changes) => {
             const newEdges = applyEdgeChanges(changes, edges);
-            actions.importData(nodes, newEdges);
+            setEdges(newEdges); // 先更新本地状态
+            actions.importData(nodes, newEdges); // 再同步到全局状态
         },
-        [nodes, edges, actions]
+        [nodes, edges, actions, setEdges]
     );
 
     // 当 Zustand store 中的节点或边发生变化时，更新 React Flow 的状态
     useEffect(() => {
-        const nodeParentMap = new Map<string, string>()
-        for (const edge of storeEdges) {
-            nodeParentMap.set(edge.target, edge.source)
-        }
-
-        const visibleNodes = storeNodes.filter(node => {
-            // 如果节点没有父节点，则始终可见
-            let parentId = nodeParentMap.get(node.id)
-            if (!parentId) return true
-
-            // 检查所有父级子树是否都已展开
-            let parent = storeNodes.find(n => n.id === parentId)
-            while (parent) {
-                if (parent.type === 'subtree' && !expandedSubTrees.has(parent.id)) {
-                    return false
-                }
-                parentId = nodeParentMap.get(parent.id)
-                parent = parentId ? storeNodes.find(n => n.id === parentId) : undefined
-            }
-            return true
-        })
-        setNodes(visibleNodes)
+        setNodes(storeNodes)
         setEdges(storeEdges)
-    }, [storeNodes, storeEdges, expandedSubTrees, setNodes, setEdges])
+    }, [storeNodes, storeEdges, setNodes, setEdges])
     
     // 当需要导出数据时提供当前画布数据
     useEffect(() => {
@@ -623,21 +604,18 @@ function CanvasInner({
         // 更新指导线
         setAlignmentGuides(snapResult.guides)
         
-        // 只有当位置需要调整时才更新节点位置
-        if (snapResult.x !== node.position.x || snapResult.y !== node.position.y) {
-            // 使用 setNodes 的函数形式来确保基于最新状态更新
-            setNodes(currentNodes => 
-                currentNodes.map(n => 
-                    n.id === node.id 
-                        ? { ...n, position: { x: snapResult.x, y: snapResult.y } }
-                        : n
-                )
+        // 更新节点位置（允许自由拖动）
+        setNodes(currentNodes => 
+            currentNodes.map(n => 
+                n.id === node.id 
+                    ? { ...n, position: { x: snapResult.x, y: snapResult.y } }
+                    : n
             )
-        }
+        )
     }, [nodes, snapToGridEnabled, setNodes])
     
     // 节点拖拽结束
-    const onNodeDragStop = useCallback(() => {
+    const onNodeDragStop = useCallback((event, node, draggedNodes) => {
         setIsDragging(false)
         setAlignmentGuides([])
         // 同步到状态管理系统

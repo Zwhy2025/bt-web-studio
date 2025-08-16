@@ -1,4 +1,5 @@
 import { Node, Edge } from "reactflow";
+import { parseXML as globalParseXML } from "@/lib/global-xml-processor";
 
 /**
  * BehaviorTree.CPP XML格式处理工具
@@ -24,156 +25,193 @@ export const ReverseNodeTypeMap: Record<string, string> = Object.entries(NodeTyp
   {} as Record<string, string>
 );
 
-// 节点位置映射（用于保存/恢复布局）
-interface NodePositionMap {
-  [nodeId: string]: { x: number; y: number };
-}
-
-/**
+/** 
  * 解析BehaviorTree.CPP XML字符串为ReactFlow节点和边
  * @param xmlString BehaviorTree.CPP XML字符串
  * @returns 解析后的节点和边数据
  */
 export function parseXML(xmlString: string): { nodes: Node[], edges: Edge[], error?: string } {
-  try {
-    // 创建DOM解析器
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-    
-    // 检查解析错误
-    const parseError = xmlDoc.querySelector("parsererror");
-    if (parseError) {
-      return { 
-        nodes: [], 
-        edges: [], 
-        error: "XML解析错误: " + parseError.textContent 
-      };
-    }
+  return globalParseXML(xmlString);
+}
 
-    // 获取根节点
-    const btRoot = xmlDoc.querySelector("BehaviorTree");
-    if (!btRoot) {
-      return { 
-        nodes: [], 
-        edges: [], 
-        error: "无效的BehaviorTree XML: 缺少BehaviorTree根元素" 
-      };
-    }
-
-    // 提取布局信息（如果有）
-    const layoutData = xmlDoc.querySelector("TreeNodesModel");
-    const nodePositions: NodePositionMap = {};
-    
-    if (layoutData) {
-      const nodeModels = layoutData.querySelectorAll("Node");
-      nodeModels.forEach(node => {
-        const id = node.getAttribute("ID");
-        const x = parseFloat(node.getAttribute("x") || "0");
-        const y = parseFloat(node.getAttribute("y") || "0");
-        if (id) {
-          nodePositions[id] = { x, y };
-        }
+// 读取demo.xml文件内容
+let demoXmlContent: string | null = null;
+try {
+  // 在浏览器环境中通过fetch读取
+  if (typeof window !== 'undefined') {
+    fetch('/demo.xml')
+      .then(response => response.text())
+      .then(text => {
+        demoXmlContent = text;
+      })
+      .catch(error => {
+        console.error('Failed to load demo.xml:', error);
       });
-    }
-
-    // 解析节点和边
-    const nodes: Node[] = [];
-    const edges: Edge[] = [];
-    let nodeIdCounter = 0;
-    
-    // 递归处理XML树
-    function processNode(element: Element, parentId?: string, depth: number = 0): string | undefined {
-      const nodeName = element.nodeName;
-      const nodeId = `node_${nodeIdCounter++}`;
-      const nodeType = NodeTypeMap[nodeName as keyof typeof NodeTypeMap] || "action";
-      
-      // 获取节点属性
-      const attributes: Record<string, string> = {};
-      Array.from(element.attributes).forEach(attr => {
-        attributes[attr.name] = attr.value;
-      });
-      
-      // 创建节点
-      const position = nodePositions[nodeId] || { 
-        x: 100 + depth * 150, 
-        y: 100 + nodes.length * 80 
-      };
-      
-      nodes.push({
-        id: nodeId,
-        type: nodeType,
-        position,
-        data: { 
-          label: nodeName + (attributes.name ? `: ${attributes.name}` : ""),
-          attributes
-        }
-      });
-      
-      // 如果有父节点，创建边
-      if (parentId) {
-        edges.push({
-          id: `edge_${parentId}_${nodeId}`,
-          source: parentId,
-          target: nodeId,
-          sourceHandle: "out",
-          targetHandle: "in"
-        });
-      }
-      
-      // 处理子节点
-      Array.from(element.children).forEach(child => {
-        processNode(child, nodeId, depth + 1);
-      });
-      
-      return nodeId;
-    }
-    
-    // 从根节点开始处理
-    const rootElement = btRoot.firstElementChild;
-    if (rootElement) {
-      processNode(rootElement);
-    } else {
-      return { 
-        nodes: [], 
-        edges: [], 
-        error: "无效的BehaviorTree XML: 缺少根控制节点" 
-      };
-    }
-    
-    return { nodes, edges };
-  } catch (error) {
-    return { 
-      nodes: [], 
-      edges: [], 
-      error: `XML解析异常: ${(error as Error).message}` 
-    };
   }
+} catch (error) {
+  console.error('Error loading demo.xml:', error);
 }
 
 /**
  * 示例/测试XML - 用于开发和测试
  */
-export const sampleXML = `<?xml version="1.0" encoding="UTF-8"?>
-<root>
-  <BehaviorTree ID="MainTree">
-    <Sequence name="RootSequence">
-      <Action name="ScanEnvironment" />
-      <Condition name="TargetVisible" />
-      <Selector name="ApproachOrSearch">
-        <Action name="MoveToTarget" />
-        <Action name="SearchTarget" />
-      </Selector>
-      <Action name="PerformTask" />
-    </Sequence>
-  </BehaviorTree>
-  <TreeNodesModel>
-    <Node ID="node_0" x="100" y="100" />
-    <Node ID="node_1" x="100" y="200" />
-    <Node ID="node_2" x="100" y="300" />
-    <Node ID="node_3" x="250" y="300" />
-    <Node ID="node_4" x="250" y="400" />
-    <Node ID="node_5" x="100" y="500" />
-  </TreeNodesModel>
+export const sampleXML = `<root BTCPP_format="4">
+    <BehaviorTree ID="MainTree" _fullpath="">
+        <Sequence name="Sequence" _uid="1">
+            <Script name="Script" _uid="2" code="door_open:=false"/>
+            <UpdatePosition name="UpdatePosition" _uid="3" pos="{pos_2D}"/>
+            <Fallback name="Fallback" _uid="4">
+                <Inverter name="Inverter" _uid="5">
+                    <IsDoorClosed name="IsDoorClosed" _uid="6"/>
+                </Inverter>
+                <SubTree ID="DoorClosed" _fullpath="DoorClosed::7" _uid="7" door_open="{door_open}"/>
+            </Fallback>
+            <PassThroughDoor name="PassThroughDoor" _uid="13"/>
+        </Sequence>
+    </BehaviorTree>
+    <BehaviorTree ID="DoorClosed" _fullpath="DoorClosed::7">
+        <Fallback name="tryOpen" _uid="8" _onSuccess="door_open:=true">
+            <OpenDoor name="OpenDoor" _uid="9"/>
+            <RetryUntilSuccessful name="RetryUntilSuccessful" _uid="10" num_attempts="5">
+                <PickLock name="PickLock" _uid="11"/>
+            </RetryUntilSuccessful>
+            <SmashDoor name="SmashDoor" _uid="12"/>
+        </Fallback>
+    </BehaviorTree>
+    <TreeNodesModel>
+        <Action ID="AlwaysFailure"/>
+        <Action ID="AlwaysSuccess"/>
+        <Control ID="AsyncFallback"/>
+        <Control ID="AsyncSequence"/>
+        <Decorator ID="Delay">
+            <input_port name="delay_msec" type="unsigned int">Tick the child after a few milliseconds</input_port>
+        </Decorator>
+        <Control ID="Fallback"/>
+        <Decorator ID="ForceFailure"/>
+        <Decorator ID="ForceSuccess"/>
+        <Control ID="IfThenElse"/>
+        <Decorator ID="Inverter"/>
+        <Condition ID="IsDoorClosed"/>
+        <Decorator ID="KeepRunningUntilFailure"/>
+        <Decorator ID="LoopBool">
+            <output_port name="value" type="bool"/>
+            <input_port name="if_empty" type="BT::NodeStatus" default="SUCCESS">Status to return if queue is empty: SUCCESS, FAILURE, SKIPPED</input_port>
+            <inout_port name="queue" type="std::shared_ptr&lt;std::deque&lt;bool, std::allocator&lt;bool&gt; &gt; &gt;"/>
+        </Decorator>
+        <Decorator ID="LoopDouble">
+            <output_port name="value" type="double"/>
+            <input_port name="if_empty" type="BT::NodeStatus" default="SUCCESS">Status to return if queue is empty: SUCCESS, FAILURE, SKIPPED</input_port>
+            <inout_port name="queue" type="std::shared_ptr&lt;std::deque&lt;double, std::allocator&lt;double&gt; &gt; &gt;"/>
+        </Decorator>
+        <Decorator ID="LoopInt">
+            <output_port name="value" type="int"/>
+            <input_port name="if_empty" type="BT::NodeStatus" default="SUCCESS">Status to return if queue is empty: SUCCESS, FAILURE, SKIPPED</input_port>
+            <inout_port name="queue" type="std::shared_ptr&lt;std::deque&lt;int, std::allocator&lt;int&gt; &gt; &gt;"/>
+        </Decorator>
+        <Decorator ID="LoopString">
+            <output_port name="value" type="std::string"/>
+            <input_port name="if_empty" type="BT::NodeStatus" default="SUCCESS">Status to return if queue is empty: SUCCESS, FAILURE, SKIPPED</input_port>
+            <inout_port name="queue" type="std::shared_ptr&lt;std::deque&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt; &gt;"/>
+        </Decorator>
+        <Action ID="OpenDoor"/>
+        <Control ID="Parallel">
+            <input_port name="failure_count" type="int" default="1">number of children that need to fail to trigger a FAILURE</input_port>
+            <input_port name="success_count" type="int" default="-1">number of children that need to succeed to trigger a SUCCESS</input_port>
+        </Control>
+        <Control ID="ParallelAll">
+            <input_port name="max_failures" type="int" default="1">If the number of children returning FAILURE exceeds this value, ParallelAll returns FAILURE</input_port>
+        </Control>
+        <Action ID="PassThroughDoor"/>
+        <Action ID="PickLock"/>
+        <Decorator ID="Precondition">
+            <input_port name="else" type="BT::NodeStatus" default="FAILURE">Return status if condition is false</input_port>
+            <input_port name="if" type="std::string"/>
+        </Decorator>
+        <Control ID="ReactiveFallback"/>
+        <Control ID="ReactiveSequence"/>
+        <Decorator ID="Repeat">
+            <input_port name="num_cycles" type="int">Repeat a successful child up to N times. Use -1 to create an infinite loop.</input_port>
+        </Decorator>
+        <Decorator ID="RetryUntilSuccessful">
+            <input_port name="num_attempts" type="int">Execute again a failing child up to N times. Use -1 to create an infinite loop.</input_port>
+        </Decorator>
+        <Decorator ID="RunOnce">
+            <input_port name="then_skip" type="bool" default="true">If true, skip after the first execution, otherwise return the same NodeStatus returned once by the child.</input_port>
+        </Decorator>
+        <Action ID="Script">
+            <input_port name="code" type="std::string">Piece of code that can be parsed</input_port>
+        </Action>
+        <Condition ID="ScriptCondition">
+            <input_port name="code" type="BT::AnyTypeAllowed">Piece of code that can be parsed. Must return false or true</input_port>
+        </Condition>
+        <Control ID="Sequence"/>
+        <Control ID="SequenceWithMemory"/>
+        <Action ID="SetBlackboard">
+            <inout_port name="output_key" type="BT::AnyTypeAllowed">Name of the blackboard entry where the value should be written</inout_port>
+            <input_port name="value" type="BT::AnyTypeAllowed">Value to be written into the output_key</input_port>
+        </Action>
+        <Decorator ID="SkipUnlessUpdated">
+            <input_port name="entry" type="BT::Any">Entry to check</input_port>
+        </Decorator>
+        <Action ID="Sleep">
+            <input_port name="msec" type="unsigned int"/>
+        </Action>
+        <Condition ID="SmashDoor"/>
+        <SubTree ID="SubTree">
+            <input_port name="_autoremap" type="bool" default="false">If true, all the ports with the same name will be remapped</input_port>
+        </SubTree>
+        <Control ID="Switch2">
+            <input_port name="case_2" type="std::string"/>
+            <input_port name="case_1" type="std::string"/>
+            <input_port name="variable" type="std::string"/>
+        </Control>
+        <Control ID="Switch3">
+            <input_port name="case_3" type="std::string"/>
+            <input_port name="case_2" type="std::string"/>
+            <input_port name="case_1" type="std::string"/>
+            <input_port name="variable" type="std::string"/>
+        </Control>
+        <Control ID="Switch4">
+            <input_port name="case_4" type="std::string"/>
+            <input_port name="case_3" type="std::string"/>
+            <input_port name="case_2" type="std::string"/>
+            <input_port name="case_1" type="std::string"/>
+            <input_port name="variable" type="std::string"/>
+        </Control>
+        <Control ID="Switch5">
+            <input_port name="case_5" type="std::string"/>
+            <input_port name="case_4" type="std::string"/>
+            <input_port name="case_3" type="std::string"/>
+            <input_port name="case_2" type="std::string"/>
+            <input_port name="case_1" type="std::string"/>
+            <input_port name="variable" type="std::string"/>
+        </Control>
+        <Control ID="Switch6">
+            <input_port name="case_5" type="std::string"/>
+            <input_port name="case_4" type="std::string"/>
+            <input_port name="case_6" type="std::string"/>
+            <input_port name="case_3" type="std::string"/>
+            <input_port name="case_2" type="std::string"/>
+            <input_port name="case_1" type="std::string"/>
+            <input_port name="variable" type="std::string"/>
+        </Control>
+        <Decorator ID="Timeout">
+            <input_port name="msec" type="unsigned int">After a certain amount of time, halt() the child if it is still running.</input_port>
+        </Decorator>
+        <Action ID="UnsetBlackboard">
+            <input_port name="key" type="std::string">Key of the entry to remove</input_port>
+        </Action>
+        <Action ID="UpdatePosition">
+            <output_port name="pos" type="Position2D"/>
+        </Action>
+        <Decorator ID="WaitValueUpdate">
+            <input_port name="entry" type="BT::Any">Entry to check</input_port>
+        </Decorator>
+        <Action ID="WasEntryUpdated">
+            <input_port name="entry" type="BT::Any">Entry to check</input_port>
+        </Action>
+        <Control ID="WhileDoElse"/>
+    </TreeNodesModel>
 </root>`;
 
 /**
@@ -323,47 +361,46 @@ export function formatXMLString(xmlString: string): string {
   try {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-    
+
     // 检查解析错误
     const parseError = xmlDoc.querySelector("parsererror");
     if (parseError) {
       return xmlString; // 如果解析失败，返回原始字符串
     }
-    
+
     const serializer = new XMLSerializer();
     let formatted = serializer.serializeToString(xmlDoc);
-    
+
     // 移除多余的空白
     formatted = formatted.replace(/>\s+</g, '><');
-    
+
     // 添加换行和缩进
     formatted = formatted.replace(/></g, '>\n<');
-    
+
     const lines = formatted.split('\n');
     let indentLevel = 0;
     const indentedLines = lines.map(line => {
       const trimmed = line.trim();
       if (!trimmed) return '';
-      
+
       // 减少缩进（结束标签）
       if (trimmed.startsWith('</')) {
         indentLevel = Math.max(0, indentLevel - 1);
       }
-      
+
       const indented = '  '.repeat(indentLevel) + trimmed;
-      
+
       // 增加缩进（开始标签，但不是自闭合标签）
       if (trimmed.startsWith('<') && !trimmed.startsWith('</') && !trimmed.endsWith('/>') && !trimmed.includes('<?xml')) {
         indentLevel++;
       }
-      
+
       return indented;
     });
-    
+
     return indentedLines.filter(line => line.trim()).join('\n');
   } catch (e) {
     // 如果格式化失败，返回原始字符串
     return xmlString;
   }
 }
-

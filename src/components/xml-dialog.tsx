@@ -13,9 +13,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, FileDown, FileUp, Copy, CheckCircle, Eye, EyeOff, Info, Upload, X, TestTube } from "lucide-react";
-import { parseXML, generateXML, sampleXML, formatXMLString } from "@/lib/xml-utils";
+import { generateXML, sampleXML, formatXMLString } from "@/lib/xml-utils";
 import { Node, Edge } from "reactflow";
 import { useToast } from "@/hooks/use-toast";
+import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager } from '@/lib/unified-behavior-tree-manager';
 
 interface ImportDialogProps {
   open: boolean;
@@ -52,26 +53,34 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     reader.readAsText(file, 'utf-8');
   };
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!xml.trim()) {
       setError("请选择XML文件或输入XML内容");
       return;
     }
 
-    const result = parseXML(xml);
-    if (result.error) {
-      setError(result.error);
-      return;
+    // 使用统一管理器解析XML
+    try {
+      const behaviorTreeData = await parseXMLUnified(xml, 'file', fileName || `file_${Date.now()}`);
+      const layoutedNodes = await applyLayoutUnified(behaviorTreeData.id);
+      const runtimeData = behaviorTreeManager.getRuntimeData(behaviorTreeData.id);
+      
+      if (!runtimeData) {
+        throw new Error('Failed to get runtime data');
+      }
+      
+      onImport(layoutedNodes, runtimeData.edges);
+      onOpenChange(false);
+      setError(undefined);
+      
+      toast({
+        title: "导入成功",
+        description: fileName ? `已导入文件: ${fileName}` : "XML内容已成功导入",
+      });
+    } catch (error) {
+      console.error("解析失败:", error);
+      setError(error instanceof Error ? error.message : "解析失败");
     }
-    
-    onImport(result.nodes, result.edges);
-    onOpenChange(false);
-    setError(undefined);
-    
-    toast({
-      title: "导入成功",
-      description: fileName ? `已导入文件: ${fileName}` : "XML内容已成功导入",
-    });
   };
 
   const handleClear = () => {
