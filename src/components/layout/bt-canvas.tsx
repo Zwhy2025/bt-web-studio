@@ -64,30 +64,27 @@ function wouldCreateCycle(sourceId: string, targetId: string, edges: Edge[], nod
         return true;
     }
 
-    // 检查是否直接连接到自己的父节点（形成双向连接）
-    const isDirectParent = edges.some(edge => edge.source === targetId && edge.target === sourceId);
-    if (isDirectParent) {
-        return true;
-    }
-
-    // 检查是否会形成间接回路
-    const visited = new Set<string>();
-    const stack: string[] = [sourceId];
+    // 从新的目标节点开始遍历，检查是否能到达新的源节点
+    const stack: string[] = [targetId];
+    const visited = new Set<string>([targetId]);
 
     while (stack.length > 0) {
-        const currentId = stack.pop()!;
-        if (currentId === targetId) {
-            return true; // 发现回路
+        const currentNode = stack.pop()!;
+        if (currentNode === sourceId) {
+            return true; // 发现回路！
         }
-        if (visited.has(currentId)) {
-            continue;
-        }
-        visited.add(currentId);
 
-        // 将当前节点的所有子节点添加到栈中
-        edges
-            .filter(edge => edge.source === currentId)
-            .forEach(edge => stack.push(edge.target));
+        // 查找当前节点的所有子节点
+        const children = edges
+            .filter(edge => edge.source === currentNode)
+            .map(edge => edge.target);
+
+        for (const childId of children) {
+            if (!visited.has(childId)) {
+                visited.add(childId);
+                stack.push(childId);
+            }
+        }
     }
 
     return false; // 没有发现回路
