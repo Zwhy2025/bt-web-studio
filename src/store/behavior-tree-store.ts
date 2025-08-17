@@ -6,7 +6,7 @@ import { Node, Edge } from 'reactflow'
 // import { MockWebSocketClient, DebuggerMessage } from '@/lib/mock-websocket-client' // 注释掉旧的导入
 import { RealWebSocketClient, DebuggerMessage } from '@/lib/real-websocket-client' // 新增导入
 import { simulateSubtreeExecution } from '@/lib/subtree-mock-generator' // 导入子树模拟功能
-import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager } from '@/lib/unified-behavior-tree-manager';
+import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager, handleSubtreeImport, toggleSubtreeExpansion } from '@/lib/unified-behavior-tree-manager';
 
 // 节点状态枚举
 export enum NodeStatus {
@@ -169,6 +169,8 @@ export interface BehaviorTreeState {
     clearBlackboard: () => void
 
     // 调试操作
+    connectToDebugger: (url: string) => void
+    disconnectFromDebugger: () => void
     startExecution: () => void
     pauseExecution: () => void
     stopExecution: () => void
@@ -366,7 +368,7 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             set({
               sessions: remainingSessions,
               currentSession: newActiveSession,
-              activeSessionId: newActiveSession?.id || null,
+              activeSessionId: newActiveSession?.id || '',
               nodes: newActiveSession?.nodes || [],
               edges: newActiveSession?.edges || [],
               blackboard: newActiveSession?.blackboard || {},
@@ -493,29 +495,243 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
           set({ selectedNodeIds: [], selectedEdgeIds: [] })
         },
 
-        // SubTree展开/折叠操作
-        toggleSubTreeExpansion: (nodeId: string) => {
+        // SubTree展开/折叠操作 - 使用统一的处理逻辑
+        toggleSubTreeExpansion: (subtreeId: string) => {
           set(state => {
-            const newExpandedSubTrees = new Set(state.expandedSubTrees)
-            if (newExpandedSubTrees.has(nodeId)) {
-              newExpandedSubTrees.delete(nodeId)
-            } else {
-              newExpandedSubTrees.add(nodeId)
+            if (!state.currentSession) {
+              console.error('❌ No current session');
+              return state;
             }
-            return { expandedSubTrees: newExpandedSubTrees }
-          })
+
+            console.log(`🔄 Toggling subtree expansion for: ${subtreeId}`);
+
+            // 查找子树引用节点（在当前树中的引用节点）
+            const subtreeRefNode = state.nodes.find(node =>
+              node.type === 'subtree' && (
+                node.data.subtreeId === subtreeId ||
+                node.id === subtreeId ||
+                node.data.label?.includes(subtreeId)
+              )
+            );
+
+            if (!subtreeRefNode) {
+              console.error(`❌ Subtree reference node not found: ${subtreeId}`);
+              return state;
+            }
+
+            console.log(`📍 Found subtree reference node:`, subtreeRefNode);
+
+            // 确保当前会话的树已注册到管理器
+            const parentTreeId = `session_${state.currentSession.id}`;
+            const manager = behaviorTreeManager;
+
+            if (!manager.getTree(parentTreeId)) {
+              console.log(`🔧 Auto-registering current session tree: ${parentTreeId}`);
+              const treeData = {
+                id: parentTreeId,
+                name: state.currentSession.name || parentTreeId,
+                sourceType: 'file' as const,
+                sourceHash: Date.now().toString(),
+                xmlContent: '',
+                nodes: state.nodes,
+                edges: state.edges,
+                metadata: {
+                  nodeDefinitions: {},
+                  treeDefinitions: {},
+                  layoutApplied: true,
+                  lastParsed: new Date()
+                }
+              };
+              manager.registerTree(treeData);
+            }
+
+            // 获取实际的子树ID（从引用节点的数据中获取）
+            const actualSubtreeId = subtreeRefNode.data.subtreeId || subtreeId;
+
+            // 检查子树是否在管理器中注册，如果没有则尝试从当前解析的数据中提取
+            if (!manager.getTree(actualSubtreeId)) {
+              console.error(`❌ Subtree not found in manager: ${actualSubtreeId}`);
+              console.log(`🔄 Attempting to extract subtree data from current session: ${actualSubtreeId}`);
+
+              // 尝试从当前节点中找到子树的实际内容
+              const subtreeNodes = state.nodes.filter(node =>
+                node.data.parentSubtreeRef === subtreeRefNode.id ||
+                (node.type === 'subtree' && node.data.subtreeId === actualSubtreeId)
+              );
+
+              // 如果找不到子树节点，尝试从XML解析结果中重新提取
+              if (subtreeNodes.length === 0) {
+                console.log(`🔄 No subtree nodes found, creating minimal subtree structure for: ${actualSubtreeId}`);
+
+                // 创建最小的子树结构（包含一个根节点）
+                const tempSubtreeData = {
+                  id: actualSubtreeId,
+                  name: actualSubtreeId,
+                  sourceType: 'file' as const,
+                  sourceHash: Date.now().toString(),
+                  xmlContent: '',
+                  nodes: [
+                    {
+                      id: `${actualSubtreeId}_root`,
+                      position: { x: 0, y: 0 },
+                      data: {
+                        label: `${actualSubtreeId} Root`,
+                        status: NodeStatus.IDLE,
+                      },
+                      type: 'control-sequence',
+                    }
+                  ],
+                  edges: [],
+                  metadata: {
+                    nodeDefinitions: {},
+                    treeDefinitions: {},
+                    layoutApplied: true,
+                    lastParsed: new Date()
+                  }
+                };
+                manager.registerTree(tempSubtreeData);
+                console.log(`✅ Created minimal subtree structure for: ${actualSubtreeId}`);
+              } else {
+                // 使用找到的子树节点创建子树数据
+                const subtreeEdges = state.edges.filter(edge =>
+                  subtreeNodes.some(node => node.id === edge.source || node.id === edge.target)
+                );
+
+                const extractedSubtreeData = {
+                  id: actualSubtreeId,
+                  name: actualSubtreeId,
+                  sourceType: 'file' as const,
+                  sourceHash: Date.now().toString(),
+                  xmlContent: '',
+                  nodes: subtreeNodes.map(node => ({ ...node })),
+                  edges: subtreeEdges.map(edge => ({ ...edge })),
+                  metadata: {
+                    nodeDefinitions: {},
+                    treeDefinitions: {},
+                    layoutApplied: true,
+                    lastParsed: new Date()
+                  }
+                };
+                manager.registerTree(extractedSubtreeData);
+                console.log(`✅ Extracted and registered subtree data for: ${actualSubtreeId} with ${subtreeNodes.length} nodes`);
+              }
+            }
+
+            // 调用管理器的展开/折叠功能
+            const currentExpanded = subtreeRefNode.data.isExpanded || false;
+            const newExpanded = !currentExpanded;
+
+            console.log(`🎯 Calling toggleSubtreeExpansion with:`, {
+              parentTreeId: parentTreeId,
+              subtreeRefNodeId: subtreeRefNode.id,
+              expand: newExpanded
+            });
+
+            const result = toggleSubtreeExpansion(parentTreeId, subtreeRefNode.id, newExpanded);
+
+            if (result) {
+              console.log(`✅ Subtree expansion toggled successfully`);
+              return {
+                ...state,
+                nodes: result.nodes,
+                edges: result.edges,
+                sessions: state.sessions.map(s =>
+                  s.id === state.currentSession!.id
+                    ? { ...s, nodes: result.nodes, edges: result.edges, modifiedAt: Date.now() }
+                    : s
+                ),
+                currentSession: {
+                  ...state.currentSession,
+                  nodes: result.nodes,
+                  edges: result.edges,
+                  modifiedAt: Date.now(),
+                },
+              };
+            } else {
+              console.error(`❌ Failed to toggle subtree expansion`);
+              return state;
+            }
+          });
         },
 
         setSubTreeExpanded: (nodeId: string, expanded: boolean) => {
-          set(state => {
-            const newExpandedSubTrees = new Set(state.expandedSubTrees)
+          const state = get();
+          if (!state.currentSession) return;
+
+          const node = state.nodes.find(n => n.id === nodeId);
+          if (!node || !node.data.isSubtreeReference) return;
+
+          // 首先检查子树是否已经在管理器中注册
+          const subtreeId = node.data.subtreeId;
+          if (!subtreeId) {
+            console.error(`❌ Subtree ID not found in node: ${nodeId}`);
+            return;
+          }
+
+          // 检查子树是否存在于管理器中
+          const subtree = behaviorTreeManager.getTree(subtreeId);
+          if (!subtree) {
+            console.error(`❌ Subtree not found in manager: ${subtreeId}`);
+            return;
+          }
+
+          // 确保当前会话的树数据已经在管理器中注册
+          const currentTreeId = `session_${state.currentSession.id}`;
+          let currentTree = behaviorTreeManager.getTree(currentTreeId);
+
+          if (!currentTree) {
+            // 如果当前树不在管理器中，先注册它
+            console.log(`🔄 Registering current session tree: ${currentTreeId}`);
+            const currentTreeData = {
+              id: currentTreeId,
+              name: state.currentSession.name,
+              sourceType: 'file' as const,
+              sourceHash: Date.now().toString(),
+              xmlContent: '', // 临时空内容
+              nodes: state.nodes.map(n => ({ ...n })),
+              edges: state.edges.map(e => ({ ...e })),
+              metadata: {
+                nodeDefinitions: {},
+                treeDefinitions: {},
+                layoutApplied: true,
+                lastParsed: new Date()
+              }
+            };
+            behaviorTreeManager.registerTree(currentTreeData);
+            currentTree = currentTreeData;
+          } else {
+            // 更新现有树的节点和边数据
+            currentTree.nodes = state.nodes.map(n => ({ ...n }));
+            currentTree.edges = state.edges.map(e => ({ ...e }));
+          }
+
+          // 使用统一的子树展开/折叠处理函数
+          const result = toggleSubtreeExpansion(
+            currentTreeId, // 使用正确的树 ID
+            nodeId,
+            expanded
+          );
+
+          if (result) {
+            const newExpandedSubTrees = new Set(state.expandedSubTrees);
             if (expanded) {
-              newExpandedSubTrees.add(nodeId)
+              newExpandedSubTrees.add(nodeId);
             } else {
-              newExpandedSubTrees.delete(nodeId)
+              newExpandedSubTrees.delete(nodeId);
             }
-            return { expandedSubTrees: newExpandedSubTrees }
-          })
+
+            // 更新状态
+            set({
+              nodes: result.nodes,
+              edges: result.edges,
+              expandedSubTrees: newExpandedSubTrees
+            });
+
+            // 同步到会话数据
+            if (state.currentSession) {
+              state.actions.importData(result.nodes, result.edges);
+            }
+          }
         },
 
         // 黑板操作
@@ -609,13 +825,13 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
                       // 应用行为树专用布局算法
                       const layoutedNodes = await applyLayoutUnified(behaviorTreeData.id);
                       console.log("Applied behavior tree layout:", layoutedNodes);
-                      
+
                       // 获取运行时数据
                       const runtimeData = behaviorTreeManager.getRuntimeData(behaviorTreeData.id);
                       if (!runtimeData) {
                         throw new Error('Failed to get runtime data');
                       }
-                      
+
                       // 更新 Zustand store 中的节点和边
                       set({ nodes: layoutedNodes, edges: runtimeData.edges });
                       // 如果有当前会话，也更新会话数据
@@ -978,13 +1194,13 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
             if (state.debuggerClient) {
               state.debuggerClient.setNodes(nodes.map(n => n.id));
             }
-            
+
             // 更新当前状态
             return {
               nodes,
               edges,
               sessions: state.sessions.map(s =>
-                s.id === state.currentSession.id
+                s.id === state.currentSession!.id
                   ? { ...s, nodes, edges, blackboard: state.blackboard, modifiedAt }
                   : s
               ),

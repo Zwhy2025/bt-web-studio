@@ -23,10 +23,7 @@ export function DebugToolbar() {
   } = useBehaviorTreeStore();
 
   const handleConnect = () => {
-    actions.connectToDebugger('ws://localhost:8080'); // Mock URL
-    if (url) {
-      actions.connectToDebugger(url);
-    }
+    actions.connectToDebugger('ws://localhost:8080');
   };
 
   const handleDisconnect = () => {

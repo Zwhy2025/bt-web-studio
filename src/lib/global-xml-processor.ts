@@ -11,7 +11,7 @@ class GlobalXmlProcessor {
     error?: string
   } | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   // 获取单例实例
   public static getInstance(): GlobalXmlProcessor {
@@ -28,16 +28,16 @@ class GlobalXmlProcessor {
       console.log('[XML Parser] XML前100字符:', xmlString?.substring(0, 100));
       console.log('[XML Parser] XML类型:', typeof xmlString);
       console.log('[XML Parser] XML是否为空:', !xmlString);
-      
+
       // 创建DOM解析器
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlString, "text/xml");
       console.log('[XML Parser] DOM解析完成');
-      
+
       // 检查DOM文档
       console.log('[XML Parser] xmlDoc:', xmlDoc);
       console.log('[XML Parser] xmlDoc.documentElement:', xmlDoc.documentElement);
-      
+
       // 检查解析错误
       const parseError = xmlDoc.querySelector("parsererror");
       if (parseError) {
@@ -93,7 +93,7 @@ class GlobalXmlProcessor {
                 description: port.textContent || ''
               });
             });
-            
+
             // 提取输出端口
             const outputPorts = element.querySelectorAll('output_port');
             Array.from(outputPorts).forEach(port => {
@@ -105,7 +105,7 @@ class GlobalXmlProcessor {
                 description: port.textContent || ''
               });
             });
-            
+
             // 提取输入输出端口
             const inoutPorts = element.querySelectorAll('inout_port');
             Array.from(inoutPorts).forEach(port => {
@@ -117,7 +117,7 @@ class GlobalXmlProcessor {
                 description: port.textContent || ''
               });
             });
-            
+
             nodeDefinitions[nodeId] = {
               id: nodeId,
               type: element.tagName,
@@ -159,7 +159,7 @@ class GlobalXmlProcessor {
         }
       }
       let nodeIdCounter = 0;
-      
+
       // 递归处理XML树
       const processNode = (element: Element, parentId?: string, depth: number = 0): string | undefined => {
         // 增加健壮性检查：如果element为空或不是一个元素节点，则直接返回
@@ -177,78 +177,72 @@ class GlobalXmlProcessor {
           SubTree: "subtree",
         };
         const nodeType = nodeTypeMap[nodeName as keyof typeof nodeTypeMap] || "action";
-        
+
         // 获取节点属性
         const attributes: Record<string, string> = {};
         Array.from(element.attributes).forEach(attr => {
           attributes[attr.name] = attr.value;
         });
-        
+
         // 特殊处理子树节点
         if (nodeName === "SubTree") {
           const subtreeId = attributes.ID;
           // 创建子树引用节点
-          const subtreeData: any = { 
+          const subtreeData: any = {
             label: `SubTree: ${subtreeId || "Unknown"}`,
             subtreeId: subtreeId,
             subtreeParameters: { ...attributes },
             isSubtreeReference: true,
             attributes
           };
-          
+
           // 如果有节点定义信息，添加端口信息
           if (subtreeId && nodeDefinitions[subtreeId]) {
             subtreeData.subtreeDefinition = nodeDefinitions[subtreeId];
           }
-          
+
           nodes.push({
             id: nodeId,
             type: "subtree",
-            position: nodePositions[nodeId] || { 
-              x: 100 + depth * 150, 
-              y: 100 + nodes.length * 80 
+            position: nodePositions[nodeId] || {
+              x: 100 + depth * 150,
+              y: 100 + nodes.length * 80
             },
             data: subtreeData
           });
-          
+
           // 如果有父节点，创建边
           if (parentId) {
             addEdge(parentId, nodeId);
           }
-          
-          // 如果有子树定义，解析子树内容
-          if (subtreeId && treeDefinitions[subtreeId]) {
-            const subtreeRoot = treeDefinitions[subtreeId].firstElementChild;
-            if (subtreeRoot) {
-              processNode(subtreeRoot, nodeId, depth + 1);
 
-            }
-          }
-          
+          // 不在初始解析时展开子树内容，只创建引用节点
+          // 子树内容将在用户手动展开时动态加载
+
           return nodeId;
         }
-        
+
         // 创建普通节点
-        const position = nodePositions[nodeId] || { 
-          x: 100 + depth * 150, 
-          y: 100 + nodes.length * 80 
+        const position = nodePositions[nodeId] || {
+          x: 100 + depth * 150,
+          y: 100 + nodes.length * 80
         };
-        
+
         nodes.push({
           id: nodeId,
           type: nodeType,
           position,
-          data: { 
+          data: {
             label: nodeName + (attributes.name ? `: ${attributes.name}` : ""),
             attributes
           }
         });
-        
+
         // 如果有父节点，创建边
         if (parentId) {
           addEdge(parentId, nodeId);
         }
-        
+
         // 处理子节点（除了SubTree节点的子节点，因为它们在子树定义中处理）
         if (nodeName !== "SubTree") {
           Array.from(element.children).forEach(child => {
@@ -258,7 +252,7 @@ class GlobalXmlProcessor {
 
         return nodeId;
       };
-      
+
       // 从主树的根节点开始处理
       const rootElementChild = mainTree.firstElementChild;
       if (rootElementChild) {
@@ -268,7 +262,7 @@ class GlobalXmlProcessor {
         this.parsedData = { nodes: [], edges: [], error };
         return this.parsedData;
       }
-      
+
       this.parsedData = { nodes, edges };
       return this.parsedData;
     } catch (error) {
