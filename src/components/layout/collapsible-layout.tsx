@@ -233,13 +233,13 @@ export function CollapsibleLayout({
                                     {leftPanel}
                                     {/* 左侧面板折叠按钮 */}
                                     <Button
-                                        variant="ghost"
+                                        variant="secondary"
                                         size="sm"
                                         onClick={toggleLeftPanel}
-                                        className="absolute top-2 right-2 h-6 w-6 p-0 opacity-60 hover:opacity-100 z-10"
+                                        className="absolute top-2 right-2 h-8 w-8 p-0 bg-secondary z-50"
                                         title="折叠左侧面板 (Ctrl+Shift+L)"
                                     >
-                                        <ChevronLeft className="h-3 w-3" />
+                                        <ChevronLeft className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </ResizablePanel>
@@ -256,10 +256,10 @@ export function CollapsibleLayout({
                             <div className="absolute top-2 left-2 z-10 flex flex-col space-y-1">
                                 {leftPanelState.isCollapsed && (
                                     <Button
-                                        variant="ghost"
+                                        variant="secondary"
                                         size="sm"
                                         onClick={toggleLeftPanel}
-                                        className="h-8 w-8 p-0 bg-background/80 backdrop-blur"
+                                        className="h-8 w-8 p-0 bg-secondary z-50"
                                         title="展开左侧面板 (Ctrl+Shift+L)"
                                     >
                                         <PanelLeftOpen className="h-4 w-4" />
@@ -270,14 +270,14 @@ export function CollapsibleLayout({
                             <div className="absolute top-2 right-2 z-10 flex flex-col space-y-1">
                                 {rightPanelState.isCollapsed && (
                                     <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={toggleRightPanel}
-                                        className="h-8 w-8 p-0 bg-background/80 backdrop-blur"
-                                        title="展开右侧面板 (Ctrl+Shift+R)"
-                                    >
-                                        <PanelRightOpen className="h-4 w-4" />
-                                    </Button>
+                                            variant="secondary"
+                                            size="sm"
+                                            onClick={toggleRightPanel}
+                                            className="h-8 w-8 p-0 bg-secondary z-50"
+                                            title="展开右侧面板 (Ctrl+Shift+R)"
+                                        >
+                                            <PanelRightOpen className="h-4 w-4" />
+                                        </Button>
                                 )}
                             </div>
                         </div>
@@ -296,13 +296,13 @@ export function CollapsibleLayout({
                                     {rightPanel}
                                     {/* 右侧面板折叠按钮 */}
                                     <Button
-                                        variant="ghost"
+                                        variant="secondary"
                                         size="sm"
                                         onClick={toggleRightPanel}
-                                        className="absolute top-2 left-2 h-6 w-6 p-0 opacity-60 hover:opacity-100 z-10"
+                                        className="absolute top-2 left-2 h-8 w-8 p-0 bg-secondary z-50"
                                         title="折叠右侧面板 (Ctrl+Shift+R)"
                                     >
-                                        <ChevronRight className="h-3 w-3" />
+                                        <ChevronRight className="h-4 w-4" />
                                     </Button>
                                 </div>
                             </ResizablePanel>

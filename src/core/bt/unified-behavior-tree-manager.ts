@@ -1,6 +1,7 @@
 // src/lib/unified-behavior-tree-manager.ts
 import { Node, Edge } from "reactflow";
 import { BehaviorTreeNode, BehaviorTreeEdge, NodeStatus } from '@/core/store/behavior-tree-store';
+import { globalXmlProcessor } from '@/core/bt/global-xml-processor';
 
 /**
  * 行为树原始数据结构（解析后的中间格式）
@@ -80,7 +81,6 @@ class UnifiedBehaviorTreeManager {
 
     try {
       // 使用global-xml-processor进行解析
-      const { globalXmlProcessor } = await import('@/core/bt/global-xml-processor');
       const parseResult = globalXmlProcessor.parseXML(xmlContent);
 
       if (parseResult.error) {

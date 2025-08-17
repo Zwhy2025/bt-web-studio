@@ -14,6 +14,7 @@ export const NodeTypeMap = {
   Selector: "control-selector",
   Decorator: "decorator",
   SubTree: "subtree",
+  Loop: "control-sequence", // 添加Loop节点映射
 };
 
 // 反向映射

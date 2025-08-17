@@ -271,6 +271,43 @@ export class NodeStateManager {
                 result = NodeStatus.FAILURE
                 break
 
+            case 'Loop':
+                // 循环执行子节点，直到子节点返回FAILURE
+                while (true) {
+                    // 检查是否有子节点
+                    if (childNodes.length === 0) {
+                        result = NodeStatus.SUCCESS;
+                        break;
+                    }
+
+                    // 执行第一个子节点（条件节点）
+                    const conditionResult = await this.executeNodeRecursively(childNodes[0].id, nodes, edges, speed);
+                    
+                    // 如果条件节点失败，跳出循环
+                    if (conditionResult === NodeStatus.FAILURE) {
+                        result = NodeStatus.SUCCESS; // Loop节点本身成功
+                        break;
+                    }
+                    
+                    // 如果条件节点成功，执行剩余的子节点
+                    if (conditionResult === NodeStatus.SUCCESS) {
+                        // 执行剩余的子节点
+                        for (let i = 1; i < childNodes.length; i++) {
+                            const childResult = await this.executeNodeRecursively(childNodes[i].id, nodes, edges, speed);
+                            
+                            // 如果任何子节点失败，Loop节点失败
+                            if (childResult === NodeStatus.FAILURE) {
+                                result = NodeStatus.FAILURE;
+                                return result;
+                            }
+                        }
+                    }
+                    
+                    // 模拟执行时间
+                    await new Promise(resolve => setTimeout(resolve, speed));
+                }
+                break;
+
             default:
                 // 叶子节点（Action/Condition）- 随机成功或失败
                 result = Math.random() > 0.3 ? NodeStatus.SUCCESS : NodeStatus.FAILURE

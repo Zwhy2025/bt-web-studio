@@ -26,7 +26,10 @@ export function DebugToolbar() {
   } = useBehaviorTreeStore();
 
   const handleConnect = () => {
+    console.log("DebugToolbar: Connect button clicked, DEBUGGER_URL:", DEBUGGER_URL);
+    console.log("DebugToolbar: About to call actions.connectToDebugger");
     actions.connectToDebugger(DEBUGGER_URL);
+    console.log("DebugToolbar: Called actions.connectToDebugger");
   };
 
   const handleDisconnect = () => {
@@ -81,7 +84,7 @@ export function DebugToolbar() {
   const isStartDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
   const isPauseDisabled = isExecutionControlDisabled || debugState !== DebugState.RUNNING;
   const isStepDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
-  const isStopDisabled = isExecutionControlDisabled || debugState === DebugState.STOPPED || debugState === DebugState.DISCONNECTED;
+  const isStopDisabled = isExecutionControlDisabled || debugState === DebugState.STOPPED;
 
   return (
     <div className="flex items-center gap-2">

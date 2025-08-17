@@ -238,9 +238,16 @@ export class BreakpointManager {
                     expr = expr.replace(new RegExp(`\\b${key}\\b`, 'g'), JSON.stringify(value))
                 }
 
-                // 简单的安全评估
+                // 使用Function构造器替代eval，更安全
                 if (/^[\d\s+\-*/()><=!&|"']+$/.test(expr)) {
-                    return eval(expr)
+                    try {
+                        // 创建一个安全的函数来评估表达式
+                        const func = new Function('return ' + expr);
+                        return func();
+                    } catch (e) {
+                        console.warn("断点条件评估失败:", expr, e);
+                        return false;
+                    }
                 }
             }
             return false

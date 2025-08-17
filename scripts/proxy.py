@@ -246,25 +246,65 @@ async def handle_get_tree(websocket, req_socket, logger):
         await req_socket.send(header)
         reply_parts = await req_socket.recv_multipart()
         
-        if len(reply_parts) >= 2 and reply_parts[0].decode('utf-8', errors='replace') == 'error':
-            raise ValueError(f"Backend error: {reply_parts[1].decode('utf-8', errors='replace')}")
+        logger.info(f"Received {len(reply_parts)} reply parts for getTree")
         
-        reply_raw = reply_parts[0]
-        if len(reply_raw) < 22:
-            raise ValueError(f"Invalid reply length: {len(reply_raw)}")
+        # Check for error response
+        if len(reply_parts) >= 2 and reply_parts[0].decode('utf-8', errors='replace') == 'error':
+            error_message = reply_parts[1].decode('utf-8', errors='replace')
+            logger.error(f"Backend returned error for getTree: {error_message}")
+            raise ValueError(f"Backend error: {error_message}")
+        
+        # Handle different response formats
+        if len(reply_parts) == 1:
+            # Only header part
+            reply_raw = reply_parts[0]
+            logger.info(f"Reply raw data length: {len(reply_raw)} bytes")
             
-        header_data = deserialize_reply_header(reply_raw[:22])
-        xml_data = reply_raw[22:].decode('utf-8', errors='replace')
+            if len(reply_raw) < 22:
+                error_msg = f"Invalid reply length: {len(reply_raw)}, expected at least 22 bytes"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+                
+            header_data = deserialize_reply_header(reply_raw[:22])
+            xml_data = reply_raw[22:].decode('utf-8', errors='replace')
+        elif len(reply_parts) >= 2:
+            # Header part and XML data part
+            reply_raw = reply_parts[0]
+            xml_raw = reply_parts[1]
+            
+            logger.info(f"Reply raw data length: {len(reply_raw)} bytes, XML data length: {len(xml_raw)} bytes")
+            
+            if len(reply_raw) < 22:
+                error_msg = f"Invalid reply header length: {len(reply_raw)}, expected at least 22 bytes"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+                
+            header_data = deserialize_reply_header(reply_raw[:22])
+            xml_data = xml_raw.decode('utf-8', errors='replace')
+        else:
+            raise ValueError(f"Unexpected number of reply parts: {len(reply_parts)}")
         
         logger.info(f"✅ Tree data received successfully ({len(xml_data)} chars)")
+        logger.debug(f"Tree data content preview: {xml_data[:200]}...")
         
-        await websocket.send(json.dumps({
-            "type": "treeData",
-            "payload": {"xml": xml_data, "header": header_data}
-        }))
+        # Check if XML data is empty
+        if not xml_data.strip():
+            logger.warning("⚠️  Received empty XML data from backend")
+            # Send a more detailed error message
+            await websocket.send(json.dumps({
+                "type": "error",
+                "replyTo": "getTree",
+                "payload": {"message": "Backend returned empty tree data - no behavior tree is currently loaded"}
+            }))
+        else:
+            await websocket.send(json.dumps({
+                "type": "treeData",
+                "payload": {"xml": xml_data, "header": header_data}
+            }))
         
     except Exception as e:
         logger.error(f"❌ getTree failed: {e}")
+        logger.error(traceback.format_exc())
         await websocket.send(json.dumps({
             "type": "error",
             "replyTo": "getTree",

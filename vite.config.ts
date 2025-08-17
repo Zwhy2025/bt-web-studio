@@ -11,6 +11,14 @@ export default defineConfig({
   },
   server: {
     host: "0.0.0.0",
-    allowedHosts: true
+    allowedHosts: true,
+    proxy: {
+      '/ws': {
+        target: 'ws://localhost:8080',
+        ws: true,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ws/, '')
+      }
+    }
   }
 })
