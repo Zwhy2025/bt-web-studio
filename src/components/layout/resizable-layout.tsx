@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
-import { cn } from '@/lib/utils'
+import { cn } from '@/core/utils/utils'
 
 interface ResizableLayoutProps {
     topToolbar: React.ReactNode

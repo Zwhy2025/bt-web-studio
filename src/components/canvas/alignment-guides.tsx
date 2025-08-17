@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlignmentGuide } from '@/lib/alignment-utils';
+import { AlignmentGuide } from '@/core/layout/alignment-utils';
 
 interface AlignmentGuidesProps {
   guides: AlignmentGuide[];

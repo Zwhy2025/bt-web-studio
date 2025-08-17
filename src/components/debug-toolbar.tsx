@@ -11,8 +11,11 @@ import {
   AlertCircle,
   TreePine
 } from 'lucide-react';
-import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
-import { DebugState } from '@/store/behavior-tree-store';
+
+import { DEBUGGER_URL } from '@/config';
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
+
+import { DebugState } from '@/core/store/behavior-tree-store';
 
 export function DebugToolbar() {
   const {
@@ -23,7 +26,7 @@ export function DebugToolbar() {
   } = useBehaviorTreeStore();
 
   const handleConnect = () => {
-    actions.connectToDebugger('ws://localhost:8080');
+    actions.connectToDebugger(DEBUGGER_URL);
   };
 
   const handleDisconnect = () => {

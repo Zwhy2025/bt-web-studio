@@ -1,6 +1,6 @@
 // src/lib/global-xml-processor.ts
 import { Node, Edge } from "reactflow";
-import { BehaviorTreeNode, BehaviorTreeEdge } from '@/store/behavior-tree-store';
+import { BehaviorTreeNode, BehaviorTreeEdge } from '@/core/store/behavior-tree-store';
 
 // 全局XML处理类
 class GlobalXmlProcessor {

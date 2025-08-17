@@ -42,6 +42,25 @@
 * **构建工具**: [Vite](https://vitejs.dev/)
 * **语言**: TypeScript
 
+## 项目文件结构
+
+本项目采用清晰的模块化结构，主要代码位于 `src` 目录下。以下是 `src` 目录的主要组成部分：
+
+* **`src/core/`**: 包含所有核心业务逻辑和非 UI 工具函数。
+  * **`src/core/bt/`**: 行为树相关的核心逻辑，如 XML 解析、行为树布局算法、行为树管理器等。
+  * **`src/core/store/`**: 使用 Zustand 实现的全局状态管理模块，包含各个功能模块的状态切片（slices）。
+  * **`src/core/debugger/`**: 与调试器通信相关的逻辑，如 WebSocket 客户端、断点管理器等。
+  * **`src/core/layout/`**: 通用的布局算法和对齐工具。
+  * **`src/core/utils/`**: 项目通用的辅助函数和工具。
+* **`src/components/`**: React 组件库。
+  * **`src/components/ui/`**: 基于 `shadcn/ui` 的通用 UI 组件。
+  * 其他子目录或文件包含应用特定的组件，如调试面板、节点信息面板等。
+* **`src/hooks/`**: 自定义 React Hooks，用于封装可复用的逻辑。
+* **`src/styles/`**: 全局样式文件，主要使用 Tailwind CSS。
+* **`src/config.ts`**: 全局配置文件，集中管理硬编码的配置项。
+* **`src/app.tsx`**: 应用主入口和根组件。
+* **`src/main.tsx`**: 应用的渲染入口。
+
 ## 如何使用
 
 1. **克隆仓库**:
@@ -50,16 +69,19 @@
    git clone https://github.com/your-username/bt-web-studio.git
    cd bt-web-studio
    ```
+
 2. **安装依赖**:
 
    ```bash
    npm install
    ```
+
 3. **启动开发服务器**:
 
    ```bash
    npm run dev
    ```
+
 4. 在浏览器中打开 `http://localhost:5173` 即可开始使用。
 
 ## 路线图

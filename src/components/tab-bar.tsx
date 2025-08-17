@@ -8,7 +8,7 @@ import {
   ContextMenuItem, 
   ContextMenuTrigger 
 } from '@/components/ui/context-menu'
-import { useBehaviorTreeStore, useActions, useCurrentSession } from '@/store/behavior-tree-store'
+import { useBehaviorTreeStore, useActions, useCurrentSession } from '@/core/store/behavior-tree-store'
 
 export const TabBar: React.FC = () => {
   const sessions = useBehaviorTreeStore(state => state.sessions)

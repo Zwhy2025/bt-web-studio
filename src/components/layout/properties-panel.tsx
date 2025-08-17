@@ -25,7 +25,7 @@ import {
     XCircle,
     Play
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/core/utils/utils'
 
 // 节点属性接口
 interface NodeProperty {

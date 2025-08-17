@@ -1,7 +1,7 @@
 import React from 'react'
 import { InteractiveTimeline, TimelineState, TimelineEvent } from '@/components/interactive-timeline'
-import { useBehaviorTreeStore } from '@/store/behavior-tree-store'
-import { NodeStatus } from '@/store/behavior-tree-store'
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store'
+import { NodeStatus } from '@/core/store/behavior-tree-store'
 
 // 将执行事件转换为时间轴事件格式
 const convertExecutionEventsToTimelineEvents = (executionEvents: any[]): TimelineEvent[] => {

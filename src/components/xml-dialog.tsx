@@ -13,10 +13,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { AlertCircle, FileDown, FileUp, Copy, CheckCircle, Eye, EyeOff, Info, Upload, X, TestTube } from "lucide-react";
-import { generateXML, sampleXML, formatXMLString } from "@/lib/xml-utils";
+import { generateXML, sampleXML, formatXMLString } from "@/core/bt/xml-utils";
 import { Node, Edge } from "reactflow";
 import { useToast } from "@/hooks/use-toast";
-import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager } from '@/lib/unified-behavior-tree-manager';
+import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager } from '@/core/bt/unified-behavior-tree-manager';
 
 interface ImportDialogProps {
   open: boolean;
@@ -64,15 +64,15 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       const behaviorTreeData = await parseXMLUnified(xml, 'file', fileName || `file_${Date.now()}`);
       const layoutedNodes = await applyLayoutUnified(behaviorTreeData.id);
       const runtimeData = behaviorTreeManager.getRuntimeData(behaviorTreeData.id);
-      
+
       if (!runtimeData) {
         throw new Error('Failed to get runtime data');
       }
-      
+
       onImport(layoutedNodes, runtimeData.edges);
       onOpenChange(false);
       setError(undefined);
-      
+
       toast({
         title: "导入成功",
         description: fileName ? `已导入文件: ${fileName}` : "XML内容已成功导入",
@@ -98,7 +98,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     setXml(sampleXML);
     setFileName("示例行为树.xml");
     setError(undefined);
-    
+
     toast({
       title: "示例XML已加载",
       description: "可以直接导入或进行修改后导入",
@@ -114,7 +114,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
             选择XML文件或直接粘贴XML内容，将其转换为可视化行为树。
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           {/* 文件选择区域 */}
           <div className="space-y-3">
@@ -122,7 +122,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
               <Upload className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">选择文件</span>
             </div>
-            
+
             <div className="flex gap-2">
               <input
                 ref={fileInputRef}
@@ -140,7 +140,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
                 <FileUp className="mr-2 h-4 w-4" />
                 选择 XML 文件
               </Button>
-              
+
               {fileName && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-muted rounded-md flex-1">
                   <span className="text-sm truncate">{fileName}</span>
@@ -164,7 +164,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">或直接输入/粘贴 XML 内容</span>
             </div>
-            
+
             <Textarea
               value={xml}
               onChange={(e) => setXml(e.target.value)}
@@ -172,7 +172,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
               placeholder="在此粘贴 BehaviorTree.CPP XML 内容..."
             />
           </div>
-          
+
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -180,14 +180,14 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
             </Alert>
           )}
         </div>
-        
+
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 sm:flex-none">
               取消
             </Button>
-            <Button 
-              variant="secondary" 
+            <Button
+              variant="secondary"
               onClick={handleLoadSample}
               className="flex-1 sm:flex-none"
             >
@@ -237,13 +237,13 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
       const result = generateXML(nodes, edges);
       setXml(result.xml);
       setError(result.error);
-      
+
       // 生成验证信息
       if (!result.error) {
         const targetNodeIds = new Set(edges.map(e => e.target));
         const rootNodes = nodes.filter(node => !targetNodeIds.has(node.id));
         const warnings: string[] = [];
-        
+
         // 检查常见问题
         if (nodes.length === 0) {
           warnings.push("行为树为空，没有任何节点");
@@ -254,14 +254,14 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
         if (rootNodes.length > 1) {
           warnings.push(`存在多个根节点 (${rootNodes.length}个)，这可能导致问题`);
         }
-        
+
         // 检查孤立节点
         const connectedNodes = new Set([...edges.map(e => e.source), ...edges.map(e => e.target)]);
         const isolatedNodes = nodes.filter(node => !connectedNodes.has(node.id) && rootNodes.length > 0);
         if (isolatedNodes.length > 0) {
           warnings.push(`存在 ${isolatedNodes.length} 个孤立节点，未连接到主树`);
         }
-        
+
         setValidationInfo({
           nodeCount: nodes.length,
           edgeCount: edges.length,
@@ -276,7 +276,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
 
   const handleDownload = () => {
     if (!xml) return;
-    
+
     const blob = new Blob([xml], { type: "text/xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -286,7 +286,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
+
     toast({
       title: "下载成功",
       description: "XML 文件已保存到下载文件夹",
@@ -295,7 +295,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
 
   const handleCopy = async () => {
     if (!xml) return;
-    
+
     try {
       await navigator.clipboard.writeText(xml);
       toast({
@@ -329,7 +329,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
             当前行为树已转换为 BehaviorTree.CPP 格式的 XML。您可以复制或下载此 XML 文件。
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
           {/* 验证信息 */}
           {validationInfo && (
@@ -349,13 +349,13 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
                   {showFormatted ? "原始" : "格式化"}
                 </Button>
               </div>
-              
+
               <div className="flex flex-wrap gap-2">
                 <Badge variant={validationInfo.hasRoot ? "default" : "destructive"}>
                   {validationInfo.hasRoot ? <CheckCircle className="h-3 w-3 mr-1" /> : <AlertCircle className="h-3 w-3 mr-1" />}
                   {validationInfo.hasRoot ? "有效根节点" : "缺少根节点"}
                 </Badge>
-                
+
                 {validationInfo.warnings.length === 0 ? (
                   <Badge variant="default">
                     <CheckCircle className="h-3 w-3 mr-1" />
@@ -368,7 +368,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
                   </Badge>
                 )}
               </div>
-              
+
               {validationInfo.warnings.length > 0 && (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
@@ -381,11 +381,11 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
                   </AlertDescription>
                 </Alert>
               )}
-              
+
               <Separator />
             </div>
           )}
-          
+
           {/* XML 内容 */}
           {error ? (
             <Alert variant="destructive">
@@ -401,15 +401,15 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
             />
           )}
         </div>
-        
+
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 sm:flex-none">
               关闭
             </Button>
-            <Button 
-              variant="secondary" 
-              onClick={handleCopy} 
+            <Button
+              variant="secondary"
+              onClick={handleCopy}
               disabled={!!error}
               className="flex-1 sm:flex-none"
             >
@@ -417,8 +417,8 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
               复制
             </Button>
           </div>
-          <Button 
-            onClick={handleDownload} 
+          <Button
+            onClick={handleDownload}
             disabled={!!error}
             className="w-full sm:w-auto"
           >

@@ -60,8 +60,8 @@ import {
     BreakpointType,
     DebugSessionState,
     BreakpointHitEvent
-} from "@/lib/breakpoint-manager"
-import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
+} from "@/core/debugger/breakpoint-manager"
+import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 import { useToast } from "@/hooks/use-toast"
 
 // 断点类型图标映射

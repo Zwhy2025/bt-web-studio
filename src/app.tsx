@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import {
@@ -52,9 +53,9 @@ import {
     StepForward,
     Square,
 } from "lucide-react"
-import { DebugPanel } from "@/components/debug-panel" // 新增导入
-import { NodeInfoPanel } from "@/components/node-info-panel" // 新增节点信息面板导入
-import { BreakpointPanel } from "@/components/breakpoint-panel" // 新增断点面板导入
+import { DebugPanel } from "@/components/debug-panel"
+import { NodeInfoPanel } from "@/components/node-info-panel"
+import { BreakpointPanel } from "@/components/breakpoint-panel"
 import ReactFlow, {
     Background,
     BackgroundVariant,
@@ -100,16 +101,15 @@ import {
     TooltipTrigger,
     TooltipContent,
 } from "@/components/ui/tooltip"
-import { HistoryManager, HistoryState } from "@/lib/history-utils"
-import { autoLayoutTree, scatterNodes } from "@/lib/auto-layout-utils"
+import { HistoryManager } from "@/core/utils/history-utils"
+import { autoLayoutTree, scatterNodes } from "@/core/layout/auto-layout-utils"
 import {
     calculateAlignmentGuides,
     alignNodes,
-    snapToGrid,
-    getNodesInSelectionBox,
     GRID_SIZE,
-    AlignmentGuide
-} from "@/lib/alignment-utils"
+    AlignmentGuide,
+    getAlignmentGuides,
+} from "@/core/layout/alignment-utils"
 import {
     AlignmentGuides,
     GridSnapIndicator,
@@ -119,7 +119,7 @@ import {
 } from "@/components/canvas/alignment-guides"
 import { BlackboardPanel } from "@/components/blackboard-panel"
 import { TabBar } from "@/components/tab-bar"
-import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
+import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimelinePanel, createSampleTimelineState } from "@/components/layout/timeline-panel"
 

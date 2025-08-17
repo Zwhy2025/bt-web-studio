@@ -1,6 +1,6 @@
 // src/lib/unified-behavior-tree-manager.ts
 import { Node, Edge } from "reactflow";
-import { BehaviorTreeNode, BehaviorTreeEdge, NodeStatus } from '@/store/behavior-tree-store';
+import { BehaviorTreeNode, BehaviorTreeEdge, NodeStatus } from '@/core/store/behavior-tree-store';
 
 /**
  * 行为树原始数据结构（解析后的中间格式）
@@ -80,7 +80,7 @@ class UnifiedBehaviorTreeManager {
 
     try {
       // 使用global-xml-processor进行解析
-      const { globalXmlProcessor } = await import('@/lib/global-xml-processor');
+      const { globalXmlProcessor } = await import('@/core/bt/global-xml-processor');
       const parseResult = globalXmlProcessor.parseXML(xmlContent);
 
       if (parseResult.error) {
@@ -174,7 +174,7 @@ class UnifiedBehaviorTreeManager {
       throw new Error(`行为树不存在: ${treeId}`);
     }
 
-    const { applyBehaviorTreeLayout } = await import('@/lib/behavior-tree-layout');
+    const { applyBehaviorTreeLayout } = await import('@/core/bt/behavior-tree-layout');
     const layoutedNodes = applyBehaviorTreeLayout(runtimeData.nodes, runtimeData.edges);
 
     // 更新运行时数据
