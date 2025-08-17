@@ -7,7 +7,7 @@ import {
     MenubarItem,
     MenubarSeparator,
 } from "@/components/ui/menubar"
-import { Button } from "@/components/ui/button" 
+import { Button } from "@/components/ui/button"
 import { ImportDialog, ExportDialog } from "@/components/xml-dialog"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -46,11 +46,14 @@ import {
     HelpCircle,
     Wrench,
     Layers,
+    Plug,
+    StepForward,
+    Square,
 } from "lucide-react"
 // 移除未使用的导入
 // import { DebugToolbar } from "@/components/debug-toolbar" // 移除导入
 import { DebugPanel } from "@/components/debug-panel" // 新增导入
-
+import { NodeInfoPanel } from "@/components/node-info-panel" // 新增节点信息面板导入
 import ReactFlow, {
     Background,
     BackgroundVariant,
@@ -98,30 +101,31 @@ import {
 } from "@/components/ui/tooltip"
 import { HistoryManager, HistoryState } from "@/lib/history-utils"
 import { autoLayoutTree, scatterNodes } from "@/lib/auto-layout-utils"
-import { 
-    calculateAlignmentGuides, 
-    alignNodes, 
-    snapToGrid, 
+import {
+    calculateAlignmentGuides,
+    alignNodes,
+    snapToGrid,
     getNodesInSelectionBox,
     GRID_SIZE,
-    AlignmentGuide 
+    AlignmentGuide
 } from "@/lib/alignment-utils"
-import { 
-    AlignmentGuides, 
-    GridSnapIndicator, 
-    SelectionBox, 
+import {
+    AlignmentGuides,
+    GridSnapIndicator,
+    SelectionBox,
     GridBackground,
-    AlignmentToolbar 
+    AlignmentToolbar
 } from "@/components/canvas/alignment-guides"
 import { BlackboardPanel } from "@/components/blackboard-panel"
 import { TabBar } from "@/components/tab-bar"
 import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // ---------- Node Category Section Component ----------
-function NodeCategorySection({ 
-    category, 
-    onDragStart 
-}: { 
+function NodeCategorySection({
+    category,
+    onDragStart
+}: {
     category: {
         name: string;
         icon: React.ReactNode;
@@ -134,7 +138,7 @@ function NodeCategorySection({
     return (
         <div className="space-y-1">
             {/* 分类标题 */}
-            <div 
+            <div
                 className="flex items-center gap-2 p-2 rounded-md hover:bg-accent/30 cursor-pointer select-none"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
@@ -149,7 +153,7 @@ function NodeCategorySection({
                     {category.items.length}
                 </span>
             </div>
-            
+
             {/* 节点列表 */}
             {isExpanded && (
                 <div className="ml-6 space-y-1">
@@ -194,7 +198,7 @@ function LeftPalette() {
                 ]
             },
             {
-                name: "Condition", 
+                name: "Condition",
                 icon: <HelpCircle className="h-4 w-4" />,
                 items: [
                     { label: "ScriptCondition", type: "CheckBlackboard", desc: "脚本条件" },
@@ -268,9 +272,9 @@ function LeftPalette() {
             <ScrollArea className="flex-1">
                 <div className="p-3 space-y-2">
                     {nodeCategories.map((category) => (
-                        <NodeCategorySection 
-                            key={category.name} 
-                            category={category} 
+                        <NodeCategorySection
+                            key={category.name}
+                            category={category}
                             onDragStart={onDragStart}
                         />
                     ))}
@@ -281,71 +285,72 @@ function LeftPalette() {
 }
 
 // ---------- Right Inspector ----------
-/*
-function RightInspector() {
+function RightInspector({ selectedNodeId }: { selectedNodeId?: string }) {
     return (
-        <aside className="h-full flex flex-col">
-            <div className="p-3">
-                <div className="font-medium mb-2">属性面板</div>
-                <div className="space-y-3">
-                    <div>
-                        <div className="text-xs text-muted-foreground mb-1">节点名称</div>
-                        <Input placeholder="例如：MoveToTarget" />
-                    </div>
-                    <div>
-                        <div className="text-xs text-muted-foreground mb-1">端口/参数</div>
-                        <div className="rounded-md border p-2 text-xs text-muted-foreground">
-                            暂无参数，选择画布中的节点后编辑
+        <div className="h-full flex flex-col">
+            <Tabs defaultValue="debug" className="flex-1 flex flex-col">
+                <TabsList className="grid w-full grid-cols-4 mx-3 mt-3">
+                    <TabsTrigger value="debug">调试</TabsTrigger>
+                    <TabsTrigger value="blackboard">黑板</TabsTrigger>
+                    <TabsTrigger value="events">事件</TabsTrigger>
+                    <TabsTrigger value="nodeinfo">节点信息</TabsTrigger>
+                </TabsList>
+                <TabsContent value="debug" className="flex-1 mt-2">
+                    <div className="h-full flex flex-col">
+                        <div className="p-2 border-b">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1">
+                                    <div className="h-2 w-2 rounded-full bg-gray-500" title="未连接"></div>
+                                    <Button variant="outline" size="sm">
+                                        <Plug className="h-4 w-4" />
+                                        <span className="ml-1">连接调试器</span>
+                                    </Button>
+                                </div>
+                                <Separator orientation="vertical" className="h-5" />
+                                <div className="flex items-center gap-1">
+                                    <Button variant="outline" size="sm" disabled title="开始/继续执行">
+                                        <Play className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" disabled title="暂停执行">
+                                        <Pause className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" disabled title="单步执行">
+                                        <StepForward className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" disabled title="停止执行">
+                                        <Square className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                                <Separator orientation="vertical" className="h-5" />
+                            </div>
+                        </div>
+                        <div className="flex-1 p-2">
+                            <div className="text-sm text-muted-foreground">
+                                调试控制台将在连接调试器后显示执行信息
+                            </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                        <Button size="sm" variant="secondary">
-                            校验
-                        </Button>
-                        <Button size="sm" variant="outline">
-                            重置
-                        </Button>
-                    </div>
-                </div>
-            </div>
-            <Separator />
-            <div className="p-3">
-                <div className="font-medium mb-2">状态预览</div>
-                <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-md border p-2 bg-card/60">
-                        <div className="text-xs text-muted-foreground">成功</div>
-                        <div className="flex items-center gap-1 mt-1">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                            <span className="text-sm font-medium">0</span>
+                </TabsContent>
+                <TabsContent value="blackboard" className="flex-1 mt-2">
+                    <BlackboardPanel />
+                </TabsContent>
+                <TabsContent value="events" className="flex-1 mt-2">
+                    <div className="flex-1 p-2">
+                        <div className="text-sm text-muted-foreground">
+                            事件日志将在调试时显示
                         </div>
                     </div>
-                    <div className="rounded-md border p-2 bg-card/60">
-                        <div className="text-xs text-muted-foreground">失败</div>
-                        <div className="flex items-center gap-1 mt-1">
-                            <XCircle className="h-4 w-4 text-rose-400" />
-                            <span className="text-sm font-medium">0</span>
-                        </div>
-                    </div>
-                    <div className="rounded-md border p-2 bg-card/60">
-                        <div className="text-xs text-muted-foreground">运行</div>
-                        <div className="flex items-center gap-1 mt-1">
-                            <Signal className="h-4 w-4 text-cyan-400" />
-                            <span className="text-sm font-medium">0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <Separator />
-            <div className="flex-1 p-3">
-                <BlackboardPanel />
-            </div>
-        </aside>
+                </TabsContent>
+                <TabsContent value="nodeinfo" className="flex-1 mt-2">
+                    <NodeInfoPanel selectedNodeId={selectedNodeId} />
+                </TabsContent>
+            </Tabs>
+        </div>
     )
 }
-*/
 
 // ---------- Top Bar ----------
-function TopBar({ onImportClick, onExportClick, onNewProject }: { 
+function TopBar({ onImportClick, onExportClick, onNewProject }: {
     onImportClick: () => void;
     onExportClick: () => void;
     onNewProject: () => void;
@@ -476,12 +481,14 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = []
 
-function CanvasInner({ 
+function CanvasInner({
     onNodesExport,
-    onEdgesExport
-}: { 
+    onEdgesExport,
+    onSelectionChange
+}: {
     onNodesExport?: (nodes: Node[]) => void;
     onEdgesExport?: (edges: Edge[]) => void;
+    onSelectionChange?: (selectedNodeId?: string) => void;
 }) {
     // 从状态管理系统获取当前会话的节点和边
     const storeNodes = useBehaviorTreeStore(state => state.nodes)
@@ -489,7 +496,7 @@ function CanvasInner({
     const expandedSubTrees = useBehaviorTreeStore(state => state.expandedSubTrees)
     const currentSession = useBehaviorTreeStore(state => state.currentSession)
     const actions = useBehaviorTreeStore(state => state.actions)
-    
+
     const [nodes, setNodes] = useNodesState(storeNodes)
     const [edges, setEdges] = useEdgesState(storeEdges)
 
@@ -516,7 +523,7 @@ function CanvasInner({
         setNodes(storeNodes)
         setEdges(storeEdges)
     }, [storeNodes, storeEdges, setNodes, setEdges])
-    
+
     // 当需要导出数据时提供当前画布数据
     useEffect(() => {
         if (onNodesExport) onNodesExport(nodes);
@@ -528,22 +535,22 @@ function CanvasInner({
     // selection state
     const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([])
     const [selectedEdgeIds, setSelectedEdgeIds] = useState<string[]>([])
-    
+
     // 对齐与吸附状态
     const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide[]>([])
     const [snapToGridEnabled, setSnapToGridEnabled] = useState(true)
     const [showGrid, setShowGrid] = useState(true)
     const [isDragging, setIsDragging] = useState(false)
-    
+
     // 橡皮框选择状态
     const [isSelecting, setIsSelecting] = useState(false)
     const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
     const [selectionCurrent, setSelectionCurrent] = useState({ x: 0, y: 0 })
     const canvasRef = useRef<HTMLDivElement>(null)
-    
+
     // 画布尺寸状态
     const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 })
-    
+
     // 监听画布尺寸变化
     useEffect(() => {
         const updateCanvasSize = () => {
@@ -552,36 +559,36 @@ function CanvasInner({
                 setCanvasSize({ width: rect.width, height: rect.height })
             }
         }
-        
+
         // 初始化尺寸
         updateCanvasSize()
-        
+
         // 监听窗口大小变化
         const resizeObserver = new ResizeObserver(updateCanvasSize)
         if (canvasRef.current) {
             resizeObserver.observe(canvasRef.current)
         }
-        
+
         return () => {
             resizeObserver.disconnect()
         }
     }, [])
-    
+
     // 历史记录管理
     const historyManagerRef = useRef<HistoryManager | null>(null)
     const [canUndo, setCanUndo] = useState(false)
     const [canRedo, setCanRedo] = useState(false)
-    
+
     // 初始化历史记录管理器
     useEffect(() => {
-        historyManagerRef.current = new HistoryManager({ 
-            nodes: initialNodes, 
-            edges: initialEdges 
+        historyManagerRef.current = new HistoryManager({
+            nodes: initialNodes,
+            edges: initialEdges
         })
         setCanUndo(false) // 新的历史记录，不能撤销
         setCanRedo(false) // 也不能重做
     }, [])
-    
+
     // 保存状态到历史记录
     const saveToHistory = useCallback(() => {
         if (historyManagerRef.current) {
@@ -592,28 +599,28 @@ function CanvasInner({
     }, [nodes, edges])
 
     const findNode = (id: string) => nodes.find((n) => n.id === id)
-    
+
     // 节点拖拽处理 - 添加对齐吸附
     const onNodeDrag: NodeDragHandler = useCallback((event, node, draggedNodes) => {
         setIsDragging(true)
-        
+
         // 使用当前完整的节点列表而不是拖拽回调中的节点列表
         const otherNodes = nodes.filter(n => n.id !== node.id)
         const snapResult = calculateAlignmentGuides(node, otherNodes, snapToGridEnabled)
-        
+
         // 更新指导线
         setAlignmentGuides(snapResult.guides)
-        
+
         // 更新节点位置（允许自由拖动）
-        setNodes(currentNodes => 
-            currentNodes.map(n => 
-                n.id === node.id 
+        setNodes(currentNodes =>
+            currentNodes.map(n =>
+                n.id === node.id
                     ? { ...n, position: { x: snapResult.x, y: snapResult.y } }
                     : n
             )
         )
     }, [nodes, snapToGridEnabled, setNodes])
-    
+
     // 节点拖拽结束
     const onNodeDragStop = useCallback((event, node, draggedNodes) => {
         setIsDragging(false)
@@ -622,7 +629,7 @@ function CanvasInner({
         actions.importData(nodes, edges)
         saveToHistory()
     }, [saveToHistory, actions, nodes, edges])
-    
+
     // 橡皮框选择开始
     const onSelectionStart = useCallback((event: React.MouseEvent) => {
         // 只在空白区域开始选择
@@ -639,7 +646,7 @@ function CanvasInner({
             }
         }
     }, [screenToFlowPosition])
-    
+
     // 橡皮框选择移动 - 优化性能，避免频繁重渲染
     const onSelectionMove = useCallback((event: React.MouseEvent) => {
         if (isSelecting && canvasRef.current) {
@@ -649,7 +656,7 @@ function CanvasInner({
                 y: event.clientY - rect.top,
             })
             setSelectionCurrent(currentPos)
-            
+
             // 计算选择框内的节点
             const selectionBox = {
                 x: Math.min(selectionStart.x, currentPos.x),
@@ -657,16 +664,16 @@ function CanvasInner({
                 width: Math.abs(currentPos.x - selectionStart.x),
                 height: Math.abs(currentPos.y - selectionStart.y),
             }
-            
+
             const selectedNodes = getNodesInSelectionBox(nodes, selectionBox)
             const selectedIds = selectedNodes.map(n => n.id)
-            
+
             // 只有当选中的节点ID集合发生变化时才更新状态
             const currentSelectedIds = new Set(selectedNodeIds)
             const newSelectedIds = new Set(selectedIds)
-            const hasChanged = currentSelectedIds.size !== newSelectedIds.size || 
-                              selectedIds.some(id => !currentSelectedIds.has(id))
-            
+            const hasChanged = currentSelectedIds.size !== newSelectedIds.size ||
+                selectedIds.some(id => !currentSelectedIds.has(id))
+
             if (hasChanged) {
                 setNodes(nds => nds.map(n => ({
                     ...n,
@@ -676,12 +683,12 @@ function CanvasInner({
             }
         }
     }, [isSelecting, selectionStart, nodes, setNodes, screenToFlowPosition, selectedNodeIds])
-    
+
     // 橡皮框选择结束
     const onSelectionEnd = useCallback(() => {
         setIsSelecting(false)
     }, [])
-    
+
     // 批量对齐功能
     const handleAlign = useCallback((alignType: 'left' | 'right' | 'center' | 'top' | 'bottom' | 'middle' | 'distribute-horizontal' | 'distribute-vertical') => {
         const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id))
@@ -693,19 +700,19 @@ function CanvasInner({
             })
             return
         }
-        
+
         const alignedNodes = alignNodes(selectedNodes, alignType)
         const nodeMap = new Map(alignedNodes.map(n => [n.id, n]))
-        
+
         const newNodes = nodes.map(n => nodeMap.get(n.id) || n)
         setNodes(newNodes)
         // 同步到状态管理系统
         actions.importData(newNodes, edges)
         saveToHistory()
-        
+
         const alignTypeNames = {
             'left': '左对齐',
-            'right': '右对齐', 
+            'right': '右对齐',
             'center': '水平居中',
             'top': '顶部对齐',
             'bottom': '底部对齐',
@@ -713,13 +720,13 @@ function CanvasInner({
             'distribute-horizontal': '水平分布',
             'distribute-vertical': '垂直分布',
         }
-        
+
         toast({
             title: "对齐完成",
             description: `已对 ${selectedNodes.length} 个节点执行${alignTypeNames[alignType]}`,
         })
     }, [nodes, selectedNodeIds, setNodes, saveToHistory, toast, edges, actions])
-    
+
     // 撤销功能
     const handleUndo = useCallback(() => {
         if (historyManagerRef.current && historyManagerRef.current.canUndo()) {
@@ -736,7 +743,7 @@ function CanvasInner({
             }
         }
     }, [setNodes, setEdges, toast])
-    
+
     // 重做功能
     const handleRedo = useCallback(() => {
         if (historyManagerRef.current && historyManagerRef.current.canRedo()) {
@@ -753,7 +760,7 @@ function CanvasInner({
             }
         }
     }, [setNodes, setEdges, toast])
-    
+
     // 自动布局功能
     const handleAutoLayout = useCallback(() => {
         const layoutedNodes = autoLayoutTree(nodes, edges)
@@ -766,7 +773,7 @@ function CanvasInner({
             description: "已将节点排列成清晰的树形结构",
         })
     }, [nodes, edges, setNodes, saveToHistory, toast, actions])
-    
+
     // 散乱分布功能
     const handleScatterNodes = useCallback(() => {
         const scatteredNodes = scatterNodes(nodes)
@@ -860,11 +867,11 @@ function CanvasInner({
                 action: "Action",
                 condition: "Condition",
                 subtree: "SubTree",
-                
+
                 // 控制节点
                 "Sequence": "Sequence",
                 "Sequence*": "Sequence*",
-                "Fallback": "Fallback", 
+                "Fallback": "Fallback",
                 "Fallback*": "Fallback*",
                 "Parallel": "Parallel",
                 "ReactiveSequence": "ReactiveSequence",
@@ -873,7 +880,7 @@ function CanvasInner({
                 "IfThenElse": "IfThenElse",
                 "WhileDoElse": "WhileDoElse",
                 "ManualSelector": "ManualSelector",
-                
+
                 // 装饰器节点
                 "Inverter": "Inverter",
                 "Retry": "Retry",
@@ -882,17 +889,17 @@ function CanvasInner({
                 "Delay": "Delay",
                 "ForceSuccess": "ForceSuccess",
                 "ForceFailure": "ForceFailure",
-                
+
                 // 常用Action节点
                 "Script": "Script",
                 "SetBlackboard": "SetBlackboard",
                 "Sleep": "Sleep",
                 "Log": "Log",
-                
+
                 // 常用Condition节点
                 "CheckBlackboard": "CheckBlackboard",
                 "CompareBlackboard": "CompareBlackboard",
-                
+
                 // 兼容旧的类型
                 "control-sequence": "Sequence",
                 "control-selector": "Fallback",
@@ -935,7 +942,7 @@ function CanvasInner({
             title: "已删除",
             description: `节点 ${selectedNodeIds.length} 个，连线 ${removedEdgesCount} 条`,
         })
-        }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, saveToHistory, toast, actions])
+    }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, saveToHistory, toast, actions])
 
     // 克隆所选（带位移与内部连线重映射）
     const cloneSelection = useCallback(() => {
@@ -977,7 +984,7 @@ function CanvasInner({
             title: "已克隆",
             description: `节点 ${clones.length} 个，连线 ${newEdges.length} 条`,
         })
-        }, [nodes, edges, selectedNodeIds, setNodes, setEdges, saveToHistory, toast, actions])
+    }, [nodes, edges, selectedNodeIds, setNodes, setEdges, saveToHistory, toast, actions])
 
     // 全选功能
     const selectAllNodes = useCallback(() => {
@@ -995,11 +1002,11 @@ function CanvasInner({
             // 检查焦点元素，如果是输入框则不处理
             const activeElement = document.activeElement as HTMLElement
             const isInputFocused = activeElement && (
-                activeElement.tagName === 'INPUT' || 
+                activeElement.tagName === 'INPUT' ||
                 activeElement.tagName === 'TEXTAREA' ||
                 activeElement.contentEditable === 'true'
             )
-            
+
             // 如果输入框有焦点，只处理特定的快捷键
             if (isInputFocused) {
                 const meta = e.ctrlKey || e.metaKey
@@ -1015,7 +1022,7 @@ function CanvasInner({
                 // 其他快捷键在输入框中不处理
                 return
             }
-            
+
             const meta = e.ctrlKey || e.metaKey
             const key = e.key.toLowerCase()
             if (key === "delete" || key === "backspace") {
@@ -1046,7 +1053,7 @@ function CanvasInner({
     return (
         <ContextMenu>
             <ContextMenuTrigger asChild>
-                <div 
+                <div
                     ref={canvasRef}
                     className="h-full relative"
                     onMouseDown={onSelectionStart}
@@ -1131,8 +1138,14 @@ function CanvasInner({
                         onNodeDrag={onNodeDrag}
                         onNodeDragStop={onNodeDragStop}
                         onSelectionChange={(sel: OnSelectionChangeParams) => {
-                            setSelectedNodeIds(sel.nodes.map((n) => n.id))
-                            setSelectedEdgeIds(sel.edges.map((e) => e.id))
+                            const nodeIds = sel.nodes.map((n) => n.id)
+                            const edgeIds = sel.edges.map((e) => e.id)
+                            setSelectedNodeIds(nodeIds)
+                            setSelectedEdgeIds(edgeIds)
+                            // 通知父组件选择变化
+                            if (onSelectionChange) {
+                                onSelectionChange(nodeIds.length > 0 ? nodeIds[0] : undefined)
+                            }
                         }}
                         nodeTypes={nodeTypes}
                         connectionMode={ConnectionMode.Strict}
@@ -1146,14 +1159,14 @@ function CanvasInner({
                         selectNodesOnDrag={false}
                     >
                         {/* 网格背景 */}
-                        <GridBackground 
-                            gridSize={GRID_SIZE} 
+                        <GridBackground
+                            gridSize={GRID_SIZE}
                             visible={showGrid}
                             opacity={0.2}
                         />
-                        <Background 
-                            variant={BackgroundVariant.Dots} 
-                            gap={GRID_SIZE} 
+                        <Background
+                            variant={BackgroundVariant.Dots}
+                            gap={GRID_SIZE}
                             size={1}
                             style={{ opacity: showGrid ? 0.3 : 0.1 }}
                         />
@@ -1219,29 +1232,29 @@ function CanvasInner({
                 <ContextMenuSeparator />
                 {/* 断点管理 */}
                 {selectedNodeIds.length === 1 && (
-                  <ContextMenuItem 
-                    onSelect={() => {
-                      const nodeId = selectedNodeIds[0];
-                      actions.toggleBreakpoint(nodeId);
-                    }}
-                  >
-                    <div className="mr-2 h-4 w-4 flex items-center justify-center">
-                      {(() => {
-                        const node = nodes.find(n => n.id === selectedNodeIds[0]);
-                        const hasBreakpoint = node?.data?.breakpoint;
-                        return hasBreakpoint ? (
-                          <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                        ) : (
-                          <div className="h-3 w-3 rounded-full border border-muted-foreground"></div>
-                        );
-                      })()}
-                    </div>
-                    {(() => {
-                      const node = nodes.find(n => n.id === selectedNodeIds[0]);
-                      const hasBreakpoint = node?.data?.breakpoint;
-                      return hasBreakpoint ? '清除断点' : '设置断点';
-                    })()}
-                  </ContextMenuItem>
+                    <ContextMenuItem
+                        onSelect={() => {
+                            const nodeId = selectedNodeIds[0];
+                            actions.toggleBreakpoint(nodeId);
+                        }}
+                    >
+                        <div className="mr-2 h-4 w-4 flex items-center justify-center">
+                            {(() => {
+                                const node = nodes.find(n => n.id === selectedNodeIds[0]);
+                                const hasBreakpoint = node?.data?.breakpoint;
+                                return hasBreakpoint ? (
+                                    <div className="h-3 w-3 rounded-full bg-red-500"></div>
+                                ) : (
+                                    <div className="h-3 w-3 rounded-full border border-muted-foreground"></div>
+                                );
+                            })()}
+                        </div>
+                        {(() => {
+                            const node = nodes.find(n => n.id === selectedNodeIds[0]);
+                            const hasBreakpoint = node?.data?.breakpoint;
+                            return hasBreakpoint ? '清除断点' : '设置断点';
+                        })()}
+                    </ContextMenuItem>
                 )}
                 <ContextMenuSeparator />
                 {selectedNodeIds.length >= 2 ? (
@@ -1271,13 +1284,13 @@ function CanvasInner({
                                 底部对齐
                             </ContextMenuItem>
                             <ContextMenuSeparator />
-                            <ContextMenuItem 
+                            <ContextMenuItem
                                 onSelect={() => handleAlign('distribute-horizontal')}
                                 disabled={selectedNodeIds.length < 3}
                             >
                                 水平分布
                             </ContextMenuItem>
-                            <ContextMenuItem 
+                            <ContextMenuItem
                                 onSelect={() => handleAlign('distribute-vertical')}
                                 disabled={selectedNodeIds.length < 3}
                             >
@@ -1322,21 +1335,24 @@ function CanvasInner({
     )
 }
 
-function BtCanvas({ 
+function BtCanvas({
     onNodesExport,
-    onEdgesExport
-}: { 
+    onEdgesExport,
+    onSelectionChange
+}: {
     onNodesExport?: (nodes: Node[]) => void;
     onEdgesExport?: (edges: Edge[]) => void;
+    onSelectionChange?: (selectedNodeId?: string) => void;
 }) {
     // 获取当前会话ID作为key，强制重新渲染
     const currentSessionId = useBehaviorTreeStore(state => state.currentSession?.id)
-    
+
     return (
         <ReactFlowProvider key={currentSessionId}>
-            <CanvasInner 
+            <CanvasInner
                 onNodesExport={onNodesExport}
                 onEdgesExport={onEdgesExport}
+                onSelectionChange={onSelectionChange}
             />
         </ReactFlowProvider>
     )
@@ -1347,19 +1363,22 @@ export default function App() {
     // 状态管理
     const actions = useBehaviorTreeStore(state => state.actions)
     const { toast } = useToast()
-    
+
     // XML导入/导出对话框状态
     const [importDialogOpen, setImportDialogOpen] = useState(false);
     const [exportDialogOpen, setExportDialogOpen] = useState(false);
-    
+
     // 导入的节点和边数据
     const [importedNodes, setImportedNodes] = useState<Node[] | null>(null);
     const [importedEdges, setImportedEdges] = useState<Edge[] | null>(null);
-    
+
     // 用于导出的节点和边数据
     const [nodesToExport, setNodesToExport] = useState<Node[]>([]);
     const [edgesToExport, setEdgesToExport] = useState<Edge[]>([]);
-    
+
+    // 选中的节点状态
+    const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
+
     // 处理新建项目
     const handleNewProject = () => {
         const projectName = `新建项目 ${new Date().toLocaleTimeString()}`
@@ -1369,13 +1388,13 @@ export default function App() {
             description: `已创建新项目：${projectName}`,
         })
     }
-    
+
     // 处理导入 - 直接导入到当前会话，不使用全局导入状态
     const handleImport = (nodes: Node[], edges: Edge[]) => {
         // 直接更新当前会话的数据
         actions.importData(nodes, edges);
         setImportDialogOpen(false);
-        
+
         toast({
             title: "导入成功",
             description: `已导入 ${nodes.length} 个节点和 ${edges.length} 条连线到当前项目`,
@@ -1383,7 +1402,7 @@ export default function App() {
     };
     return (
         <div className="h-screen w-screen bg-white dark:bg-[#0b0f17] text-foreground flex flex-col overflow-hidden">
-            <TopBar 
+            <TopBar
                 onImportClick={() => setImportDialogOpen(true)}
                 onExportClick={() => setExportDialogOpen(true)}
                 onNewProject={handleNewProject}
@@ -1397,28 +1416,29 @@ export default function App() {
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={64} minSize={40}>
                         <div className="h-full">
-                            <BtCanvas 
+                            <BtCanvas
                                 onNodesExport={setNodesToExport}
                                 onEdgesExport={setEdgesToExport}
+                                onSelectionChange={setSelectedNodeId}
                             />
                         </div>
                     </ResizablePanel>
                     <ResizableHandle withHandle />
                     <ResizablePanel defaultSize={18} minSize={16} className="hidden lg:block">
-                        <DebugPanel /> {/* 使用 DebugPanel 替换 RightInspector */}
+                        <RightInspector selectedNodeId={selectedNodeId} />
                     </ResizablePanel>
                 </ResizablePanelGroup>
             </main>
             <BottomTimeline />
-            
+
             {/* XML导入/导出对话框 */}
-            <ImportDialog 
+            <ImportDialog
                 open={importDialogOpen}
                 onOpenChange={setImportDialogOpen}
                 onImport={handleImport}
             />
-            
-            <ExportDialog 
+
+            <ExportDialog
                 open={exportDialogOpen}
                 onOpenChange={setExportDialogOpen}
                 nodes={nodesToExport}
