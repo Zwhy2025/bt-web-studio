@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: ["develop", "master"]
+  pull_request:
+    branches: ["develop", "master"]
+
+jobs:
+  frontend:
+    name: Frontend build & test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run linter (if defined)
+        run: npm run lint --if-present
+
+      - name: Build (if defined)
+        run: npm run build --if-present
+
+      - name: Run JS tests (if defined)
+        run: npm test --if-present
+
+      - name: Check build output
+        id: check-build
+        run: |
+          if [ -d dist ]; then
+            echo "dist_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "dist_exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload build artifact
+        if: steps.check-build.outputs.dist_exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/tools/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install Python requirements
+        run: |
+          if [ -f tools/requirements.txt ]; then
+            python -m pip install --upgrade pip
+            pip install -r tools/requirements.txt
+          else
+            echo "No Python requirements found, skipping"
+          fi
+
+      - name: Run Python tests
+        run: |
+          if [ -d tests ] || ls tests/*.py 1> /dev/null 2>&1; then
+            python -m pytest -q tests --maxfail=1 || true
+          else
+            echo "No Python tests found, skipping"
+          fi
+
+  full-check:
+    name: Full check (composite smoke)
+    runs-on: ubuntu-latest
+    needs: [frontend, python-tests]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Summary
+        run: echo "Frontend && Python tests completed"

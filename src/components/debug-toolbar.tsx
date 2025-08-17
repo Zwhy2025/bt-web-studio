@@ -26,9 +26,7 @@ export function DebugToolbar() {
   } = useBehaviorTreeStore();
 
   const handleConnect = () => {
-    // Read URL from Vite environment variables, with a fallback to the default
-    const debuggerUrl = import.meta.env.VITE_DEBUGGER_URL || 'ws://localhost:8080';
-    actions.connectToDebugger(debuggerUrl);
+    actions.connectToDebugger(DEBUGGER_URL);
   };
 
   const handleDisconnect = () => {

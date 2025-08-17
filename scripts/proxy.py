@@ -404,14 +404,18 @@ async def handle_get_blackboard(websocket, req_socket, logger, payload=None):
 
 def parse_raw_status_data(payload):
     """Parse raw status data as node UID + status pairs."""
-    nodes = []
-    offset = 0
-    while offset + 3 <= len(payload):
-        uid = struct.unpack('!H', payload[offset:offset+2])[0]
-        status = payload[offset+2]
-        nodes.append({"uid": uid, "status": status})
-        offset += 3
-    return nodes
+    try:
+        nodes = []
+        offset = 0
+        while offset + 3 <= len(payload):
+            uid = struct.unpack('!H', payload[offset:offset+2])[0]  # 2 bytes UID
+            status = payload[offset+2]  # 1 byte status
+            nodes.append({"uid": uid, "status": status})
+            offset += 3
+        return nodes
+    except Exception as e:
+        logger.error(f"Failed to parse raw status data: {e}")
+        return []
 
 async def main_async(args):
     """Main async function to start the WebSocket proxy server."""
