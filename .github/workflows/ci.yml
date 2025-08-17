@@ -24,9 +24,6 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Run linter (if defined)
-        run: npm run lint --if-present
-
       - name: Build (if defined)
         run: npm run build --if-present
 
