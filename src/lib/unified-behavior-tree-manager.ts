@@ -273,12 +273,12 @@ class UnifiedBehaviorTreeManager {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
       const rootElement = xmlDoc.querySelector("root");
-      
+
       if (!rootElement) return;
 
       // 获取所有行为树定义
       const behaviorTrees = rootElement.querySelectorAll("BehaviorTree");
-      
+
       for (const tree of Array.from(behaviorTrees)) {
         const treeId = tree.getAttribute("ID");
         if (!treeId) continue;
@@ -296,37 +296,37 @@ class UnifiedBehaviorTreeManager {
         // 递归处理子树节点
         const processSubtreeNode = (element: Element, parentId?: string, depth: number = 0): string | undefined => {
           if (!element || element.nodeType !== 1) return;
-          
+
           const nodeName = element.nodeName;
           const nodeId = element.getAttribute("_uid") || `${treeId}_node_${nodeIdCounter++}`;
-          
+
           const nodeTypeMap = {
             Action: "action",
-            Condition: "condition", 
+            Condition: "condition",
             Sequence: "control-sequence",
             Selector: "control-selector",
             Decorator: "decorator",
             SubTree: "subtree",
           };
           const nodeType = nodeTypeMap[nodeName as keyof typeof nodeTypeMap] || "action";
-          
+
           // 获取节点属性
           const attributes: Record<string, string> = {};
           Array.from(element.attributes).forEach(attr => {
             attributes[attr.name] = attr.value;
           });
-          
+
           // 创建节点
           subtreeNodes.push({
             id: nodeId,
             type: nodeType,
             position: { x: 100 + depth * 150, y: 100 + subtreeNodes.length * 80 },
-            data: { 
+            data: {
               label: nodeName + (attributes.name ? `: ${attributes.name}` : ""),
               attributes
             }
           });
-          
+
           // 如果有父节点，创建边
           if (parentId) {
             const edgeId = `${treeId}_edge_${parentId}_${nodeId}`;
@@ -338,12 +338,12 @@ class UnifiedBehaviorTreeManager {
               targetHandle: "in"
             });
           }
-          
+
           // 处理子节点
           Array.from(element.children).forEach(child => {
             processSubtreeNode(child, nodeId, depth + 1);
           });
-          
+
           return nodeId;
         };
 
@@ -458,13 +458,42 @@ export function toggleSubtreeExpansion(
 ): { nodes: BehaviorTreeNode[], edges: BehaviorTreeEdge[] } | null {
   console.log(`🔄 Toggling subtree expansion: ${subtreeRefNodeId} -> ${expand ? 'expand' : 'collapse'}`);
 
-  const parentTree = behaviorTreeManager.getTree(parentTreeId);
-  if (!parentTree) {
-    console.error(`❌ Parent tree not found: ${parentTreeId}`);
+  // 首先尝试从运行时数据获取
+  let parentRuntimeData = behaviorTreeManager.getRuntimeData(parentTreeId);
+  if (!parentRuntimeData) {
+    // 如果运行时数据不存在，尝试从解析数据获取
+    const parsedTree = behaviorTreeManager.getTree(parentTreeId);
+    if (!parsedTree) {
+      // 尝试查找所有已注册的树，看是否有匹配的
+      const allTrees = behaviorTreeManager.getAllTrees();
+      const foundTree = allTrees.find(tree =>
+        tree.id === parentTreeId ||
+        tree.id.includes(parentTreeId) ||
+        parentTreeId.includes(tree.id)
+      );
+
+      if (foundTree) {
+        console.log(`🔍 Found matching tree: ${foundTree.id} for requested: ${parentTreeId}`);
+        parentRuntimeData = behaviorTreeManager.getRuntimeData(foundTree.id);
+      }
+
+      if (!parentRuntimeData) {
+        console.error(`❌ Parent tree not found: ${parentTreeId}. Available trees:`,
+          allTrees.map(t => t.id));
+        return null;
+      }
+    } else {
+      // 从解析数据创建运行时数据
+      parentRuntimeData = behaviorTreeManager.getRuntimeData(parsedTree.id);
+    }
+  }
+
+  if (!parentRuntimeData) {
+    console.error(`❌ Parent runtime data not found: ${parentTreeId}`);
     return null;
   }
 
-  const subtreeRefNode = parentTree.nodes.find(node => node.id === subtreeRefNodeId);
+  const subtreeRefNode = parentRuntimeData.nodes.find(node => node.id === subtreeRefNodeId);
   if (!subtreeRefNode || !subtreeRefNode.data.isSubtreeReference) {
     console.error(`❌ Subtree reference node not found: ${subtreeRefNodeId}`);
     return null;
@@ -483,7 +512,7 @@ export function toggleSubtreeExpansion(
   }
 
   // 更新引用节点的展开状态
-  subtreeRefNode.data.isExpanded = expand;
+  (subtreeRefNode.data as any).isExpanded = expand;
 
   if (expand) {
     // 展开：将子树节点添加到父树中
@@ -516,7 +545,7 @@ export function toggleSubtreeExpansion(
 
     // 添加从引用节点到子树根节点的连接
     const subtreeRootNode = subtreeNodes.find(node =>
-      node.data.originalId === subtree.nodes[0]?.id
+      (node.data as any).originalId === subtree.nodes[0]?.id
     );
 
     if (subtreeRootNode) {
@@ -537,31 +566,31 @@ export function toggleSubtreeExpansion(
     }
 
     // 合并节点和边
-    const allNodes = [...parentTree.nodes, ...subtreeNodes];
-    const allEdges = [...parentTree.edges, ...subtreeEdges];
+    const allNodes = [...parentRuntimeData.nodes, ...subtreeNodes];
+    const allEdges = [...parentRuntimeData.edges, ...subtreeEdges];
 
     // 更新父树数据
-    parentTree.nodes = allNodes;
-    parentTree.edges = allEdges;
+    parentRuntimeData.nodes = allNodes as BehaviorTreeNode[];
+    parentRuntimeData.edges = allEdges as BehaviorTreeEdge[];
 
     console.log(`✅ Expanded subtree ${subtreeId} with ${subtreeNodes.length} nodes`);
     return { nodes: allNodes as BehaviorTreeNode[], edges: allEdges as BehaviorTreeEdge[] };
 
   } else {
     // 折叠：移除子树节点
-    const filteredNodes = parentTree.nodes.filter(node =>
-      !node.data.parentSubtreeRef || node.data.parentSubtreeRef !== subtreeRefNodeId
+    const filteredNodes = parentRuntimeData.nodes.filter(node =>
+      !(node.data as any).parentSubtreeRef || (node.data as any).parentSubtreeRef !== subtreeRefNodeId
     );
 
-    const filteredEdges = parentTree.edges.filter(edge =>
-      !edge.data?.parentSubtreeRef || edge.data.parentSubtreeRef !== subtreeRefNodeId
+    const filteredEdges = parentRuntimeData.edges.filter(edge =>
+      !(edge.data as any)?.parentSubtreeRef || (edge.data as any).parentSubtreeRef !== subtreeRefNodeId
     );
 
     // 更新父树数据
-    parentTree.nodes = filteredNodes;
-    parentTree.edges = filteredEdges;
+    parentRuntimeData.nodes = filteredNodes;
+    parentRuntimeData.edges = filteredEdges;
 
     console.log(`✅ Collapsed subtree ${subtreeId}`);
-    return { nodes: filteredNodes as BehaviorTreeNode[], edges: filteredEdges as BehaviorTreeEdge[] };
+    return { nodes: filteredNodes, edges: filteredEdges };
   }
 }

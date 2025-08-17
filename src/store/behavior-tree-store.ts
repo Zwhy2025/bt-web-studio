@@ -39,6 +39,11 @@ export interface BehaviorTreeNode extends Node {
     subtreeId?: string         // 子树的ID引用
     subtreeParameters?: Record<string, string>  // 子树的参数
     isSubtreeReference?: boolean // 是否为子树引用节点
+    isExpanded?: boolean       // 子树是否展开
+    // 子树展开时的属性
+    isSubtreeChild?: boolean   // 是否为子树的子节点
+    parentSubtreeRef?: string  // 父子树引用节点ID
+    originalId?: string        // 原始节点ID（用于子树展开时的映射）
   }
 }
 
@@ -124,6 +129,12 @@ export interface BehaviorTreeState {
   timelinePosition: number
   timelineRange: [number, number]
   isReplaying: boolean
+  playbackSpeed: number
+  totalDuration: number
+
+  // 回放控制状态
+  replayTimer: NodeJS.Timeout | null
+  replayStartTime: number
 
   // UI 状态
   showMinimap: boolean
@@ -188,6 +199,18 @@ export interface BehaviorTreeState {
     setTimelinePosition: (position: number) => void
     setTimelineRange: (range: [number, number]) => void
     toggleReplay: () => void
+
+    // 回放控制操作
+    startReplay: () => void
+    stopReplay: () => void
+    pauseReplay: () => void
+    seekToTime: (time: number) => void
+    setPlaybackSpeed: (speed: number) => void
+    updateNodesForTimePosition: (time: number) => void
+    skipForward: (seconds?: number) => void
+    skipBackward: (seconds?: number) => void
+    seekToStart: () => void
+    seekToEnd: () => void
 
     // UI 操作
     toggleMinimap: () => void
@@ -261,6 +284,12 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
       timelinePosition: 0,
       timelineRange: [0, 100],
       isReplaying: false,
+      playbackSpeed: 1.0,
+      totalDuration: 0,
+
+      // 回放控制状态
+      replayTimer: null,
+      replayStartTime: 0,
 
       showMinimap: true,
       showGrid: true,
@@ -521,10 +550,11 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
 
             console.log(`📍 Found subtree reference node:`, subtreeRefNode);
 
-            // 确保当前会话的树已注册到管理器
-            const parentTreeId = `session_${state.currentSession.id}`;
+            // 使用当前会话ID作为父树ID，这样与错误日志中的session ID匹配
+            const parentTreeId = state.currentSession.id;
             const manager = behaviorTreeManager;
 
+            // 确保当前会话的树已注册到管理器
             if (!manager.getTree(parentTreeId)) {
               console.log(`🔧 Auto-registering current session tree: ${parentTreeId}`);
               const treeData = {
@@ -550,75 +580,40 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
 
             // 检查子树是否在管理器中注册，如果没有则尝试从当前解析的数据中提取
             if (!manager.getTree(actualSubtreeId)) {
-              console.error(`❌ Subtree not found in manager: ${actualSubtreeId}`);
-              console.log(`🔄 Attempting to extract subtree data from current session: ${actualSubtreeId}`);
+              console.log(`🔄 Creating minimal subtree structure for: ${actualSubtreeId}`);
 
-              // 尝试从当前节点中找到子树的实际内容
-              const subtreeNodes = state.nodes.filter(node =>
-                node.data.parentSubtreeRef === subtreeRefNode.id ||
-                (node.type === 'subtree' && node.data.subtreeId === actualSubtreeId)
-              );
-
-              // 如果找不到子树节点，尝试从XML解析结果中重新提取
-              if (subtreeNodes.length === 0) {
-                console.log(`🔄 No subtree nodes found, creating minimal subtree structure for: ${actualSubtreeId}`);
-
-                // 创建最小的子树结构（包含一个根节点）
-                const tempSubtreeData = {
-                  id: actualSubtreeId,
-                  name: actualSubtreeId,
-                  sourceType: 'file' as const,
-                  sourceHash: Date.now().toString(),
-                  xmlContent: '',
-                  nodes: [
-                    {
-                      id: `${actualSubtreeId}_root`,
-                      position: { x: 0, y: 0 },
-                      data: {
-                        label: `${actualSubtreeId} Root`,
-                        status: NodeStatus.IDLE,
-                      },
-                      type: 'control-sequence',
-                    }
-                  ],
-                  edges: [],
-                  metadata: {
-                    nodeDefinitions: {},
-                    treeDefinitions: {},
-                    layoutApplied: true,
-                    lastParsed: new Date()
+              // 创建最小的子树结构（包含一个根节点）
+              const tempSubtreeData = {
+                id: actualSubtreeId,
+                name: actualSubtreeId,
+                sourceType: 'file' as const,
+                sourceHash: Date.now().toString(),
+                xmlContent: '',
+                nodes: [
+                  {
+                    id: `${actualSubtreeId}_root`,
+                    position: { x: 0, y: 0 },
+                    data: {
+                      label: `${actualSubtreeId} Root`,
+                      status: NodeStatus.IDLE,
+                    },
+                    type: 'control-sequence',
                   }
-                };
-                manager.registerTree(tempSubtreeData);
-                console.log(`✅ Created minimal subtree structure for: ${actualSubtreeId}`);
-              } else {
-                // 使用找到的子树节点创建子树数据
-                const subtreeEdges = state.edges.filter(edge =>
-                  subtreeNodes.some(node => node.id === edge.source || node.id === edge.target)
-                );
-
-                const extractedSubtreeData = {
-                  id: actualSubtreeId,
-                  name: actualSubtreeId,
-                  sourceType: 'file' as const,
-                  sourceHash: Date.now().toString(),
-                  xmlContent: '',
-                  nodes: subtreeNodes.map(node => ({ ...node })),
-                  edges: subtreeEdges.map(edge => ({ ...edge })),
-                  metadata: {
-                    nodeDefinitions: {},
-                    treeDefinitions: {},
-                    layoutApplied: true,
-                    lastParsed: new Date()
-                  }
-                };
-                manager.registerTree(extractedSubtreeData);
-                console.log(`✅ Extracted and registered subtree data for: ${actualSubtreeId} with ${subtreeNodes.length} nodes`);
-              }
+                ],
+                edges: [],
+                metadata: {
+                  nodeDefinitions: {},
+                  treeDefinitions: {},
+                  layoutApplied: true,
+                  lastParsed: new Date()
+                }
+              };
+              manager.registerTree(tempSubtreeData);
+              console.log(`✅ Created minimal subtree structure for: ${actualSubtreeId}`);
             }
 
             // 调用管理器的展开/折叠功能
-            const currentExpanded = subtreeRefNode.data.isExpanded || false;
+            const currentExpanded = (subtreeRefNode.data as any).isExpanded || false;
             const newExpanded = !currentExpanded;
 
             console.log(`🎯 Calling toggleSubtreeExpansion with:`, {
@@ -1158,7 +1153,156 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         },
 
         toggleReplay: () => {
-          set(state => ({ isReplaying: !state.isReplaying }))
+          const state = get();
+          if (state.isReplaying) {
+            state.actions.stopReplay();
+          } else {
+            state.actions.startReplay();
+          }
+        },
+
+        // 回放控制操作
+        startReplay: () => {
+          const state = get();
+          if (state.replayTimer) {
+            clearInterval(state.replayTimer);
+          }
+
+          // 计算总时长（基于执行事件）
+          const totalDuration = state.executionEvents.length > 0
+            ? Math.max(...state.executionEvents.map(e => e.timestamp))
+            : 10000; // 默认10秒
+
+          const startTime = Date.now();
+          const initialPosition = state.timelinePosition;
+
+          const timer = setInterval(() => {
+            const currentState = get();
+            const elapsed = (Date.now() - startTime) * currentState.playbackSpeed;
+            const newPosition = Math.min(initialPosition + elapsed, totalDuration);
+
+            // 更新时间轴位置
+            set({ timelinePosition: newPosition });
+
+            // 根据当前时间位置更新节点状态
+            currentState.actions.updateNodesForTimePosition(newPosition);
+
+            // 检查是否到达结尾
+            if (newPosition >= totalDuration) {
+              currentState.actions.stopReplay();
+            }
+          }, 50); // 每50ms更新一次
+
+          set({
+            isReplaying: true,
+            replayTimer: timer,
+            replayStartTime: startTime,
+            totalDuration
+          });
+        },
+
+        stopReplay: () => {
+          const state = get();
+          if (state.replayTimer) {
+            clearInterval(state.replayTimer);
+          }
+          set({
+            isReplaying: false,
+            replayTimer: null,
+            replayStartTime: 0
+          });
+        },
+
+        pauseReplay: () => {
+          const state = get();
+          if (state.replayTimer) {
+            clearInterval(state.replayTimer);
+          }
+          set({
+            isReplaying: false,
+            replayTimer: null
+          });
+        },
+
+        seekToTime: (time: number) => {
+          const state = get();
+          const clampedTime = Math.max(0, Math.min(time, state.totalDuration));
+
+          set({ timelinePosition: clampedTime });
+
+          // 更新节点状态到指定时间点
+          state.actions.updateNodesForTimePosition(clampedTime);
+        },
+
+        setPlaybackSpeed: (speed: number) => {
+          const clampedSpeed = Math.max(0.1, Math.min(8.0, speed));
+          set({ playbackSpeed: clampedSpeed });
+        },
+
+        // 根据时间位置更新节点状态
+        updateNodesForTimePosition: (time: number) => {
+          const state = get();
+
+          // 重置所有节点状态
+          const resetNodes = state.nodes.map(node => ({
+            ...node,
+            data: {
+              ...node.data,
+              status: NodeStatus.IDLE
+            }
+          }));
+
+          // 找到当前时间点应该激活的事件
+          const activeEvents = state.executionEvents.filter(event =>
+            event.timestamp <= time
+          );
+
+          // 按时间排序并应用状态
+          activeEvents.sort((a, b) => a.timestamp - b.timestamp);
+
+          const updatedNodes = resetNodes.map(node => {
+            // 找到该节点最新的状态事件
+            const nodeEvents = activeEvents.filter(event => event.nodeId === node.id);
+            const latestEvent = nodeEvents[nodeEvents.length - 1];
+
+            if (latestEvent) {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  status: latestEvent.status
+                }
+              };
+            }
+
+            return node;
+          });
+
+          set({ nodes: updatedNodes });
+        },
+
+        // 快进/快退操作
+        skipForward: (seconds: number = 1) => {
+          const state = get();
+          const newTime = Math.min(state.timelinePosition + seconds * 1000, state.totalDuration);
+          state.actions.seekToTime(newTime);
+        },
+
+        skipBackward: (seconds: number = 1) => {
+          const state = get();
+          const newTime = Math.max(state.timelinePosition - seconds * 1000, 0);
+          state.actions.seekToTime(newTime);
+        },
+
+        // 跳转到开始/结束
+        seekToStart: () => {
+          const state = get();
+          state.actions.seekToTime(0);
+        },
+
+        seekToEnd: () => {
+          const state = get();
+          state.actions.seekToTime(state.totalDuration);
         },
 
         // UI 操作

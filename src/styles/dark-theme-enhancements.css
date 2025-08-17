@@ -1,0 +1,333 @@
+/* 专业开发工具深色主题增强样式 */
+
+/* 全局深色主题优化 */
+.dark {
+  /* 滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted)) hsl(var(--background));
+}
+
+.dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* 专业工具栏样式 */
+.dark .professional-toolbar {
+  background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(var(--card)) 100%);
+  border-bottom: 1px solid hsl(var(--border));
+  backdrop-filter: blur(8px);
+}
+
+/* 节点库面板优化 */
+.dark .node-library-panel {
+  background: hsl(var(--card));
+  border-right: 1px solid hsl(var(--border));
+}
+
+.dark .node-category-header {
+  background: hsl(var(--accent));
+  border: 1px solid hsl(var(--border));
+  transition: all 0.2s ease;
+}
+
+.dark .node-category-header:hover {
+  background: hsl(var(--accent)) / 0.8;
+  border-color: hsl(var(--primary)) / 0.5;
+}
+
+.dark .node-item {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  transition: all 0.2s ease;
+}
+
+.dark .node-item:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary)) / 0.6;
+  box-shadow: 0 2px 8px hsl(var(--primary)) / 0.1;
+}
+
+/* ReactFlow 深色主题优化 */
+.dark .react-flow__background {
+  background: hsl(var(--background));
+}
+
+.dark .react-flow__minimap {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .react-flow__controls {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 12px hsl(var(--background)) / 0.5;
+}
+
+.dark .react-flow__controls button {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+.dark .react-flow__controls button:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary)) / 0.5;
+}
+
+/* 行为树节点状态颜色 */
+.dark .bt-node-success {
+  background: hsl(var(--node-success)) / 0.1;
+  border-color: hsl(var(--node-success));
+  box-shadow: 0 0 8px hsl(var(--node-success)) / 0.3;
+}
+
+.dark .bt-node-failure {
+  background: hsl(var(--node-failure)) / 0.1;
+  border-color: hsl(var(--node-failure));
+  box-shadow: 0 0 8px hsl(var(--node-failure)) / 0.3;
+}
+
+.dark .bt-node-running {
+  background: hsl(var(--node-running)) / 0.1;
+  border-color: hsl(var(--node-running));
+  box-shadow: 0 0 8px hsl(var(--node-running)) / 0.3;
+  animation: pulse-running 1.5s ease-in-out infinite;
+}
+
+.dark .bt-node-idle {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .bt-node-skipped {
+  background: hsl(var(--node-skipped)) / 0.1;
+  border-color: hsl(var(--node-skipped));
+  opacity: 0.7;
+}
+
+/* 断点标记样式 */
+.dark .breakpoint-marker {
+  background: hsl(var(--breakpoint-active));
+  box-shadow: 0 0 6px hsl(var(--breakpoint-active)) / 0.6;
+  animation: pulse-breakpoint 2s ease-in-out infinite;
+}
+
+.dark .breakpoint-marker.inactive {
+  background: hsl(var(--breakpoint-inactive));
+  box-shadow: none;
+  animation: none;
+}
+
+/* 时间轴深色主题 */
+.dark .timeline-container {
+  background: hsl(var(--timeline-background));
+  border-top: 1px solid hsl(var(--border));
+}
+
+.dark .timeline-track {
+  background: hsl(var(--timeline-track));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .timeline-progress {
+  background: linear-gradient(90deg, 
+    hsl(var(--timeline-progress)) / 0.3 0%, 
+    hsl(var(--timeline-progress)) / 0.6 50%, 
+    hsl(var(--timeline-progress)) / 0.3 100%
+  );
+}
+
+.dark .timeline-marker {
+  background: hsl(var(--timeline-marker));
+  box-shadow: 0 0 4px hsl(var(--timeline-marker)) / 0.5;
+}
+
+.dark .timeline-event-marker {
+  background: hsl(var(--primary));
+  box-shadow: 0 0 3px hsl(var(--primary)) / 0.7;
+}
+
+/* 属性面板优化 */
+.dark .properties-panel {
+  background: hsl(var(--card));
+  border-left: 1px solid hsl(var(--border));
+}
+
+.dark .properties-section {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.dark .properties-section:last-child {
+  border-bottom: none;
+}
+
+/* 调试面板样式 */
+.dark .debug-panel {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .debug-console {
+  background: hsl(var(--background));
+  border: 1px solid hsl(var(--border));
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+
+.dark .debug-log-entry {
+  border-bottom: 1px solid hsl(var(--border)) / 0.3;
+  padding: 4px 8px;
+}
+
+.dark .debug-log-entry.error {
+  background: hsl(var(--destructive)) / 0.1;
+  border-left: 3px solid hsl(var(--destructive));
+}
+
+.dark .debug-log-entry.warning {
+  background: hsl(var(--node-running)) / 0.1;
+  border-left: 3px solid hsl(var(--node-running));
+}
+
+.dark .debug-log-entry.info {
+  background: hsl(var(--primary)) / 0.1;
+  border-left: 3px solid hsl(var(--primary));
+}
+
+/* 动画效果 */
+@keyframes pulse-running {
+  0%, 100% { 
+    box-shadow: 0 0 8px hsl(var(--node-running)) / 0.3; 
+  }
+  50% { 
+    box-shadow: 0 0 16px hsl(var(--node-running)) / 0.6; 
+  }
+}
+
+@keyframes pulse-breakpoint {
+  0%, 100% { 
+    box-shadow: 0 0 6px hsl(var(--breakpoint-active)) / 0.6; 
+  }
+  50% { 
+    box-shadow: 0 0 12px hsl(var(--breakpoint-active)) / 0.9; 
+  }
+}
+
+/* 面板分割器样式 */
+.dark .resizable-handle {
+  background: hsl(var(--border));
+  transition: background-color 0.2s ease;
+}
+
+.dark .resizable-handle:hover {
+  background: hsl(var(--primary)) / 0.5;
+}
+
+.dark .resizable-handle[data-resize-handle-state="hover"] {
+  background: hsl(var(--primary)) / 0.7;
+}
+
+/* 工具提示样式 */
+.dark .tooltip-content {
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 12px hsl(var(--background)) / 0.5;
+}
+
+/* 上下文菜单样式 */
+.dark .context-menu-content {
+  background: hsl(var(--popover));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 8px 24px hsl(var(--background)) / 0.5;
+}
+
+.dark .context-menu-item:hover {
+  background: hsl(var(--accent));
+}
+
+/* 选择框样式 */
+.dark .selection-box {
+  border: 2px dashed hsl(var(--primary));
+  background: hsl(var(--primary)) / 0.1;
+}
+
+/* 对齐指导线样式 */
+.dark .alignment-guide {
+  stroke: hsl(var(--primary));
+  stroke-dasharray: 4 4;
+  opacity: 0.8;
+}
+
+/* 状态指示器 */
+.dark .status-indicator {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 2px 8px hsl(var(--background)) / 0.3;
+}
+
+.dark .status-indicator.connected {
+  border-color: hsl(var(--node-success));
+  box-shadow: 0 0 8px hsl(var(--node-success)) / 0.3;
+}
+
+.dark .status-indicator.disconnected {
+  border-color: hsl(var(--node-failure));
+  box-shadow: 0 0 8px hsl(var(--node-failure)) / 0.3;
+}
+
+/* 专业代码编辑器风格 */
+.dark .code-editor {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  border: 1px solid hsl(var(--border));
+}
+
+.dark .code-editor .line-number {
+  color: hsl(var(--muted-foreground));
+  background: hsl(var(--muted)) / 0.3;
+  border-right: 1px solid hsl(var(--border));
+}
+
+/* 响应式优化 */
+@media (max-width: 768px) {
+  .dark .mobile-panel {
+    background: hsl(var(--background));
+    border: none;
+  }
+  
+  .dark .mobile-toolbar {
+    background: hsl(var(--card));
+    border-bottom: 1px solid hsl(var(--border));
+  }
+}
+
+/* 高对比度模式支持 */
+@media (prefers-contrast: high) {
+  .dark {
+    --border: 220 13% 25%;
+    --primary: 217 91% 70%;
+  }
+}
+
+/* 减少动画模式支持 */
+@media (prefers-reduced-motion: reduce) {
+  .dark * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

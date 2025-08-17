@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react"
+import { ThemeProvider } from "@/components/theme-provider"
 import {
     Menubar,
     MenubarMenu,
@@ -17,6 +18,7 @@ import {
     ResizablePanel,
     ResizableHandle,
 } from "@/components/ui/resizable"
+import { CollapsibleLayout, PanelStatusIndicator } from '@/components/layout/collapsible-layout'
 import {
     Play,
     Pause,
@@ -50,10 +52,9 @@ import {
     StepForward,
     Square,
 } from "lucide-react"
-// 移除未使用的导入
-// import { DebugToolbar } from "@/components/debug-toolbar" // 移除导入
 import { DebugPanel } from "@/components/debug-panel" // 新增导入
 import { NodeInfoPanel } from "@/components/node-info-panel" // 新增节点信息面板导入
+import { BreakpointPanel } from "@/components/breakpoint-panel" // 新增断点面板导入
 import ReactFlow, {
     Background,
     BackgroundVariant,
@@ -120,6 +121,7 @@ import { BlackboardPanel } from "@/components/blackboard-panel"
 import { TabBar } from "@/components/tab-bar"
 import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TimelinePanel, createSampleTimelineState } from "@/components/layout/timeline-panel"
 
 // ---------- Node Category Section Component ----------
 function NodeCategorySection({
@@ -289,8 +291,9 @@ function RightInspector({ selectedNodeId }: { selectedNodeId?: string }) {
     return (
         <div className="h-full flex flex-col">
             <Tabs defaultValue="debug" className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-4 mx-3 mt-3">
+                <TabsList className="grid w-full grid-cols-5 mx-3 mt-3">
                     <TabsTrigger value="debug">调试</TabsTrigger>
+                    <TabsTrigger value="breakpoints">断点</TabsTrigger>
                     <TabsTrigger value="blackboard">黑板</TabsTrigger>
                     <TabsTrigger value="events">事件</TabsTrigger>
                     <TabsTrigger value="nodeinfo">节点信息</TabsTrigger>
@@ -330,6 +333,9 @@ function RightInspector({ selectedNodeId }: { selectedNodeId?: string }) {
                             </div>
                         </div>
                     </div>
+                </TabsContent>
+                <TabsContent value="breakpoints" className="flex-1 mt-2">
+                    <BreakpointPanel />
                 </TabsContent>
                 <TabsContent value="blackboard" className="flex-1 mt-2">
                     <BlackboardPanel />
@@ -434,28 +440,77 @@ function TopBar({ onImportClick, onExportClick, onNewProject }: {
 
 // ---------- Bottom Timeline ----------
 function BottomTimeline() {
-    const [playing, setPlaying] = useState(false)
+    const {
+        timelinePosition,
+        totalDuration,
+        isReplaying,
+        playbackSpeed,
+        executionEvents,
+        actions
+    } = useBehaviorTreeStore()
+
+    // 如果没有执行事件，创建一些示例数据用于显示
+    const hasEvents = executionEvents.length > 0
+    const sampleTimelineState = createSampleTimelineState()
+
+    // 构建 TimelinePanel 需要的 timelineState 对象
+    const timelineState = hasEvents ? {
+        currentTime: timelinePosition,
+        totalDuration: totalDuration || 10000,
+        isPlaying: isReplaying,
+        playbackSpeed: playbackSpeed,
+        events: executionEvents.map(event => ({
+            id: event.id,
+            timestamp: event.timestamp,
+            nodeId: event.nodeId,
+            nodeName: event.nodeId, // 使用 nodeId 作为 nodeName
+            type: event.type === 'tick' ? (
+                event.status === 'success' ? 'success' as const :
+                    event.status === 'failure' ? 'failure' as const :
+                        event.status === 'running' ? 'running' as const :
+                            'start' as const
+            ) : 'start' as const,
+            duration: event.duration,
+            data: event
+        })),
+        filteredEvents: executionEvents.map(event => ({
+            id: event.id,
+            timestamp: event.timestamp,
+            nodeId: event.nodeId,
+            nodeName: event.nodeId,
+            type: event.type === 'tick' ? (
+                event.status === 'success' ? 'success' as const :
+                    event.status === 'failure' ? 'failure' as const :
+                        event.status === 'running' ? 'running' as const :
+                            'start' as const
+            ) : 'start' as const,
+            duration: event.duration,
+            data: event
+        }))
+    } : sampleTimelineState
+
     return (
-        <div className="w-full border-t bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="px-3 py-2 flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "暂停" : "播放"}>
-                        {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                    </Button>
-                    <Button size="sm" variant="ghost" aria-label="单步">
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" aria-label="重置">
-                        <RefreshCcw className="h-4 w-4" />
-                    </Button>
+        <div className="h-full min-h-[200px] bg-gray-800">
+            <div className="p-2 border-b border-gray-700">
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-300">时间轴回放</h3>
+                    {!hasEvents && (
+                        <span className="text-xs text-gray-500">
+                            (示例数据 - 连接调试器后显示真实数据)
+                        </span>
+                    )}
                 </div>
-                <Separator orientation="vertical" className="h-6" />
-                <div className="text-xs text-muted-foreground">时间轴</div>
-                <div className="flex-1 h-8 rounded-md border bg-card/60 backdrop-blur relative overflow-hidden">
-                    <div className="absolute inset-y-0 left-0 w-1/3 bg-primary/20" />
-                    <div className="absolute inset-y-0 left-1/3 w-0.5 bg-primary/60" />
-                </div>
-                <div className="text-xs tabular-nums w-28 text-right text-muted-foreground">00:00:00.000</div>
+            </div>
+            <div className="h-[calc(100%-3rem)]">
+                <TimelinePanel
+                    timelineState={timelineState}
+                    onPlay={hasEvents ? actions.startReplay : () => console.log('示例播放')}
+                    onPause={hasEvents ? actions.pauseReplay : () => console.log('示例暂停')}
+                    onStop={hasEvents ? actions.stopReplay : () => console.log('示例停止')}
+                    onSeek={hasEvents ? actions.seekToTime : (time) => console.log('示例跳转到:', time)}
+                    onSpeedChange={hasEvents ? actions.setPlaybackSpeed : (speed) => console.log('示例速度:', speed)}
+                    className="h-full"
+                />
             </div>
         </div>
     )
@@ -1359,7 +1414,7 @@ function BtCanvas({
 }
 
 // ---------- Main App Layout ----------
-export default function App() {
+function AppContent() {
     // 状态管理
     const actions = useBehaviorTreeStore(state => state.actions)
     const { toast } = useToast()
@@ -1401,7 +1456,7 @@ export default function App() {
         });
     };
     return (
-        <div className="h-screen w-screen bg-white dark:bg-[#0b0f17] text-foreground flex flex-col overflow-hidden">
+        <div className="h-screen w-screen bg-background text-foreground flex flex-col overflow-hidden">
             <TopBar
                 onImportClick={() => setImportDialogOpen(true)}
                 onExportClick={() => setExportDialogOpen(true)}
@@ -1409,27 +1464,22 @@ export default function App() {
             />
             <TabBar />
             <main className="flex-1 min-h-0">
-                <ResizablePanelGroup direction="horizontal" className="h-full">
-                    <ResizablePanel defaultSize={18} minSize={14} className="hidden md:block">
-                        <LeftPalette />
-                    </ResizablePanel>
-                    <ResizableHandle withHandle />
-                    <ResizablePanel defaultSize={64} minSize={40}>
-                        <div className="h-full">
-                            <BtCanvas
-                                onNodesExport={setNodesToExport}
-                                onEdgesExport={setEdgesToExport}
-                                onSelectionChange={setSelectedNodeId}
-                            />
-                        </div>
-                    </ResizablePanel>
-                    <ResizableHandle withHandle />
-                    <ResizablePanel defaultSize={18} minSize={16} className="hidden lg:block">
-                        <RightInspector selectedNodeId={selectedNodeId} />
-                    </ResizablePanel>
-                </ResizablePanelGroup>
+                <CollapsibleLayout
+                    leftPanel={<LeftPalette />}
+                    centerPanel={
+                        <BtCanvas
+                            onNodesExport={setNodesToExport}
+                            onEdgesExport={setEdgesToExport}
+                            onSelectionChange={setSelectedNodeId}
+                        />
+                    }
+                    rightPanel={<RightInspector selectedNodeId={selectedNodeId} />}
+                    bottomPanel={<BottomTimeline />}
+                />
             </main>
-            <BottomTimeline />
+
+            {/* 面板状态指示器 */}
+            <PanelStatusIndicator />
 
             {/* XML导入/导出对话框 */}
             <ImportDialog
@@ -1445,5 +1495,18 @@ export default function App() {
                 edges={edgesToExport}
             />
         </div>
+    )
+}
+
+export default function App() {
+    return (
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+        >
+            <AppContent />
+        </ThemeProvider>
     )
 }
