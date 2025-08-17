@@ -1,11 +1,11 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { 
-  Plug, 
-  Play, 
-  Pause, 
-  StepForward, 
-  Square, 
+import {
+  Plug,
+  Play,
+  Pause,
+  StepForward,
+  Square,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -15,17 +15,15 @@ import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
 import { DebugState } from '@/store/behavior-tree-store';
 
 export function DebugToolbar() {
-  const { 
-    debugState, 
-    isDebuggerConnected, 
+  const {
+    debugState,
+    isDebuggerConnected,
     debuggerConnectionError,
-    actions 
+    actions
   } = useBehaviorTreeStore();
 
   const handleConnect = () => {
-    // 这里应该弹出一个对话框让用户输入 WebSocket URL
-    // 现在我们使用一个默认的 mock URL
-    actions.connectToDebugger('ws://localhost:8080'); // Mock URL
+    actions.connectToDebugger('ws://localhost:8080');
   };
 
   const handleDisconnect = () => {
@@ -61,7 +59,7 @@ export function DebugToolbar() {
   let connectButtonVariant: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive" = "outline";
   let connectButtonIcon = <Plug className="h-4 w-4" />;
   let connectButtonText = "连接调试器";
-  
+
   if (debugState === DebugState.CONNECTING) {
     connectButtonVariant = "secondary";
     connectButtonText = "连接中...";
@@ -72,10 +70,10 @@ export function DebugToolbar() {
   }
 
   // 确定执行控制按钮是否禁用
-  const isExecutionControlDisabled = !isDebuggerConnected || 
-    debugState === DebugState.CONNECTING || 
+  const isExecutionControlDisabled = !isDebuggerConnected ||
+    debugState === DebugState.CONNECTING ||
     debugState === DebugState.DISCONNECTED;
-    
+
   // 确定各个执行控制按钮的禁用状态
   const isStartDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
   const isPauseDisabled = isExecutionControlDisabled || debugState !== DebugState.RUNNING;
@@ -96,12 +94,12 @@ export function DebugToolbar() {
         {!isDebuggerConnected && debugState !== DebugState.CONNECTING && (
           <div className="h-2 w-2 rounded-full bg-gray-500" title="未连接" />
         )}
-        
+
         {/* 连接/断开按钮 */}
         {isDebuggerConnected ? (
-          <Button 
-            size="sm" 
-            variant="outline" 
+          <Button
+            size="sm"
+            variant="outline"
             onClick={handleDisconnect}
             disabled={debugState === DebugState.CONNECTING}
           >
@@ -109,9 +107,9 @@ export function DebugToolbar() {
             断开
           </Button>
         ) : (
-          <Button 
-            size="sm" 
-            variant={connectButtonVariant} 
+          <Button
+            size="sm"
+            variant={connectButtonVariant}
             onClick={handleConnect}
             disabled={debugState === DebugState.CONNECTING}
           >
@@ -126,36 +124,36 @@ export function DebugToolbar() {
 
       {/* 执行控制按钮 */}
       <div className="flex items-center gap-1">
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handleStart}
           disabled={isStartDisabled}
           title="开始/继续执行"
         >
           <Play className="h-4 w-4" />
         </Button>
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handlePause}
           disabled={isPauseDisabled}
           title="暂停执行"
         >
           <Pause className="h-4 w-4" />
         </Button>
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handleStep}
           disabled={isStepDisabled}
           title="单步执行"
         >
           <StepForward className="h-4 w-4" />
         </Button>
-        <Button 
-          size="sm" 
-          variant="outline" 
+        <Button
+          size="sm"
+          variant="outline"
           onClick={handleStop}
           disabled={isStopDisabled}
           title="停止执行"
@@ -167,18 +165,20 @@ export function DebugToolbar() {
       {/* 分隔符 */}
       <div className="h-5 w-px bg-muted" />
 
-      {/* 子树模拟按钮 */}
-      <div className="flex items-center gap-1">
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleSimulateSubtree}
-          title="模拟子树执行"
-        >
-          <TreePine className="h-4 w-4" />
-          <span className="ml-1">模拟</span>
-        </Button>
-      </div>
+      {/* 子树模拟按钮 - 隐藏，因为用户有真实后端 */}
+      {false && (
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleSimulateSubtree}
+            title="模拟子树执行"
+          >
+            <TreePine className="h-4 w-4" />
+            <span className="ml-1">模拟</span>
+          </Button>
+        </div>
+      )}
 
       {/* 错误信息显示 */}
       {debuggerConnectionError && (

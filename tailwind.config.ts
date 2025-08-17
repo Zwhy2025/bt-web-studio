@@ -52,6 +52,29 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // 行为树专用颜色
+        node: {
+          success: "hsl(var(--node-success))",
+          failure: "hsl(var(--node-failure))",
+          running: "hsl(var(--node-running))",
+          idle: "hsl(var(--node-idle))",
+          skipped: "hsl(var(--node-skipped))",
+        },
+        // 断点和调试颜色
+        breakpoint: {
+          active: "hsl(var(--breakpoint-active))",
+          inactive: "hsl(var(--breakpoint-inactive))",
+        },
+        debug: {
+          highlight: "hsl(var(--debug-highlight))",
+        },
+        // 时间轴专用颜色
+        timeline: {
+          background: "hsl(var(--timeline-background))",
+          track: "hsl(var(--timeline-track))",
+          progress: "hsl(var(--timeline-progress))",
+          marker: "hsl(var(--timeline-marker))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

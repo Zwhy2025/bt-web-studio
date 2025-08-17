@@ -11,9 +11,11 @@ import {
   Square, 
   StepForward,
   MemoryStick,
-  ListOrdered
+  ListOrdered,
+  Eye
 } from 'lucide-react';
 import { DebugToolbar } from './debug-toolbar'; // 导入我们之前创建的 DebugToolbar
+import { PortVisualizationPanel } from './port-visualization-panel'; // 导入端口可视化面板
 
 export function DebugPanel() {
   const { 
@@ -68,7 +70,7 @@ export function DebugPanel() {
       </div>
       
       <Tabs defaultValue="blackboard" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="blackboard" className="flex items-center gap-2">
             <MemoryStick className="h-4 w-4" />
             黑板
@@ -76,6 +78,10 @@ export function DebugPanel() {
           <TabsTrigger value="events" className="flex items-center gap-2">
             <ListOrdered className="h-4 w-4" />
             事件
+          </TabsTrigger>
+          <TabsTrigger value="ports" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            端口
           </TabsTrigger>
         </TabsList>
         
@@ -165,6 +171,12 @@ export function DebugPanel() {
                 </div>
               )}
             </ScrollArea>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="ports" className="flex-1 flex flex-col min-h-0 mt-0">
+          <div className="flex-1 flex flex-col min-h-0 p-2">
+            <PortVisualizationPanel />
           </div>
         </TabsContent>
       </Tabs>
