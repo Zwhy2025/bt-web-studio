@@ -1,4 +1,3 @@
-
 import { StateCreator } from 'zustand';
 import { RealWebSocketClient, DebuggerMessage } from '@/core/debugger/real-websocket-client';
 import { simulateSubtreeExecution } from '@/core/bt/subtree-mock-generator';
@@ -72,6 +71,9 @@ export const createDebuggerSlice: StateCreator<
       set({ debugState: DebugState.CONNECTING, debuggerConnectionError: null });
 
       const client = new RealWebSocketClient(url);
+      
+      // Add extra logging for debugging
+      console.log("🔧 Created RealWebSocketClient instance");
 
       client.onOpen(() => {
         console.log("Connected to debugger");
@@ -96,20 +98,38 @@ export const createDebuggerSlice: StateCreator<
         switch (type) {
           case 'treeData':
             if (payload && payload.xml) {
-              parseXMLUnified(payload.xml, 'remote', payload.treeId || `remote_${Date.now()}`)
-                .then(async (behaviorTreeData) => {
-                  const layoutedNodes = await applyLayoutUnified(behaviorTreeData.id);
-                  const runtimeData = behaviorTreeManager.getRuntimeData(behaviorTreeData.id);
-                  if (!runtimeData) throw new Error('Failed to get runtime data');
-                  set({ nodes: layoutedNodes, edges: runtimeData.edges });
-                  if (get().currentSession) {
-                    actions.importData(layoutedNodes, runtimeData.edges);
-                  }
-                })
-                .catch((error) => {
-                  console.error("Failed to parse tree XML:", error);
-                  set({ debuggerConnectionError: `Failed to parse tree XML: ${error.message}` });
-                });
+              // Log the full payload for debugging
+              console.log("Full treeData payload:", JSON.stringify(payload, null, 2));
+              
+              // Check if XML is not empty before parsing
+              if (payload.xml.trim().length > 0) {
+                parseXMLUnified(payload.xml, 'remote', payload.treeId || `remote_${Date.now()}`)
+                  .then(async (behaviorTreeData) => {
+                    console.log("Successfully parsed tree data:", behaviorTreeData);
+                    const layoutedNodes = await applyLayoutUnified(behaviorTreeData.id);
+                    const runtimeData = behaviorTreeManager.getRuntimeData(behaviorTreeData.id);
+                    if (!runtimeData) throw new Error('Failed to get runtime data');
+                    set({ nodes: layoutedNodes, edges: runtimeData.edges });
+                    if (get().currentSession) {
+                      actions.importData(layoutedNodes, runtimeData.edges);
+                    }
+                  })
+                  .catch((error) => {
+                    console.error("Failed to parse tree XML:", error);
+                    set({ debuggerConnectionError: `Failed to parse tree XML: ${error.message}` });
+                  });
+              } else {
+                console.warn("Received empty tree XML, backend may not have a tree loaded");
+                // Check if there are other fields in the payload that might contain useful info
+                if (payload.header) {
+                  console.log("Tree data header:", payload.header);
+                }
+                // Set a message to inform the user that no tree is loaded
+                set({ debuggerConnectionError: "Connected to debugger, but no behavior tree is currently loaded in the backend" });
+              }
+            } else {
+              console.warn("Received treeData message with no XML payload");
+              set({ debuggerConnectionError: "Connected to debugger, but received invalid tree data" });
             }
             break;
           case 'statusUpdate':
@@ -149,7 +169,12 @@ export const createDebuggerSlice: StateCreator<
           case 'executionStopped':
             set({ debugState: DebugState.STOPPED, currentExecutingNode: null });
             break;
+          case 'subscribed':
+            // Handle subscribed message - no action required
+            console.log("Successfully subscribed to topic:", payload?.topic || 'unknown');
+            break;
           case 'error':
+            console.error("Error from debugger:", payload);
             set({ debuggerConnectionError: payload.message || 'Unknown error from proxy' });
             break;
           default:
@@ -161,9 +186,19 @@ export const createDebuggerSlice: StateCreator<
     },
     disconnectFromDebugger: () => {
       const state = get();
+      console.log("Disconnecting from debugger");
       if (state.debuggerClient) {
         state.debuggerClient.disconnect();
       }
+      // 确保状态被重置
+      set({ 
+        debugState: DebugState.DISCONNECTED, 
+        isDebuggerConnected: false, 
+        debuggerConnectionError: null, 
+        debuggerClient: null,
+        breakpoints: new Set(),
+        currentExecutingNode: null
+      });
     },
     startExecution: () => {
       const state = get();

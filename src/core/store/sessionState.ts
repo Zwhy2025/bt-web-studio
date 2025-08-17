@@ -4,7 +4,7 @@ import { BehaviorTreeState, ProjectSession, NodeStatus, DebugState } from './beh
 
 const createDefaultSession = (): ProjectSession => ({
   id: `session-${Date.now()}`,
-  name: '新建项目',
+  name: '新项目',
   nodes: [{
     id: 'root',
     position: { x: 100, y: 80 },

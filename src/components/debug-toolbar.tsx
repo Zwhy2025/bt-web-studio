@@ -26,7 +26,10 @@ export function DebugToolbar() {
   } = useBehaviorTreeStore();
 
   const handleConnect = () => {
+    console.log("DebugToolbar: Connect button clicked, DEBUGGER_URL:", DEBUGGER_URL);
+    console.log("DebugToolbar: About to call actions.connectToDebugger");
     actions.connectToDebugger(DEBUGGER_URL);
+    console.log("DebugToolbar: Called actions.connectToDebugger");
   };
 
   const handleDisconnect = () => {

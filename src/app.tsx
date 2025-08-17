@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useMemo, useState, useRef } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import {
@@ -53,9 +52,7 @@ import {
     StepForward,
     Square,
 } from "lucide-react"
-import { DebugPanel } from "@/components/debug-panel"
-import { NodeInfoPanel } from "@/components/node-info-panel"
-import { BreakpointPanel } from "@/components/breakpoint-panel"
+import { RightInspector } from "@/components/right-inspector"
 import ReactFlow, {
     Background,
     BackgroundVariant,
@@ -108,7 +105,7 @@ import {
     alignNodes,
     GRID_SIZE,
     AlignmentGuide,
-    getAlignmentGuides,
+    getNodesInSelectionBox,
 } from "@/core/layout/alignment-utils"
 import {
     AlignmentGuides,
@@ -120,7 +117,6 @@ import {
 import { BlackboardPanel } from "@/components/blackboard-panel"
 import { TabBar } from "@/components/tab-bar"
 import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimelinePanel, createSampleTimelineState } from "@/components/layout/timeline-panel"
 
 // ---------- Node Category Section Component ----------
@@ -283,75 +279,6 @@ function LeftPalette() {
                 </div>
             </ScrollArea>
         </aside>
-    )
-}
-
-// ---------- Right Inspector ----------
-function RightInspector({ selectedNodeId }: { selectedNodeId?: string }) {
-    return (
-        <div className="h-full flex flex-col">
-            <Tabs defaultValue="debug" className="flex-1 flex flex-col">
-                <TabsList className="grid w-full grid-cols-5 mx-3 mt-3">
-                    <TabsTrigger value="debug">调试</TabsTrigger>
-                    <TabsTrigger value="breakpoints">断点</TabsTrigger>
-                    <TabsTrigger value="blackboard">黑板</TabsTrigger>
-                    <TabsTrigger value="events">事件</TabsTrigger>
-                    <TabsTrigger value="nodeinfo">节点信息</TabsTrigger>
-                </TabsList>
-                <TabsContent value="debug" className="flex-1 mt-2">
-                    <div className="h-full flex flex-col">
-                        <div className="p-2 border-b">
-                            <div className="flex items-center gap-2">
-                                <div className="flex items-center gap-1">
-                                    <div className="h-2 w-2 rounded-full bg-gray-500" title="未连接"></div>
-                                    <Button variant="outline" size="sm">
-                                        <Plug className="h-4 w-4" />
-                                        <span className="ml-1">连接调试器</span>
-                                    </Button>
-                                </div>
-                                <Separator orientation="vertical" className="h-5" />
-                                <div className="flex items-center gap-1">
-                                    <Button variant="outline" size="sm" disabled title="开始/继续执行">
-                                        <Play className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" disabled title="暂停执行">
-                                        <Pause className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" disabled title="单步执行">
-                                        <StepForward className="h-4 w-4" />
-                                    </Button>
-                                    <Button variant="outline" size="sm" disabled title="停止执行">
-                                        <Square className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <Separator orientation="vertical" className="h-5" />
-                            </div>
-                        </div>
-                        <div className="flex-1 p-2">
-                            <div className="text-sm text-muted-foreground">
-                                调试控制台将在连接调试器后显示执行信息
-                            </div>
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="breakpoints" className="flex-1 mt-2">
-                    <BreakpointPanel />
-                </TabsContent>
-                <TabsContent value="blackboard" className="flex-1 mt-2">
-                    <BlackboardPanel />
-                </TabsContent>
-                <TabsContent value="events" className="flex-1 mt-2">
-                    <div className="flex-1 p-2">
-                        <div className="text-sm text-muted-foreground">
-                            事件日志将在调试时显示
-                        </div>
-                    </div>
-                </TabsContent>
-                <TabsContent value="nodeinfo" className="flex-1 mt-2">
-                    <NodeInfoPanel selectedNodeId={selectedNodeId} />
-                </TabsContent>
-            </Tabs>
-        </div>
     )
 }
 
@@ -559,7 +486,7 @@ function CanvasInner({
         (changes) => {
             const newNodes = applyNodeChanges(changes, nodes);
             setNodes(newNodes); // 先更新本地状态
-            actions.importData(newNodes, edges); // 再同步到全局状态
+            actions.importData(newNodes, edges, { merge: true }); // 再同步到全局状态
         },
         [nodes, edges, actions, setNodes]
     );
@@ -568,7 +495,7 @@ function CanvasInner({
         (changes) => {
             const newEdges = applyEdgeChanges(changes, edges);
             setEdges(newEdges); // 先更新本地状态
-            actions.importData(nodes, newEdges); // 再同步到全局状态
+            actions.importData(nodes, newEdges, { merge: true }); // 再同步到全局状态
         },
         [nodes, edges, actions, setEdges]
     );
@@ -601,35 +528,32 @@ function CanvasInner({
     const [isSelecting, setIsSelecting] = useState(false)
     const [selectionStart, setSelectionStart] = useState({ x: 0, y: 0 })
     const [selectionCurrent, setSelectionCurrent] = useState({ x: 0, y: 0 })
-    const canvasRef = useRef<HTMLDivElement>(null)
 
-    // 画布尺寸状态
+    // 画布尺寸
+    const canvasRef = useRef<HTMLDivElement>(null)
     const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 800 })
 
-    // 监听画布尺寸变化
+    // 更新画布尺寸
     useEffect(() => {
         const updateCanvasSize = () => {
             if (canvasRef.current) {
-                const rect = canvasRef.current.getBoundingClientRect()
-                setCanvasSize({ width: rect.width, height: rect.height })
+                const rect = canvasRef.current.getBoundingClientRect();
+                setCanvasSize({ width: rect.width, height: rect.height });
             }
-        }
+        };
 
-        // 初始化尺寸
-        updateCanvasSize()
-
-        // 监听窗口大小变化
-        const resizeObserver = new ResizeObserver(updateCanvasSize)
+        updateCanvasSize();
+        const resizeObserver = new ResizeObserver(updateCanvasSize);
         if (canvasRef.current) {
-            resizeObserver.observe(canvasRef.current)
+            resizeObserver.observe(canvasRef.current);
         }
 
         return () => {
-            resizeObserver.disconnect()
-        }
-    }, [])
+            resizeObserver.disconnect();
+        };
+    }, []);
 
-    // 历史记录管理
+    // 历史记录管理器
     const historyManagerRef = useRef<HistoryManager | null>(null)
     const [canUndo, setCanUndo] = useState(false)
     const [canRedo, setCanRedo] = useState(false)
@@ -639,133 +563,140 @@ function CanvasInner({
         historyManagerRef.current = new HistoryManager({
             nodes: initialNodes,
             edges: initialEdges
-        })
-        setCanUndo(false) // 新的历史记录，不能撤销
-        setCanRedo(false) // 也不能重做
-    }, [])
+        });
+        setCanUndo(false)
+        setCanRedo(false)
+    }, []);
 
-    // 保存状态到历史记录
-    const saveToHistory = useCallback(() => {
+    // 记录历史状态
+    const recordHistory = useCallback(() => {
         if (historyManagerRef.current) {
-            historyManagerRef.current.push({ nodes, edges })
-            setCanUndo(historyManagerRef.current.canUndo())
-            setCanRedo(historyManagerRef.current.canRedo())
+            historyManagerRef.current.push({ nodes, edges });
+            setCanUndo(historyManagerRef.current.canUndo());
+            setCanRedo(historyManagerRef.current.canRedo());
         }
-    }, [nodes, edges])
+    }, [nodes, edges]);
 
-    const findNode = (id: string) => nodes.find((n) => n.id === id)
+    // 根据节点ID查找节点
+    const findNode = (id: string) => nodes.find(node => node.id === id)
 
-    // 节点拖拽处理 - 添加对齐吸附
-    const onNodeDrag: NodeDragHandler = useCallback((event, node, draggedNodes) => {
-        setIsDragging(true)
+    // 节点拖拽处理 - 吸附和对齐
+    const onNodeDrag: NodeDragHandler = useCallback((event, node, nodes) => {
+        setIsDragging(true);
+        // 获取除当前节点外的所有节点
+        const otherNodes = nodes.filter(n => n.id !== node.id);
+        // 计算吸附和对齐辅助线
+        const guides = calculateAlignmentGuides(node, otherNodes, snapToGridEnabled);
+        setAlignmentGuides(guides.guides);
+        // ReactFlow handles the visual update during drag, no need to call setNodes here
+        // setNodes(ns => ns.map(n => n.id === node.id ? { ...n, position: { x: guides.x, y: guides.y } } : n));
+    }, [nodes, snapToGridEnabled]); // Removed setNodes from dependencies as it's not called
 
-        // 使用当前完整的节点列表而不是拖拽回调中的节点列表
-        const otherNodes = nodes.filter(n => n.id !== node.id)
-        const snapResult = calculateAlignmentGuides(node, otherNodes, snapToGridEnabled)
+    // 节点拖拽结束处理
+    const onNodeDragStop: NodeDragHandler = useCallback((event, node, nodes) => {
+        setIsDragging(false);
+        setAlignmentGuides([]);
+        // 先创建更新后的节点数组
+        const updatedNodes = nodes.map(n => n.id === node.id ? { ...n, position: node.position } : n);
+        // 更新本地状态
+        setNodes(updatedNodes);
+        // 使用更新后的节点数组同步到全局状态
+        actions.importData(updatedNodes, edges, { merge: true });
+        // 记录历史状态
+        recordHistory();
+    }, [actions, edges, recordHistory, setNodes]); // Added setNodes to dependencies
 
-        // 更新指导线
-        setAlignmentGuides(snapResult.guides)
-
-        // 更新节点位置（允许自由拖动）
-        setNodes(currentNodes =>
-            currentNodes.map(n =>
-                n.id === node.id
-                    ? { ...n, position: { x: snapResult.x, y: snapResult.y } }
-                    : n
-            )
-        )
-    }, [nodes, snapToGridEnabled, setNodes])
-
-    // 节点拖拽结束
-    const onNodeDragStop = useCallback((event, node, draggedNodes) => {
-        setIsDragging(false)
-        setAlignmentGuides([])
-        // 同步到状态管理系统
-        actions.importData(nodes, edges)
-        saveToHistory()
-    }, [saveToHistory, actions, nodes, edges])
-
-    // 橡皮框选择开始
-    const onSelectionStart = useCallback((event: React.MouseEvent) => {
-        // 只在空白区域开始选择
+    // 鼠标按下事件 - 开始橡皮框选择
+    const handleMouseDown = useCallback((event: React.MouseEvent) => {
+        // 只有在画布空白处点击时才开始选择
         if (event.target === event.currentTarget) {
-            const rect = canvasRef.current?.getBoundingClientRect()
-            if (rect) {
-                const startPos = screenToFlowPosition({
-                    x: event.clientX - rect.left,
-                    y: event.clientY - rect.top,
-                })
-                setSelectionStart(startPos)
-                setSelectionCurrent(startPos)
-                setIsSelecting(true)
+            const canvasRect = canvasRef.current?.getBoundingClientRect();
+            if (canvasRect) {
+                const position = screenToFlowPosition({
+                    x: event.clientX - canvasRect.left,
+                    y: event.clientY - canvasRect.top
+                });
+                setSelectionStart(position);
+                setSelectionCurrent(position);
+                setIsSelecting(true);
             }
         }
-    }, [screenToFlowPosition])
+    }, [screenToFlowPosition]);
 
-    // 橡皮框选择移动 - 优化性能，避免频繁重渲染
-    const onSelectionMove = useCallback((event: React.MouseEvent) => {
+    // 鼠标移动事件 - 更新橡皮框选择
+    const handleMouseMove = useCallback((event: React.MouseEvent) => {
         if (isSelecting && canvasRef.current) {
-            const rect = canvasRef.current.getBoundingClientRect()
-            const currentPos = screenToFlowPosition({
-                x: event.clientX - rect.left,
-                y: event.clientY - rect.top,
-            })
-            setSelectionCurrent(currentPos)
+            const canvasRect = canvasRef.current.getBoundingClientRect();
+            const position = screenToFlowPosition({
+                x: event.clientX - canvasRect.left,
+                y: event.clientY - canvasRect.top
+            });
+            setSelectionCurrent(position);
 
-            // 计算选择框内的节点
+            // 计算选择框
             const selectionBox = {
-                x: Math.min(selectionStart.x, currentPos.x),
-                y: Math.min(selectionStart.y, currentPos.y),
-                width: Math.abs(currentPos.x - selectionStart.x),
-                height: Math.abs(currentPos.y - selectionStart.y),
-            }
+                x: Math.min(selectionStart.x, position.x),
+                y: Math.min(selectionStart.y, position.y),
+                width: Math.abs(position.x - selectionStart.x),
+                height: Math.abs(position.y - selectionStart.y)
+            };
 
-            const selectedNodes = getNodesInSelectionBox(nodes, selectionBox)
-            const selectedIds = selectedNodes.map(n => n.id)
+            // 获取选择框内的节点
+            const selectedNodes = getNodesInSelectionBox(nodes, selectionBox).map(n => n.id);
+            const selectedNodeSet = new Set(selectedNodeIds);
+            const newSelectedNodeSet = new Set(selectedNodes);
 
-            // 只有当选中的节点ID集合发生变化时才更新状态
-            const currentSelectedIds = new Set(selectedNodeIds)
-            const newSelectedIds = new Set(selectedIds)
-            const hasChanged = currentSelectedIds.size !== newSelectedIds.size ||
-                selectedIds.some(id => !currentSelectedIds.has(id))
-
-            if (hasChanged) {
-                setNodes(nds => nds.map(n => ({
-                    ...n,
-                    selected: selectedIds.includes(n.id)
-                })))
-                setSelectedNodeIds(selectedIds)
+            // 如果选择的节点有变化，则更新选择状态
+            if (selectedNodeSet.size !== newSelectedNodeSet.size ||
+                selectedNodes.some(id => !selectedNodeSet.has(id))) {
+                // 更新节点的选中状态
+                setNodes(ns => ns.map(n => ({ ...n, selected: selectedNodes.includes(n.id) })));
+                // 更新选中节点ID列表
+                setSelectedNodeIds(selectedNodes);
             }
         }
-    }, [isSelecting, selectionStart, nodes, setNodes, screenToFlowPosition, selectedNodeIds])
+    }, [isSelecting, selectionStart, nodes, selectedNodeIds, screenToFlowPosition, setNodes]);
 
-    // 橡皮框选择结束
-    const onSelectionEnd = useCallback(() => {
-        setIsSelecting(false)
-    }, [])
+    // 鼠标释放事件 - 结束橡皮框选择
+    const handleMouseUp = useCallback(() => {
+        setIsSelecting(false);
+    }, []);
 
-    // 批量对齐功能
-    const handleAlign = useCallback((alignType: 'left' | 'right' | 'center' | 'top' | 'bottom' | 'middle' | 'distribute-horizontal' | 'distribute-vertical') => {
-        const selectedNodes = nodes.filter(n => selectedNodeIds.includes(n.id))
+    // 对齐选中节点
+    const alignSelectedNodes = useCallback((alignment: 'left' | 'right' | 'center' | 'top' | 'bottom' | 'middle' | 'distribute-horizontal' | 'distribute-vertical') => {
+        // 获取选中的节点
+        const selectedNodes = nodes.filter(node => selectedNodeIds.includes(node.id));
+
+        // 至少需要2个节点才能对齐
         if (selectedNodes.length < 2) {
             toast({
                 title: "对齐失败",
                 description: "请选择至少2个节点进行对齐",
-                variant: "destructive",
-            })
-            return
+                variant: "destructive"
+            });
+            return;
         }
 
-        const alignedNodes = alignNodes(selectedNodes, alignType)
-        const nodeMap = new Map(alignedNodes.map(n => [n.id, n]))
+        // 执行对齐操作
+        const alignedNodes = alignNodes(selectedNodes, alignment);
 
-        const newNodes = nodes.map(n => nodeMap.get(n.id) || n)
-        setNodes(newNodes)
-        // 同步到状态管理系统
-        actions.importData(newNodes, edges)
-        saveToHistory()
+        // 创建一个映射来快速查找对齐后的节点
+        const alignedNodeMap = new Map(alignedNodes.map(node => [node.id, node]));
 
-        const alignTypeNames = {
+        // 更新所有节点的位置
+        const updatedNodes = nodes.map(node =>
+            alignedNodeMap.get(node.id) || node
+        );
+
+        // 更新状态
+        setNodes(updatedNodes);
+        // 同步到全局状态
+        actions.importData(updatedNodes, edges, { merge: true });
+        // 记录历史状态
+        recordHistory();
+
+        // 显示成功消息
+        const alignmentNames: Record<string, string> = {
             'left': '左对齐',
             'right': '右对齐',
             'center': '水平居中',
@@ -773,337 +704,441 @@ function CanvasInner({
             'bottom': '底部对齐',
             'middle': '垂直居中',
             'distribute-horizontal': '水平分布',
-            'distribute-vertical': '垂直分布',
-        }
+            'distribute-vertical': '垂直分布'
+        };
 
         toast({
             title: "对齐完成",
-            description: `已对 ${selectedNodes.length} 个节点执行${alignTypeNames[alignType]}`,
-        })
-    }, [nodes, selectedNodeIds, setNodes, saveToHistory, toast, edges, actions])
+            description: `已对 ${selectedNodes.length} 个节点执行${alignmentNames[alignment]}`
+        });
+    }, [nodes, selectedNodeIds, setNodes, actions, edges, recordHistory, toast]);
 
-    // 撤销功能
+    // 撤销操作
     const handleUndo = useCallback(() => {
         if (historyManagerRef.current && historyManagerRef.current.canUndo()) {
-            const previousState = historyManagerRef.current.undo()
-            if (previousState) {
-                setNodes(previousState.nodes)
-                setEdges(previousState.edges)
-                setCanUndo(historyManagerRef.current.canUndo())
-                setCanRedo(historyManagerRef.current.canRedo())
+            const prevState = historyManagerRef.current.undo();
+            if (prevState) {
+                setNodes(prevState.nodes);
+                setEdges(prevState.edges);
+                setCanUndo(historyManagerRef.current.canUndo());
+                setCanRedo(historyManagerRef.current.canRedo());
                 toast({
                     title: "撤销成功",
-                    description: "已恢复到上一个状态",
-                })
+                    description: "已恢复到上一个状态"
+                });
             }
         }
-    }, [setNodes, setEdges, toast])
+    }, [setNodes, setEdges, toast]);
 
-    // 重做功能
+    // 重做操作
     const handleRedo = useCallback(() => {
         if (historyManagerRef.current && historyManagerRef.current.canRedo()) {
-            const nextState = historyManagerRef.current.redo()
+            const nextState = historyManagerRef.current.redo();
             if (nextState) {
-                setNodes(nextState.nodes)
-                setEdges(nextState.edges)
-                setCanUndo(historyManagerRef.current.canUndo())
-                setCanRedo(historyManagerRef.current.canRedo())
+                setNodes(nextState.nodes);
+                setEdges(nextState.edges);
+                setCanUndo(historyManagerRef.current.canUndo());
+                setCanRedo(historyManagerRef.current.canRedo());
                 toast({
                     title: "重做成功",
-                    description: "已前进到下一个状态",
-                })
+                    description: "已前进到下一个状态"
+                });
             }
         }
-    }, [setNodes, setEdges, toast])
+    }, [setNodes, setEdges, toast]);
 
-    // 自动布局功能
+    // 自动布局
     const handleAutoLayout = useCallback(() => {
-        const layoutedNodes = autoLayoutTree(nodes, edges)
-        setNodes(layoutedNodes)
-        // 同步到状态管理系统
-        actions.importData(layoutedNodes, edges)
-        saveToHistory()
+        const layoutedNodes = autoLayoutTree(nodes, edges);
+        setNodes(layoutedNodes);
+        // 同步到全局状态
+        actions.importData(layoutedNodes, edges, { merge: true });
+        // 记录历史状态
+        recordHistory();
         toast({
             title: "自动布局完成",
-            description: "已将节点排列成清晰的树形结构",
-        })
-    }, [nodes, edges, setNodes, saveToHistory, toast, actions])
+            description: "已将节点排列成清晰的树形结构"
+        });
+    }, [nodes, edges, setNodes, actions, recordHistory, toast]);
 
-    // 散乱分布功能
+    // 散乱分布节点
     const handleScatterNodes = useCallback(() => {
-        const scatteredNodes = scatterNodes(nodes)
-        setNodes(scatteredNodes)
-        // 同步到状态管理系统
-        actions.importData(scatteredNodes, edges)
-        saveToHistory()
+        const scatteredNodes = scatterNodes(nodes);
+        setNodes(scatteredNodes);
+        // 同步到全局状态
+        actions.importData(scatteredNodes, edges, { merge: true });
+        // 记录历史状态
+        recordHistory();
         toast({
             title: "散乱分布完成",
-            description: "已将节点随机分布到画布上",
-        })
-    }, [nodes, setNodes, saveToHistory, toast, edges, actions])
+            description: "已将节点随机分布到画布上"
+        });
+    }, [nodes, setNodes, actions, edges, recordHistory, toast]);
 
-    function isDownwardConnection(conn: Connection): boolean {
-        if (!conn.source || !conn.target) return false
-        if (conn.source === conn.target) return false
-        if (conn.sourceHandle !== "out" || conn.targetHandle !== "in") return false
-        const s = findNode(conn.source)
-        const t = findNode(conn.target)
-        if (!s || !t) return false
-        return s.position.y <= t.position.y
+    // 验证连接是否有效
+    function isValidConnection(connection: Connection) {
+        // 确保不连接到自身且不向上连接
+        if (!connection.source || !connection.target ||
+            connection.source === connection.target ||
+            connection.sourceHandle !== "out" ||
+            connection.targetHandle !== "in") {
+            return false;
+        }
+
+        // 获取源节点和目标节点
+        const sourceNode = findNode(connection.source);
+        const targetNode = findNode(connection.target);
+
+        // 确保两个节点都存在
+        if (!sourceNode || !targetNode) {
+            return false;
+        }
+
+        // 确保目标节点在源节点下方（Y轴坐标更大）
+        if (sourceNode.position.y >= targetNode.position.y) {
+            return false;
+        }
+
+        return true;
     }
 
-    function willCreateCycle(source: string, target: string): boolean {
-        const adj = new Map<string, string[]>()
-        for (const e of edges) {
-            if (!adj.has(e.source)) adj.set(e.source, [])
-            adj.get(e.source)!.push(e.target)
-        }
-        if (!adj.has(source)) adj.set(source, [])
-        adj.get(source)!.push(target)
-
-        const visited = new Set<string>()
-        function dfs(node: string): boolean {
-            if (node === source) return true
-            if (visited.has(node)) return false
-            visited.add(node)
-            const nexts = adj.get(node) || []
-            for (const nxt of nexts) {
-                if (dfs(nxt)) return true
+    // 检查是否会产生回路
+    function wouldCreateCycle(source: string, target: string) {
+        // 构建当前连接的邻接表
+        const adjacencyList = new Map<string, string[]>();
+        for (const edge of edges) {
+            if (!adjacencyList.has(edge.source)) {
+                adjacencyList.set(edge.source, []);
             }
-            return false
+            adjacencyList.get(edge.source)!.push(edge.target);
         }
-        return dfs(target)
+
+        // 添加新的连接
+        if (!adjacencyList.has(source)) {
+            adjacencyList.set(source, []);
+        }
+        adjacencyList.get(source)!.push(target);
+
+        // 检查是否存在从target到source的路径（即是否存在回路）
+        const visited = new Set<string>();
+        function hasPathTo(node: string, target: string): boolean {
+            if (node === target) return true;
+            if (visited.has(node)) return false;
+            visited.add(node);
+
+            const neighbors = adjacencyList.get(node) || [];
+            for (const neighbor of neighbors) {
+                if (hasPathTo(neighbor, target)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        return hasPathTo(target, source);
     }
 
+    // 处理连接事件
+    const onConnect = useCallback((params: Connection) => {
+        // 验证连接是否有效
+        if (!isValidConnection(params)) {
+            toast({
+                title: "无法连接",
+                description: "仅允许从底部 out 连接到下方节点顶部 in，且不允许自连/向上连接。",
+                variant: "destructive"
+            });
+            return;
+        }
 
-    const onConnect = useCallback(
-        (params: Edge | Connection) => {
-            const conn = params as Connection
-            if (!isDownwardConnection(conn)) {
-                toast({
-                    title: "无法连接",
-                    description: "仅允许从底部 out 连接到下方节点顶部 in，且不允许自连/向上连接。",
-                    variant: "destructive" as any,
-                })
-                return
-            }
-            if (willCreateCycle(conn.source!, conn.target!)) {
-                toast({
-                    title: "禁止回路",
-                    description: "该连接将产生闭环，请调整结构。",
-                    variant: "destructive" as any,
-                })
-                return
-            }
-            const newEdges = addEdge({ ...params, animated: false }, edges)
-            setEdges(newEdges)
-            // 同步到状态管理系统
-            actions.importData(nodes, newEdges)
-        },
-        [setEdges, edges, nodes, toast, actions]
-    )
+        // 检查是否会形成回路
+        if (wouldCreateCycle(params.source!, params.target!)) {
+            toast({
+                title: "禁止回路",
+                description: "该连接将产生闭环，请调整结构。",
+                variant: "destructive"
+            });
+            return;
+        }
 
+        // 添加连接
+        const newEdges = addEdge({ ...params, animated: false }, edges);
+        setEdges(newEdges);
+        // 同步到全局状态
+        actions.importData(nodes, newEdges, { merge: true });
+    }, [setEdges, edges, nodes, actions, toast]);
+
+    // 处理拖拽放置事件
+    const onDrop = useCallback((event: React.DragEvent) => {
+        event.preventDefault();
+
+        // 获取拖拽的节点类型
+        const nodeType = event.dataTransfer.getData("application/reactflow");
+        if (!nodeType) return;
+
+        // 计算放置位置
+        const canvasRect = event.currentTarget.getBoundingClientRect();
+        const position = project({
+            x: event.clientX - canvasRect.left,
+            y: event.clientY - canvasRect.top
+        });
+
+        // 创建新节点
+        const newNode: Node = {
+            id: `${nodeType}-${Date.now()}`,
+            position,
+            data: {
+                label: {
+                    "action": "Action",
+                    "condition": "Condition",
+                    "subtree": "SubTree",
+                    "Sequence": "Sequence",
+                    "Sequence*": "Sequence*",
+                    "Fallback": "Fallback",
+                    "Fallback*": "Fallback*",
+                    "Parallel": "Parallel",
+                    "ReactiveSequence": "ReactiveSequence",
+                    "ReactiveFallback": "ReactiveFallback",
+                    "Switch": "Switch",
+                    "IfThenElse": "IfThenElse",
+                    "WhileDoElse": "WhileDoElse",
+                    "ManualSelector": "ManualSelector",
+                    "Inverter": "Inverter",
+                    "Retry": "Retry",
+                    "Repeat": "Repeat",
+                    "Timeout": "Timeout",
+                    "Delay": "Delay",
+                    "ForceSuccess": "ForceSuccess",
+                    "ForceFailure": "ForceFailure",
+                    "Script": "Script",
+                    "SetBlackboard": "SetBlackboard",
+                    "Sleep": "Sleep",
+                    "Log": "Log",
+                    "CheckBlackboard": "CheckBlackboard",
+                    "CompareBlackboard": "CompareBlackboard",
+                    "control-sequence": "Sequence",
+                    "control-selector": "Fallback",
+                    "decorator": "Decorator"
+                }[nodeType]
+            },
+            type: nodeType,
+        };
+
+        // 添加新节点到节点列表
+        const updatedNodes = [...nodes, newNode];
+        setNodes(updatedNodes);
+        // 同步到全局状态
+        actions.importData(updatedNodes, edges, { merge: true });
+    }, [project, nodes, edges, setNodes, actions]);
+
+    // 处理拖拽悬停事件
     const onDragOver = useCallback((event: React.DragEvent) => {
-        event.preventDefault()
-        event.dataTransfer.dropEffect = "move"
-    }, [])
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+    }, []);
 
-    const onDrop = useCallback(
-        (event: React.DragEvent) => {
-            event.preventDefault()
-            const type = event.dataTransfer.getData("application/reactflow") as PaletteType
-            if (!type) return
-            const bounds = event.currentTarget.getBoundingClientRect()
-            const position = project({ x: event.clientX - bounds.left, y: event.clientY - bounds.top })
-            const id = `${type}-${Date.now()}`
-            // 扩展的节点类型映射，支持所有BehaviorTree.CPP标准节点
-            const labelMap: Record<string, string> = {
-                // 基础节点类型
-                action: "Action",
-                condition: "Condition",
-                subtree: "SubTree",
-
-                // 控制节点
-                "Sequence": "Sequence",
-                "Sequence*": "Sequence*",
-                "Fallback": "Fallback",
-                "Fallback*": "Fallback*",
-                "Parallel": "Parallel",
-                "ReactiveSequence": "ReactiveSequence",
-                "ReactiveFallback": "ReactiveFallback",
-                "Switch": "Switch",
-                "IfThenElse": "IfThenElse",
-                "WhileDoElse": "WhileDoElse",
-                "ManualSelector": "ManualSelector",
-
-                // 装饰器节点
-                "Inverter": "Inverter",
-                "Retry": "Retry",
-                "Repeat": "Repeat",
-                "Timeout": "Timeout",
-                "Delay": "Delay",
-                "ForceSuccess": "ForceSuccess",
-                "ForceFailure": "ForceFailure",
-
-                // 常用Action节点
-                "Script": "Script",
-                "SetBlackboard": "SetBlackboard",
-                "Sleep": "Sleep",
-                "Log": "Log",
-
-                // 常用Condition节点
-                "CheckBlackboard": "CheckBlackboard",
-                "CompareBlackboard": "CompareBlackboard",
-
-                // 兼容旧的类型
-                "control-sequence": "Sequence",
-                "control-selector": "Fallback",
-                "decorator": "Decorator",
-            }
-            const newNode: Node = {
-                id,
-                position,
-                data: { label: `${labelMap[type]}` },
-                type: type as any,
-            }
-            const newNodes = [...nodes, newNode]
-            setNodes(newNodes)
-            // 同步到状态管理系统
-            actions.importData(newNodes, edges)
-        },
-        [project, setNodes, nodes, edges, actions]
-    )
-
-    // 删除所选
-    const deleteSelection = useCallback(() => {
+    // 删除选中的节点和边
+    const handleDelete = useCallback(() => {
+        // 如果没有选中的节点和边，提示用户
         if (selectedNodeIds.length === 0 && selectedEdgeIds.length === 0) {
-            toast({ title: "无选择", description: "请选择要删除的节点或连线" })
-            return
+            toast({
+                title: "无选择",
+                description: "请选择要删除的节点或连线"
+            });
+            return;
         }
-        const nextNodes = nodes.filter((n) => !selectedNodeIds.includes(n.id))
-        const nextEdges = edges.filter(
-            (e) =>
-                !selectedEdgeIds.includes(e.id) &&
-                !selectedNodeIds.includes(e.source) &&
-                !selectedNodeIds.includes(e.target)
-        )
-        const removedEdgesCount = edges.length - nextEdges.length
-        setNodes(nextNodes)
-        setEdges(nextEdges)
-        // 同步到状态管理系统
-        actions.importData(nextNodes, nextEdges)
-        saveToHistory()
+
+        // 删除选中的节点（同时删除与之相关的边）
+        const remainingNodes = nodes.filter(node => !selectedNodeIds.includes(node.id));
+        const remainingEdges = edges.filter(edge =>
+            !selectedEdgeIds.includes(edge.id) &&
+            !selectedNodeIds.includes(edge.source) &&
+            !selectedNodeIds.includes(edge.target)
+        );
+
+        // 计算被删除的连线数量
+        const deletedEdgesCount = edges.length - remainingEdges.length;
+
+        // 更新状态
+        setNodes(remainingNodes);
+        setEdges(remainingEdges);
+        // 清除选中状态
+        setSelectedNodeIds([]);
+        setSelectedEdgeIds([]);
+        // 同步到全局状态，使用merge: false确保删除的节点不会重新出现
+        actions.importData(remainingNodes, remainingEdges, { merge: false });
+        // 记录历史状态
+        recordHistory();
+
+        // 显示成功消息
         toast({
             title: "已删除",
-            description: `节点 ${selectedNodeIds.length} 个，连线 ${removedEdgesCount} 条`,
-        })
-    }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, saveToHistory, toast, actions])
+            description: `节点 ${selectedNodeIds.length} 个，连线 ${deletedEdgesCount} 条`
+        });
+    }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, setSelectedNodeIds, setSelectedEdgeIds, actions, recordHistory, toast]);
 
-    // 克隆所选（带位移与内部连线重映射）
-    const cloneSelection = useCallback(() => {
-        const selNodes = nodes.filter((n) => selectedNodeIds.includes(n.id))
-        if (selNodes.length === 0) {
-            toast({ title: "无法克隆", description: "请先选择要克隆的节点" })
-            return
+    // 克隆选中的节点
+    const handleClone = useCallback(() => {
+        // 获取选中的节点
+        const selectedNodes = nodes.filter(node => selectedNodeIds.includes(node.id));
+
+        // 如果没有选中的节点，提示用户
+        if (selectedNodes.length === 0) {
+            toast({
+                title: "无法克隆",
+                description: "请先选择要克隆的节点",
+                variant: "destructive"
+            });
+            return;
         }
-        const t = Date.now()
-        const offset = 40
-        const idMap: Record<string, string> = {}
-        const clones: Node[] = selNodes.map((n, idx) => {
-            const newId = `${n.id}-copy-${t}-${idx}`
-            idMap[n.id] = newId
+
+        // 创建时间戳用于生成唯一的ID
+        const timestamp = Date.now();
+        const offset = 40; // 克隆节点的偏移量
+
+        // 创建一个映射来跟踪原始节点ID到新节点ID的映射
+        const idMap: Record<string, string> = {};
+
+        // 克隆选中的节点
+        const clonedNodes = selectedNodes.map((node, index) => {
+            const newId = `${node.id}-copy-${timestamp}-${index}`;
+            idMap[node.id] = newId;
             return {
-                ...n,
+                ...node,
                 id: newId,
-                position: { x: n.position.x + offset, y: n.position.y + offset },
-                selected: true,
-            }
-        })
-        const newEdges: Edge[] = edges
-            .filter((e) => selectedNodeIds.includes(e.source) && selectedNodeIds.includes(e.target))
-            .map((e, idx) => ({
-                ...e,
-                id: `${e.id ?? "e"}-copy-${t}-${idx}`,
-                source: idMap[e.source],
-                target: idMap[e.target],
-                selected: true,
-            }))
-        const finalNodes = [...nodes.map((n) => ({ ...n, selected: false })), ...clones]
-        const finalEdges = [...edges, ...newEdges]
-        setNodes(finalNodes)
-        setEdges(finalEdges)
-        // 同步到状态管理系统
-        actions.importData(finalNodes, finalEdges)
-        saveToHistory()
+                position: {
+                    x: node.position.x + offset,
+                    y: node.position.y + offset
+                },
+                // 设置为选中状态，方便用户操作
+                selected: true
+            };
+        });
+
+        // 克隆选中节点之间的连接
+        const clonedEdges = edges
+            .filter(edge =>
+                selectedNodeIds.includes(edge.source) &&
+                selectedNodeIds.includes(edge.target)
+            )
+            .map((edge, index) => ({
+                ...edge,
+                id: `${edge.id ?? "e"}-copy-${timestamp}-${index}`,
+                source: idMap[edge.source],
+                target: idMap[edge.target],
+                // 设置为选中状态
+                selected: true
+            }));
+
+        // 更新所有节点和边
+        const updatedNodes = [
+            ...nodes.map(node => ({ ...node, selected: false })), // 取消原节点的选中状态
+            ...clonedNodes
+        ];
+        const updatedEdges = [...edges, ...clonedEdges];
+
+        // 更新状态
+        setNodes(updatedNodes);
+        setEdges(updatedEdges);
+        // 同步到全局状态
+        actions.importData(updatedNodes, updatedEdges, { merge: true });
+        // 记录历史状态
+        recordHistory();
+
+        // 显示成功消息
         toast({
             title: "已克隆",
-            description: `节点 ${clones.length} 个，连线 ${newEdges.length} 条`,
-        })
-    }, [nodes, edges, selectedNodeIds, setNodes, setEdges, saveToHistory, toast, actions])
+            description: `节点 ${clonedNodes.length} 个，连线 ${clonedEdges.length} 条`
+        });
+    }, [nodes, edges, selectedNodeIds, setNodes, setEdges, actions, recordHistory, toast]);
 
-    // 全选功能
-    const selectAllNodes = useCallback(() => {
-        setNodes(nds => nds.map(n => ({ ...n, selected: true })))
-        setSelectedNodeIds(nodes.map(n => n.id))
+    // 全选
+    const handleSelectAll = useCallback(() => {
+        // 选择所有节点
+        setNodes(ns => ns.map(n => ({ ...n, selected: true })));
+        // 更新选中节点ID列表
+        setSelectedNodeIds(nodes.map(n => n.id));
+        // 显示成功消息
         toast({
             title: "全选完成",
-            description: `已选择 ${nodes.length} 个节点`,
-        })
-    }, [nodes, setNodes, toast])
+            description: `已选择 ${nodes.length} 个节点`
+        });
+    }, [nodes, setNodes, toast]);
 
-    // 快捷键：Delete 删除、Ctrl/Cmd+D 克隆、Ctrl/Cmd+A 全选、Ctrl/Cmd+Z 撤销、Ctrl/Cmd+Y 重做
+    // 注册键盘快捷键
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => {
-            // 检查焦点元素，如果是输入框则不处理
-            const activeElement = document.activeElement as HTMLElement
-            const isInputFocused = activeElement && (
-                activeElement.tagName === 'INPUT' ||
-                activeElement.tagName === 'TEXTAREA' ||
-                activeElement.contentEditable === 'true'
-            )
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // 检查是否有输入框获得焦点
+            const activeElement = document.activeElement;
+            if (activeElement &&
+                (activeElement.tagName === "INPUT" ||
+                    activeElement.tagName === "TEXTAREA" ||
+                    (activeElement as HTMLElement).contentEditable === "true")) {
+                // 在输入框中只处理特定的快捷键组合
+                const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+                const key = event.key.toLowerCase();
 
-            // 如果输入框有焦点，只处理特定的快捷键
-            if (isInputFocused) {
-                const meta = e.ctrlKey || e.metaKey
-                const key = e.key.toLowerCase()
-                // 只允许撤销/重做在输入框中工作
-                if (meta && key === "z" && !e.shiftKey) {
-                    // 让浏览器处理输入框的撤销
-                    return
-                } else if (meta && (key === "y" || (key === "z" && e.shiftKey))) {
-                    // 让浏览器处理输入框的重做
-                    return
+                // 允许 Ctrl/Cmd+Z 和 Ctrl/Cmd+Shift+Z 在输入框中使用
+                if (isCtrlOrCmd && key === "z" && !event.shiftKey) {
+                    // 允许默认行为（撤销）
+                    return;
                 }
+                if (isCtrlOrCmd && ((key === "y") || (key === "z" && event.shiftKey))) {
+                    // 允许默认行为（重做）
+                    return;
+                }
+
                 // 其他快捷键在输入框中不处理
-                return
+                return;
             }
 
-            const meta = e.ctrlKey || e.metaKey
-            const key = e.key.toLowerCase()
+            // 处理全局快捷键
+            const isCtrlOrCmd = event.ctrlKey || event.metaKey;
+            const key = event.key.toLowerCase();
+
+            // Delete/Backspace - 删除
             if (key === "delete" || key === "backspace") {
-                e.preventDefault()
-                deleteSelection()
-            } else if (meta && key === "d") {
-                e.preventDefault()
-                cloneSelection()
-            } else if (meta && key === "a") {
-                e.preventDefault()
-                selectAllNodes()
-            } else if (meta && key === "z" && !e.shiftKey) {
-                e.preventDefault()
-                handleUndo()
-            } else if (meta && (key === "y" || (key === "z" && e.shiftKey))) {
-                e.preventDefault()
-                handleRedo()
-            } else if (meta && key === "c") {
-                toast({ title: "复制（Mock）", description: "剪贴板功能稍后提供" })
-            } else if (meta && key === "v") {
-                toast({ title: "粘贴（Mock）", description: "剪贴板功能稍后提供" })
+                event.preventDefault();
+                handleDelete();
             }
-        }
-        window.addEventListener("keydown", onKey)
-        return () => window.removeEventListener("keydown", onKey)
-    }, [deleteSelection, cloneSelection, selectAllNodes, handleUndo, handleRedo, toast])
+            // Ctrl/Cmd+D - 克隆
+            else if (isCtrlOrCmd && key === "d") {
+                event.preventDefault();
+                handleClone();
+            }
+            // Ctrl/Cmd+A - 全选
+            else if (isCtrlOrCmd && key === "a") {
+                event.preventDefault();
+                handleSelectAll();
+            }
+            // Ctrl/Cmd+Z - 撤销
+            else if (isCtrlOrCmd && key === "z" && !event.shiftKey) {
+                event.preventDefault();
+                handleUndo();
+            }
+            // Ctrl/Cmd+Y or Ctrl/Cmd+Shift+Z - 重做
+            else if (isCtrlOrCmd && (key === "y" || (key === "z" && event.shiftKey))) {
+                event.preventDefault();
+                handleRedo();
+            }
+            // Ctrl/Cmd+C - 复制（占位）
+            else if (isCtrlOrCmd && key === "c") {
+                toast({
+                    title: "复制（Mock）",
+                    description: "剪贴板功能稍后提供"
+                });
+            }
+            // Ctrl/Cmd+V - 粘贴（占位）
+            else if (isCtrlOrCmd && key === "v") {
+                toast({
+                    title: "粘贴（Mock）",
+                    description: "剪贴板功能稍后提供"
+                });
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [handleDelete, handleClone, handleSelectAll, handleUndo, handleRedo, toast]);
 
     return (
         <ContextMenu>
@@ -1111,9 +1146,9 @@ function CanvasInner({
                 <div
                     ref={canvasRef}
                     className="h-full relative"
-                    onMouseDown={onSelectionStart}
-                    onMouseMove={onSelectionMove}
-                    onMouseUp={onSelectionEnd}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
                 >
                     {/* 工具栏 */}
                     <div className="absolute left-2 top-2 z-10 flex gap-1">
@@ -1130,7 +1165,9 @@ function CanvasInner({
                                         <RotateCcw className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>撤销 (Ctrl/Cmd+Z)</TooltipContent>
+                                <TooltipContent>
+                                    撤销 (Ctrl/Cmd+Z)
+                                </TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1144,7 +1181,9 @@ function CanvasInner({
                                         <RotateCw className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>重做 (Ctrl+Shift+Z / Ctrl+Y)</TooltipContent>
+                                <TooltipContent>
+                                    重做 (Ctrl+Shift+Z / Ctrl+Y)
+                                </TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1157,7 +1196,9 @@ function CanvasInner({
                                         <Grid3X3 className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>网格吸附 {snapToGridEnabled ? '已启用' : '已禁用'}</TooltipContent>
+                                <TooltipContent>
+                                    网格吸附 {snapToGridEnabled ? "已启用" : "已禁用"}
+                                </TooltipContent>
                             </Tooltip>
                             <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1170,7 +1211,9 @@ function CanvasInner({
                                         <AlignLeft className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>显示网格 {showGrid ? '已启用' : '已禁用'}</TooltipContent>
+                                <TooltipContent>
+                                    显示网格 {showGrid ? "已启用" : "已禁用"}
+                                </TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
                     </div>
@@ -1178,10 +1221,11 @@ function CanvasInner({
                     {/* 对齐工具栏 */}
                     <AlignmentToolbar
                         selectedCount={selectedNodeIds.length}
-                        onAlign={handleAlign}
+                        onAlign={alignSelectedNodes}
                         visible={selectedNodeIds.length >= 2}
                     />
 
+                    {/* React Flow 画布 */}
                     <ReactFlow
                         nodes={nodes}
                         edges={edges}
@@ -1192,33 +1236,37 @@ function CanvasInner({
                         onDragOver={onDragOver}
                         onNodeDrag={onNodeDrag}
                         onNodeDragStop={onNodeDragStop}
-                        onSelectionChange={(sel: OnSelectionChangeParams) => {
-                            const nodeIds = sel.nodes.map((n) => n.id)
-                            const edgeIds = sel.edges.map((e) => e.id)
-                            setSelectedNodeIds(nodeIds)
-                            setSelectedEdgeIds(edgeIds)
-                            // 通知父组件选择变化
-                            if (onSelectionChange) {
-                                onSelectionChange(nodeIds.length > 0 ? nodeIds[0] : undefined)
+                        onSelectionChange={(params: OnSelectionChangeParams) => {
+                            const selectedNodeIds = params.nodes.map(n => n.id);
+                            const selectedEdgeIds = params.edges.map(e => e.id);
+                            setSelectedNodeIds(selectedNodeIds);
+                            setSelectedEdgeIds(selectedEdgeIds);
+                            // 如果有选中的节点，通知父组件
+                            if (onSelectionChange && selectedNodeIds.length > 0) {
+                                onSelectionChange(selectedNodeIds[0]);
                             }
                         }}
                         nodeTypes={nodeTypes}
                         connectionMode={ConnectionMode.Strict}
                         defaultEdgeOptions={{
                             style: { strokeWidth: 2, stroke: "hsl(var(--primary))" },
-                            markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14, color: "hsl(var(--primary))" },
+                            markerEnd: {
+                                type: MarkerType.ArrowClosed,
+                                width: 14,
+                                height: 14,
+                                color: "hsl(var(--primary))",
+                            },
                         }}
                         connectionLineType={ConnectionLineType.SmoothStep}
-                        connectionLineStyle={{ strokeWidth: 2, stroke: "hsl(var(--muted-foreground))", strokeDasharray: 6 }}
+                        connectionLineStyle={{
+                            strokeWidth: 2,
+                            stroke: "hsl(var(--muted-foreground))",
+                            strokeDasharray: 6
+                        }}
                         fitView
-                        selectNodesOnDrag={false}
+                        selectNodesOnDrag={false} // 禁用拖拽时选择节点
                     >
-                        {/* 网格背景 */}
-                        <GridBackground
-                            gridSize={GRID_SIZE}
-                            visible={showGrid}
-                            opacity={0.2}
-                        />
+                        <GridBackground gridSize={GRID_SIZE} visible={showGrid} opacity={0.2} />
                         <Background
                             variant={BackgroundVariant.Dots}
                             gap={GRID_SIZE}
@@ -1229,14 +1277,14 @@ function CanvasInner({
                         <Controls showInteractive={false} />
                     </ReactFlow>
 
-                    {/* 对齐指导线 */}
+                    {/* 对齐辅助线 */}
                     <AlignmentGuides
                         guides={alignmentGuides}
                         canvasWidth={canvasSize.width}
                         canvasHeight={canvasSize.height}
                     />
 
-                    {/* 橡皮框选择 */}
+                    {/* 橡皮框选择区域 */}
                     <SelectionBox
                         startX={selectionStart.x}
                         startY={selectionStart.y}
@@ -1246,6 +1294,8 @@ function CanvasInner({
                     />
                 </div>
             </ContextMenuTrigger>
+
+            {/* 右键菜单 */}
             <ContextMenuContent>
                 <ContextMenuLabel>编辑</ContextMenuLabel>
                 <ContextMenuItem onSelect={handleUndo} disabled={!canUndo}>
@@ -1257,35 +1307,35 @@ function CanvasInner({
                     <ContextMenuShortcut>Ctrl+Shift+Z</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem onSelect={() => selectAllNodes()}>
+                <ContextMenuItem onSelect={() => handleSelectAll()}>
                     全选
                     <ContextMenuShortcut>Ctrl/Cmd+A</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                <ContextMenuItem onSelect={() => toast({ title: "复制（Mock）", description: "剪贴板稍后提供" })}>
+                <ContextMenuItem
+                    onSelect={() => toast({ title: "复制（Mock）", description: "剪贴板稍后提供" })}
+                >
                     <Copy className="mr-2 h-4 w-4" />
                     复制
                     <ContextMenuShortcut>Ctrl/Cmd+C</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuItem onSelect={() => toast({ title: "粘贴（Mock）", description: "剪贴板稍后提供" })}>
+                <ContextMenuItem
+                    onSelect={() => toast({ title: "粘贴（Mock）", description: "剪贴板稍后提供" })}
+                >
                     <ClipboardPaste className="mr-2 h-4 w-4" />
                     粘贴
                     <ContextMenuShortcut>Ctrl/Cmd+V</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuItem disabled={false} onSelect={() => cloneSelection()}>
+                <ContextMenuItem disabled={selectedNodeIds.length === 0} onSelect={() => handleClone()}>
                     克隆
                     <ContextMenuShortcut>Ctrl/Cmd+D</ContextMenuShortcut>
                 </ContextMenuItem>
-                <ContextMenuItem
-                    onSelect={() => deleteSelection()}
-                    disabled={false}
-                >
+                <ContextMenuItem onSelect={() => handleDelete()} disabled={!selectedNodeIds.length && !selectedEdgeIds.length}>
                     <Trash2 className="mr-2 h-4 w-4" />
                     删除
                     <ContextMenuShortcut>Del</ContextMenuShortcut>
                 </ContextMenuItem>
                 <ContextMenuSeparator />
-                {/* 断点管理 */}
                 {selectedNodeIds.length === 1 && (
                     <ContextMenuItem
                         onSelect={() => {
@@ -1296,18 +1346,14 @@ function CanvasInner({
                         <div className="mr-2 h-4 w-4 flex items-center justify-center">
                             {(() => {
                                 const node = nodes.find(n => n.id === selectedNodeIds[0]);
-                                const hasBreakpoint = node?.data?.breakpoint;
-                                return hasBreakpoint ? (
-                                    <div className="h-3 w-3 rounded-full bg-red-500"></div>
-                                ) : (
-                                    <div className="h-3 w-3 rounded-full border border-muted-foreground"></div>
-                                );
+                                return node?.data.breakpoint ?
+                                    <div className="h-3 w-3 rounded-full bg-red-500" /> :
+                                    <div className="h-3 w-3 rounded-full border border-muted-foreground" />;
                             })()}
                         </div>
                         {(() => {
                             const node = nodes.find(n => n.id === selectedNodeIds[0]);
-                            const hasBreakpoint = node?.data?.breakpoint;
-                            return hasBreakpoint ? '清除断点' : '设置断点';
+                            return node?.data.breakpoint ? "清除断点" : "设置断点";
                         })()}
                     </ContextMenuItem>
                 )}
@@ -1319,34 +1365,34 @@ function CanvasInner({
                             对齐
                         </ContextMenuSubTrigger>
                         <ContextMenuSubContent className="w-48">
-                            <ContextMenuItem onSelect={() => handleAlign('left')}>
+                            <ContextMenuItem onSelect={() => alignSelectedNodes("left")}>
                                 左对齐
                             </ContextMenuItem>
-                            <ContextMenuItem onSelect={() => handleAlign('center')}>
+                            <ContextMenuItem onSelect={() => alignSelectedNodes("center")}>
                                 水平居中
                             </ContextMenuItem>
-                            <ContextMenuItem onSelect={() => handleAlign('right')}>
+                            <ContextMenuItem onSelect={() => alignSelectedNodes("right")}>
                                 右对齐
                             </ContextMenuItem>
                             <ContextMenuSeparator />
-                            <ContextMenuItem onSelect={() => handleAlign('top')}>
+                            <ContextMenuItem onSelect={() => alignSelectedNodes("top")}>
                                 顶部对齐
                             </ContextMenuItem>
-                            <ContextMenuItem onSelect={() => handleAlign('middle')}>
+                            <ContextMenuItem onSelect={() => alignSelectedNodes("middle")}>
                                 垂直居中
                             </ContextMenuItem>
-                            <ContextMenuItem onSelect={() => handleAlign('bottom')}>
+                            <ContextMenuItem onSelect={() => alignSelectedNodes("bottom")}>
                                 底部对齐
                             </ContextMenuItem>
                             <ContextMenuSeparator />
                             <ContextMenuItem
-                                onSelect={() => handleAlign('distribute-horizontal')}
+                                onSelect={() => alignSelectedNodes("distribute-horizontal")}
                                 disabled={selectedNodeIds.length < 3}
                             >
                                 水平分布
                             </ContextMenuItem>
                             <ContextMenuItem
-                                onSelect={() => handleAlign('distribute-vertical')}
+                                onSelect={() => alignSelectedNodes("distribute-vertical")}
                                 disabled={selectedNodeIds.length < 3}
                             >
                                 垂直分布
@@ -1372,10 +1418,10 @@ function CanvasInner({
                 <ContextMenuSeparator />
                 <ContextMenuItem onSelect={() => setSnapToGridEnabled(!snapToGridEnabled)}>
                     <Grid3X3 className="mr-2 h-4 w-4" />
-                    {snapToGridEnabled ? '禁用' : '启用'}网格吸附
+                    {snapToGridEnabled ? "禁用" : "启用"}网格吸附
                 </ContextMenuItem>
                 <ContextMenuItem onSelect={() => setShowGrid(!showGrid)}>
-                    显示网格 {showGrid ? '✓' : ''}
+                    显示网格 {showGrid ? "✓" : ""}
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem onSelect={() => toast({ title: "折叠子树（Mock）" })}>
@@ -1387,79 +1433,62 @@ function CanvasInner({
                 <ContextMenuSeparator />
             </ContextMenuContent>
         </ContextMenu>
-    )
+    );
 }
 
-function BtCanvas({
-    onNodesExport,
-    onEdgesExport,
-    onSelectionChange
-}: {
+function BtCanvas({ onNodesExport, onEdgesExport, onSelectionChange }: {
     onNodesExport?: (nodes: Node[]) => void;
     onEdgesExport?: (edges: Edge[]) => void;
     onSelectionChange?: (selectedNodeId?: string) => void;
 }) {
-    // 获取当前会话ID作为key，强制重新渲染
-    const currentSessionId = useBehaviorTreeStore(state => state.currentSession?.id)
+    const sessionId = useBehaviorTreeStore(state => state.currentSession?.id);
 
     return (
-        <ReactFlowProvider key={currentSessionId}>
+        <ReactFlowProvider>
             <CanvasInner
                 onNodesExport={onNodesExport}
                 onEdgesExport={onEdgesExport}
                 onSelectionChange={onSelectionChange}
             />
         </ReactFlowProvider>
-    )
+    );
 }
 
-// ---------- Main App Layout ----------
 function AppContent() {
-    // 状态管理
-    const actions = useBehaviorTreeStore(state => state.actions)
-    const { toast } = useToast()
+    const actions = useBehaviorTreeStore(state => state.actions);
+    const { toast } = useToast();
 
-    // XML导入/导出对话框状态
-    const [importDialogOpen, setImportDialogOpen] = useState(false);
-    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+    const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
+    const [exportNodes, setExportNodes] = useState<Node[]>([]);
+    const [exportEdges, setExportEdges] = useState<Edge[]>([]);
 
-    // 导入的节点和边数据
-    const [importedNodes, setImportedNodes] = useState<Node[] | null>(null);
-    const [importedEdges, setImportedEdges] = useState<Edge[] | null>(null);
-
-    // 用于导出的节点和边数据
-    const [nodesToExport, setNodesToExport] = useState<Node[]>([]);
-    const [edgesToExport, setEdgesToExport] = useState<Edge[]>([]);
-
-    // 选中的节点状态
-    const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>();
-
-    // 处理新建项目
+    // 创建新项目
     const handleNewProject = () => {
-        const projectName = `新建项目 ${new Date().toLocaleTimeString()}`
-        actions.createSession(projectName)
+        const projectName = `新项目 ${new Date().toLocaleTimeString()}`;
+        actions.createSession(projectName);
         toast({
             title: "项目创建成功",
-            description: `已创建新项目：${projectName}`,
-        })
-    }
-
-    // 处理导入 - 直接导入到当前会话，不使用全局导入状态
-    const handleImport = (nodes: Node[], edges: Edge[]) => {
-        // 直接更新当前会话的数据
-        actions.importData(nodes, edges);
-        setImportDialogOpen(false);
-
-        toast({
-            title: "导入成功",
-            description: `已导入 ${nodes.length} 个节点和 ${edges.length} 条连线到当前项目`,
+            description: `已创建新项目：${projectName}`
         });
     };
+
+    // 导入数据
+    const handleImport = (nodes: Node[], edges: Edge[]) => {
+        actions.importData(nodes, edges);
+        setIsImportDialogOpen(false);
+        toast({
+            title: "导入成功",
+            description: `已导入 ${nodes.length} 个节点和 ${edges.length} 条连线到当前项目`
+        });
+    };
+
     return (
         <div className="h-screen w-screen bg-background text-foreground flex flex-col overflow-hidden">
             <TopBar
-                onImportClick={() => setImportDialogOpen(true)}
-                onExportClick={() => setExportDialogOpen(true)}
+                onImportClick={() => setIsImportDialogOpen(true)}
+                onExportClick={() => setIsExportDialogOpen(true)}
                 onNewProject={handleNewProject}
             />
             <TabBar />
@@ -1468,8 +1497,8 @@ function AppContent() {
                     leftPanel={<LeftPalette />}
                     centerPanel={
                         <BtCanvas
-                            onNodesExport={setNodesToExport}
-                            onEdgesExport={setEdgesToExport}
+                            onNodesExport={setExportNodes}
+                            onEdgesExport={setExportEdges}
                             onSelectionChange={setSelectedNodeId}
                         />
                     }
@@ -1477,36 +1506,28 @@ function AppContent() {
                     bottomPanel={<BottomTimeline />}
                 />
             </main>
-
-            {/* 面板状态指示器 */}
             <PanelStatusIndicator />
-
-            {/* XML导入/导出对话框 */}
             <ImportDialog
-                open={importDialogOpen}
-                onOpenChange={setImportDialogOpen}
+                open={isImportDialogOpen}
+                onOpenChange={setIsImportDialogOpen}
                 onImport={handleImport}
             />
-
             <ExportDialog
-                open={exportDialogOpen}
-                onOpenChange={setExportDialogOpen}
-                nodes={nodesToExport}
-                edges={edgesToExport}
+                open={isExportDialogOpen}
+                onOpenChange={setIsExportDialogOpen}
+                nodes={exportNodes}
+                edges={exportEdges}
             />
         </div>
-    )
+    );
 }
 
-export default function App() {
+function App() {
     return (
-        <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-        >
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={true} disableTransitionOnChange={true}>
             <AppContent />
         </ThemeProvider>
-    )
+    );
 }
+
+export default App;

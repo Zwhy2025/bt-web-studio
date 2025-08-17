@@ -22,7 +22,7 @@ export interface TreeSlice {
     clearSelection: () => void;
     toggleSubTreeExpansion: (nodeId: string) => void;
     setSubTreeExpanded: (nodeId: string, expanded: boolean) => void;
-    importData: (nodes: BehaviorTreeNode[], edges: BehaviorTreeEdge[]) => void;
+    importData: (nodes: BehaviorTreeNode[], edges: BehaviorTreeEdge[], options?: { merge: boolean }) => void;
     exportData: () => { nodes: BehaviorTreeNode[]; edges: BehaviorTreeEdge[] };
   };
 }
@@ -219,27 +219,64 @@ export const createTreeSlice: StateCreator<
         }
       }
     },
-    importData: (nodes, edges) => {
+    importData: (nodes, edges, options = { merge: true }) => {
       set((state) => {
         if (!state.currentSession) {
           return { nodes, edges };
         }
+        
+        // 如果options.merge为false，则直接使用传入的节点和边
+        // 这样可以确保删除操作能正确执行
+        if (!options.merge) {
+          const modifiedAt = Date.now();
+          if (state.debuggerClient) {
+            state.debuggerClient.setNodes(nodes.map((n) => n.id));
+          }
+  
+          return {
+            nodes,
+            edges,
+            sessions: state.sessions.map((s) =>
+              s.id === state.currentSession!.id
+                ? { ...s, nodes, edges, blackboard: state.blackboard, modifiedAt }
+                : s
+            ),
+            currentSession: {
+              ...state.currentSession,
+              nodes,
+              edges,
+              blackboard: state.blackboard,
+              modifiedAt,
+            },
+          };
+        }
+        
+        // 合并新节点与现有节点，避免覆盖未更改的节点
+        const updatedNodes = state.nodes.map(existingNode => {
+          const updatedNode = nodes.find(n => n.id === existingNode.id);
+          return updatedNode ? updatedNode : existingNode;
+        });
+        
+        // 添加新节点（在现有节点中不存在的）
+        const newNodes = nodes.filter(n => !state.nodes.some(existing => existing.id === n.id));
+        const finalNodes = [...updatedNodes, ...newNodes];
+        
         const modifiedAt = Date.now();
         if (state.debuggerClient) {
-          state.debuggerClient.setNodes(nodes.map((n) => n.id));
+          state.debuggerClient.setNodes(finalNodes.map((n) => n.id));
         }
 
         return {
-          nodes,
+          nodes: finalNodes,
           edges,
           sessions: state.sessions.map((s) =>
             s.id === state.currentSession!.id
-              ? { ...s, nodes, edges, blackboard: state.blackboard, modifiedAt }
+              ? { ...s, nodes: finalNodes, edges, blackboard: state.blackboard, modifiedAt }
               : s
           ),
           currentSession: {
             ...state.currentSession,
-            nodes,
+            nodes: finalNodes,
             edges,
             blackboard: state.blackboard,
             modifiedAt,

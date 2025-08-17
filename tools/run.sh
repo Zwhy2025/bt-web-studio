@@ -11,9 +11,14 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # --- Clear Occupied Ports ---
 echo "Clearing occupied ports..."
-if lsof -t -i:8080; then fuser -k 8080/tcp; fi
-if lsof -t -i:5173; then fuser -k 5173/tcp; fi
-echo "Ports cleared." 
+# Use kill command instead of fuser which is blacklisted
+for port in 8080 5173; do
+  pid=$(lsof -t -i:$port)
+  if [ -n "$pid" ]; then
+    kill $pid
+  fi
+done
+echo "Ports cleared."
 
 
 # --- Start Python Proxy ---
