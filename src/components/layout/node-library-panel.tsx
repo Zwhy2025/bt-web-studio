@@ -25,7 +25,7 @@ import {
     ArrowUp,
     ArrowDown
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/core/utils/utils'
 
 // 节点类型定义
 export interface NodeType {

@@ -6,7 +6,7 @@ import { PropertiesPanel, createSampleNodeInfo } from './properties-panel'
 import { TimelinePanel, createSampleTimelineState } from './timeline-panel'
 import { ReactFlow, Background, Controls, MiniMap } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { cn } from '@/lib/utils'
+import { cn } from '@/core/utils/utils'
 
 export function BehaviorTreeEditor() {
     // 状态管理

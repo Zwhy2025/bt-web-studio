@@ -20,7 +20,7 @@ import {
     Menu,
     X
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/core/utils/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useMediaQuery } from '@/hooks/use-media-query'
 

@@ -1,0 +1,146 @@
+import { create } from 'zustand';
+import { subscribeWithSelector } from 'zustand/middleware';
+import { Node, Edge } from 'reactflow';
+
+import { createSessionSlice, SessionSlice, createDefaultSession } from './sessionState';
+import { createTreeSlice, TreeSlice } from './treeState';
+import { createBlackboardSlice, BlackboardSlice } from './blackboardState';
+import { createDebuggerSlice, DebuggerSlice } from './debuggerState';
+import { createTimelineSlice, TimelineSlice } from './timelineState';
+import { createUiSlice, UiSlice } from './uiState';
+
+// 节点状态枚举
+export enum NodeStatus {
+  IDLE = 'idle',
+  RUNNING = 'running',
+  SUCCESS = 'success',
+  FAILURE = 'failure',
+}
+
+// 黑板数据类型
+export interface BlackboardEntry {
+  key: string;
+  value: any;
+  type: 'string' | 'number' | 'boolean' | 'object';
+  timestamp: number;
+  source?: string; // 哪个节点设置的
+}
+
+// 扩展的节点类型
+export interface BehaviorTreeNode extends Node {
+  data: {
+    label: string;
+    status?: NodeStatus;
+    parameters?: Record<string, any>;
+    breakpoint?: boolean;
+    executionCount?: number;
+    lastExecutionTime?: number;
+    description?: string;
+    subtreeId?: string;
+    subtreeParameters?: Record<string, string>;
+    isSubtreeReference?: boolean;
+    isExpanded?: boolean;
+    isSubtreeChild?: boolean;
+    parentSubtreeRef?: string;
+    originalId?: string;
+  };
+}
+
+// 扩展的边类型
+export interface BehaviorTreeEdge extends Omit<Edge, 'data'> {
+  data?: {
+    executionCount?: number;
+    lastExecutionTime?: number;
+  };
+}
+
+// 调试状态
+export enum DebugState {
+  DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  STOPPED = 'stopped',
+  RUNNING = 'running',
+  PAUSED = 'paused',
+  STEPPING = 'stepping',
+}
+
+// 执行事件
+export interface ExecutionEvent {
+  id: string;
+  timestamp: number;
+  nodeId: string;
+  type: 'enter' | 'exit' | 'tick';
+  status: NodeStatus;
+  blackboardSnapshot?: Record<string, any>;
+  duration?: number;
+}
+
+// 项目会话
+export interface ProjectSession {
+  id: string;
+  name: string;
+  nodes: BehaviorTreeNode[];
+  edges: BehaviorTreeEdge[];
+  blackboard: Record<string, BlackboardEntry>;
+  createdAt: number;
+  modifiedAt: number;
+  filePath?: string;
+}
+
+// 合并所有 Slices 的类型定义
+export type BehaviorTreeState = SessionSlice & TreeSlice & BlackboardSlice & DebuggerSlice & TimelineSlice & UiSlice;
+
+// 创建最终的 store
+export const useBehaviorTreeStore = create<BehaviorTreeState>()(
+  subscribeWithSelector((set, get, api) => {
+    const defaultSession = createDefaultSession();
+
+    const sessionSlice = createSessionSlice(set, get, api);
+    const treeSlice = createTreeSlice(set, get, api);
+    const blackboardSlice = createBlackboardSlice(set, get, api);
+    const debuggerSlice = createDebuggerSlice(set, get, api);
+    const timelineSlice = createTimelineSlice(set, get, api);
+    const uiSlice = createUiSlice(set, get, api);
+
+    return {
+      ...sessionSlice,
+      ...treeSlice,
+      ...blackboardSlice,
+      ...debuggerSlice,
+      ...timelineSlice,
+      ...uiSlice,
+
+      // 使用默认会话覆盖初始状态
+      currentSession: defaultSession,
+      sessions: [defaultSession],
+      activeSessionId: defaultSession.id,
+      nodes: defaultSession.nodes,
+      edges: defaultSession.edges,
+      blackboard: defaultSession.blackboard,
+
+      // 将所有 Slices 的 actions 合并到一个统一的 actions 对象中
+      actions: {
+        ...sessionSlice.actions,
+        ...treeSlice.actions,
+        ...blackboardSlice.actions,
+        ...debuggerSlice.actions,
+        ...timelineSlice.actions,
+        ...uiSlice.actions,
+      },
+    };
+  })
+);
+
+// 选择器 hooks (保持不变)
+export const useCurrentSession = () => useBehaviorTreeStore((state) => state.currentSession);
+export const useNodes = () => useBehaviorTreeStore((state) => state.nodes);
+export const useEdges = () => useBehaviorTreeStore((state) => state.edges);
+export const useBlackboard = () => useBehaviorTreeStore((state) => state.blackboard);
+export const useDebugState = () => useBehaviorTreeStore((state) => state.debugState);
+export const useIsDebuggerConnected = () => useBehaviorTreeStore((state) => state.isDebuggerConnected);
+export const useDebuggerConnectionError = () => useBehaviorTreeStore((state) => state.debuggerConnectionError);
+export const useExecutionEvents = () => useBehaviorTreeStore((state) => state.executionEvents);
+export const useSelectedNodes = () => useBehaviorTreeStore((state) => state.selectedNodeIds);
+export const useSelectedEdges = () => useBehaviorTreeStore((state) => state.selectedEdgeIds);
+export const useActions = () => useBehaviorTreeStore((state) => state.actions);

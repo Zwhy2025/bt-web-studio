@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
-import { BlackboardEntry } from '@/store/behavior-tree-store';
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
+import { BlackboardEntry } from '@/core/store/behavior-tree-store';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';

@@ -10,8 +10,8 @@ import {
   GitBranch,
   Eye
 } from 'lucide-react';
-import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
-import { useSelectedNodes } from '@/store/behavior-tree-store';
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
+import { useSelectedNodes } from '@/core/store/behavior-tree-store';
 
 export function PortVisualizationPanel() {
   const selectedNodeIds = useSelectedNodes();

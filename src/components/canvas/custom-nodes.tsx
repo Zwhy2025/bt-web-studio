@@ -12,8 +12,8 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import { useBehaviorTreeStore } from "@/store/behavior-tree-store"
+import { cn } from "@/core/utils/utils"
+import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 
 export type NodeData = {
     label: string

@@ -29,22 +29,13 @@ def pretty(obj: Any) -> str:
         return str(obj)
 
 
+
 async def send_and_recv(ws, msg: Dict[str, Any], expect_type: Optional[str] = None, timeout: float = 5.0):
-    print(f"\n=> SEND: {pretty(msg)}")
+    print(f"=> SEND: {pretty(msg)}")
     await ws.send(json.dumps(msg))
 
     try:
-        # Skip execution control commands - they are not supported by the backend protocol
-        print("\n⚠️  Skipping execution control commands (start, pause, step, stop) - not supported by backend protocol")
-
         reply_raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
-        # 提取 xml 部分
-        reply_json = json.loads(reply_raw)
-        xml = reply_json.get("payload", {}).get("xml", "")
-        # 保存为文件
-        with open("reply.xml", "w") as f:
-            f.write(xml)
-        exit(0)
     except asyncio.TimeoutError:
         print("✗ TIMEOUT waiting for reply")
         return None
@@ -65,6 +56,7 @@ async def send_and_recv(ws, msg: Dict[str, Any], expect_type: Optional[str] = No
         print(f"⚠️  Unexpected reply type. expected={expect_type}, got={t}")
 
     return reply
+
 
 
 async def test_basic(ws):

@@ -23,7 +23,7 @@ import {
     RotateCcw,
     Settings
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/core/utils/utils'
 
 // 时间轴事件类型
 export interface TimelineEvent {

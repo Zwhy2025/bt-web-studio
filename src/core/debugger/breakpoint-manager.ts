@@ -1,5 +1,5 @@
 import { Node } from "reactflow"
-import { NodeStatus, NodeExecutionEvent } from "./node-state-manager"
+import { NodeStatus, NodeExecutionEvent } from '@/core/bt/node-state-manager'
 
 // 断点类型
 export enum BreakpointType {

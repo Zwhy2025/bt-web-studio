@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useBehaviorTreeStore } from '@/store/behavior-tree-store';
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
 import { Info, Settings, Code, Link, Play, Pause, CheckCircle, XCircle } from 'lucide-react';
 
 interface NodeInfoPanelProps {

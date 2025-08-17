@@ -1,5 +1,5 @@
 import { Node, Edge } from "reactflow";
-import { parseXML as globalParseXML } from "@/lib/global-xml-processor";
+import { parseXML as globalParseXML } from "@/core/bt/global-xml-processor";
 
 /**
  * BehaviorTree.CPP XML格式处理工具
@@ -223,55 +223,55 @@ export const sampleXML = `<root BTCPP_format="4">
 export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?: string } {
   try {
     if (nodes.length === 0) {
-      return { 
-        xml: "", 
-        error: "无法生成XML: 行为树为空，没有任何节点" 
+      return {
+        xml: "",
+        error: "无法生成XML: 行为树为空，没有任何节点"
       };
     }
 
     // 找到根节点（没有入边的节点）
     const targetNodeIds = new Set(edges.map(e => e.target));
     const rootNodes = nodes.filter(node => !targetNodeIds.has(node.id));
-    
+
     if (rootNodes.length === 0) {
-      return { 
-        xml: "", 
-        error: "无法生成XML: 找不到根节点（所有节点都有入边，可能存在循环）" 
+      return {
+        xml: "",
+        error: "无法生成XML: 找不到根节点（所有节点都有入边，可能存在循环）"
       };
     }
-    
+
     if (rootNodes.length > 1) {
-      return { 
-        xml: "", 
-        error: `无法生成XML: 存在多个根节点 (${rootNodes.length}个)，行为树必须只有一个根节点` 
+      return {
+        xml: "",
+        error: `无法生成XML: 存在多个根节点 (${rootNodes.length}个)，行为树必须只有一个根节点`
       };
     }
 
     // 检查是否有孤立节点
     const connectedNodes = new Set([...edges.map(e => e.source), ...edges.map(e => e.target)]);
     const isolatedNodes = nodes.filter(node => !connectedNodes.has(node.id) && node.id !== rootNodes[0].id);
-    
+
     // 创建XML文档
     const xmlDoc = document.implementation.createDocument(null, "root", null);
     const root = xmlDoc.documentElement;
-    
+
     // 创建BehaviorTree元素
     const btElement = xmlDoc.createElement("BehaviorTree");
     btElement.setAttribute("ID", "MainTree");
     root.appendChild(btElement);
-    
+
     // 递归构建XML树
     function buildXmlTree(nodeId: string, parentElement: Element): void {
       const node = nodes.find(n => n.id === nodeId);
       if (!node) return;
-      
+
       // 获取节点类型
       const nodeType = node.type || "action";
       const xmlNodeType = ReverseNodeTypeMap[nodeType] || "Action";
-      
+
       // 创建节点元素
       const nodeElement = xmlDoc.createElement(xmlNodeType);
-      
+
       // 添加属性
       if (node.data?.attributes) {
         Object.entries(node.data.attributes as Record<string, unknown>).forEach(([key, value]) => {
@@ -280,27 +280,27 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
           }
         });
       }
-      
+
       // 如果没有name属性但有label，使用label作为name
       if (!nodeElement.hasAttribute("name") && node.data?.label) {
         const label = node.data.label.toString();
         let namePart = label;
-        
+
         // 提取冒号后的部分作为名称
         if (label.includes(":")) {
           namePart = label.split(":").slice(1).join(":").trim();
         }
-        
+
         // 如果名称为空，使用节点类型
         if (!namePart) {
           namePart = xmlNodeType;
         }
-        
+
         nodeElement.setAttribute("name", namePart);
       }
-      
+
       parentElement.appendChild(nodeElement);
-      
+
       // 处理子节点（按照连接顺序排序）
       const childEdges = edges
         .filter(e => e.source === nodeId)
@@ -313,15 +313,15 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
           }
           return 0;
         });
-      
+
       childEdges.forEach(edge => {
         buildXmlTree(edge.target, nodeElement);
       });
     }
-    
+
     // 从根节点开始构建
     buildXmlTree(rootNodes[0].id, btElement);
-    
+
     // 添加布局信息（可选）
     const layoutElement = xmlDoc.createElement("TreeNodesModel");
     nodes.forEach(node => {
@@ -332,22 +332,22 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
       layoutElement.appendChild(nodeModel);
     });
     root.appendChild(layoutElement);
-    
+
     // 生成格式化的XML字符串
     const serializer = new XMLSerializer();
     let xmlString = serializer.serializeToString(root);
-    
+
     // 添加XML声明
     xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n' + xmlString;
-    
+
     // 简单格式化
     xmlString = formatXMLString(xmlString);
-    
+
     return { xml: xmlString };
   } catch (error) {
-    return { 
-      xml: "", 
-      error: `XML生成异常: ${(error as Error).message}` 
+    return {
+      xml: "",
+      error: `XML生成异常: ${(error as Error).message}`
     };
   }
 }

@@ -1,4 +1,4 @@
-import { BehaviorTreeNode, BehaviorTreeEdge } from '@/store/behavior-tree-store';
+import { BehaviorTreeNode, BehaviorTreeEdge } from '@/core/store/behavior-tree-store';
 import { Node, Edge } from 'reactflow';
 
 /**
