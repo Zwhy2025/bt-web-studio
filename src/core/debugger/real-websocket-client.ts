@@ -45,7 +45,7 @@ export class RealWebSocketClient {
         try {
           const message: DebuggerMessage = JSON.parse(event.data);
           console.log(`📥 Received: ${message.type}`, message.payload ? Object.keys(message.payload) : 'no payload');
-          
+
           // Log specific message types with more detail
           if (message.type === 'error') {
             console.error('❌ Error from backend:', message.payload?.message);
@@ -54,7 +54,7 @@ export class RealWebSocketClient {
             console.log(`🌳 Tree data received: ${xmlLength} characters`);
             if (xmlLength === 0) {
               console.warn('⚠️ Empty tree XML - backend may not have a tree loaded');
-              
+
               // Log the entire payload for debugging
               if (message.payload) {
                 console.log('Full treeData payload:', JSON.stringify(message.payload, null, 2));
@@ -65,7 +65,7 @@ export class RealWebSocketClient {
           } else if (message.type === 'blackboardUpdate') {
             console.log('📋 Blackboard update received');
           }
-          
+
           this.messageHandlers.forEach(handler => handler(message));
         } catch (err) {
           console.error('❌ RealWebSocketClient: Failed to parse message', err, event.data);
@@ -124,17 +124,17 @@ export class RealWebSocketClient {
   // Request initial data (tree, status, blackboard) after connection
   private requestInitialData() {
     console.log('🔄 RealWebSocketClient: Requesting initial data');
-    
+
     // Request tree first, then wait for response before requesting status/blackboard
     this.sendCommand('getTree');
-    
+
     // Delay other requests to ensure tree is loaded first
     setTimeout(() => {
       console.log('🔄 Requesting status and blackboard after tree load delay');
       this.sendCommand('getStatus');
       this.sendCommand('getBlackboard');
     }, 1000);
-    
+
     // Subscribe to breakpoint notifications
     this.sendCommand('subscribe', { topic: 'N' });
   }

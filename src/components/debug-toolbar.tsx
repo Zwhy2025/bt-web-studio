@@ -84,7 +84,7 @@ export function DebugToolbar() {
   const isStartDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
   const isPauseDisabled = isExecutionControlDisabled || debugState !== DebugState.RUNNING;
   const isStepDisabled = isExecutionControlDisabled || debugState === DebugState.RUNNING || debugState === DebugState.STEPPING;
-  const isStopDisabled = isExecutionControlDisabled || debugState === DebugState.STOPPED || debugState === DebugState.DISCONNECTED;
+  const isStopDisabled = isExecutionControlDisabled || debugState === DebugState.STOPPED;
 
   return (
     <div className="flex items-center gap-2">

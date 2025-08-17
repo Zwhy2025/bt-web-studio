@@ -47,10 +47,12 @@ export interface BehaviorTreeNode extends Node {
 }
 
 // 扩展的边类型
-export interface BehaviorTreeEdge extends Omit<Edge, 'data'> {
+export interface BehaviorTreeEdge extends Edge {
   data?: {
     executionCount?: number;
     lastExecutionTime?: number;
+    isSubtreeConnection?: boolean;
+    parentSubtreeRef?: string;
   };
 }
 
