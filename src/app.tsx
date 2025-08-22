@@ -111,6 +111,7 @@ import { TabBar } from "@/components/tab-bar"
 import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 import { TimelinePanel, createSampleTimelineState } from "@/components/layout/timeline-panel"
 import { LeftPalette } from "@/components/layout/left-palette"
+import { useI18n } from "@/hooks/use-i18n"
 
 import { TopBar } from "@/components/layout/top-bar"
 
@@ -140,6 +141,7 @@ const initialEdges: Edge[] = []
 import { BtCanvas } from '@/components/layout/bt-canvas';
 
 function AppContent() {
+    const { t } = useI18n()
     const actions = useBehaviorTreeStore(state => state.actions);
     const { toast } = useToast();
 
@@ -151,11 +153,11 @@ function AppContent() {
 
     // 创建新项目
     const handleNewProject = () => {
-        const projectName = `新项目 ${new Date().toLocaleTimeString()}`;
+        const projectName = `${t('menu:newProject')} ${new Date().toLocaleTimeString()}`;
         actions.createSession(projectName);
         toast({
-            title: "项目创建成功",
-            description: `已创建新项目：${projectName}`
+            title: t('messages:projectCreated'),
+            description: `${t('messages:projectCreatedDesc')}：${projectName}`
         });
     };
 
@@ -164,8 +166,8 @@ function AppContent() {
         actions.importData(nodes, edges);
         setIsImportDialogOpen(false);
         toast({
-            title: "导入成功",
-            description: `已导入 ${nodes.length} 个节点和 ${edges.length} 条连线到当前项目`
+            title: t('messages:importSuccess'),
+            description: t('messages:importSuccessDesc').replace('{{nodes}}', nodes.length.toString()).replace('{{edges}}', edges.length.toString())
         });
     };
 

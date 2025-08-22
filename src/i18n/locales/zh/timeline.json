@@ -1,0 +1,23 @@
+{
+  "jumpToStart": "跳转到开始",
+  "jumpToEnd": "跳转到结束",
+  "backward": "后退1秒",
+  "forward": "前进1秒",
+  "play": "播放",
+  "pause": "暂停",
+  "start": "开始",
+  "success": "成功",
+  "failure": "失败",
+  "running": "运行中",
+  "searchNodes": "搜索节点...",
+  "zoomOut": "缩小 (-)",
+  "zoomIn": "放大 (+)",
+  "zoomLevel": "缩放级别",
+  "fitToWindow": "适应窗口 (0)",
+  "leftClickDrag": "左键拖拽",
+  "shiftLeftClickPan": "Shift+左键平移",
+  "events": "事件",
+  "speed": "速度",
+  "noEventData": "无事件数据",
+  "eventTimeline": "事件时间轴"
+}

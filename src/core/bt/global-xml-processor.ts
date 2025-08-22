@@ -41,7 +41,7 @@ class GlobalXmlProcessor {
       // 检查解析错误
       const parseError = xmlDoc.querySelector("parsererror");
       if (parseError) {
-        const error = "XML解析错误: " + parseError.textContent;
+        const error = "XML parsing error: " + parseError.textContent;
         this.parsedData = { nodes: [], edges: [], error };
         return this.parsedData;
       }
@@ -49,7 +49,7 @@ class GlobalXmlProcessor {
       // 获取根节点
       const rootElement = xmlDoc.querySelector("root");
       if (!rootElement) {
-        const error = "无效的BehaviorTree XML: 缺少root根元素";
+        const error = "Invalid BehaviorTree XML: missing root element";
         this.parsedData = { nodes: [], edges: [], error };
         return this.parsedData;
       }
@@ -57,7 +57,7 @@ class GlobalXmlProcessor {
       // 获取主行为树
       const mainTree = rootElement.querySelector("BehaviorTree");
       if (!mainTree) {
-        const error = "无效的BehaviorTree XML: 缺少BehaviorTree元素";
+        const error = "Invalid BehaviorTree XML: missing BehaviorTree element";
         this.parsedData = { nodes: [], edges: [], error };
         return this.parsedData;
       }
@@ -258,7 +258,7 @@ class GlobalXmlProcessor {
       if (rootElementChild) {
         processNode(rootElementChild);
       } else {
-        const error = "无效的BehaviorTree XML: 缺少根控制节点";
+        const error = "Invalid BehaviorTree XML: missing root control node";
         this.parsedData = { nodes: [], edges: [], error };
         return this.parsedData;
       }
@@ -266,7 +266,7 @@ class GlobalXmlProcessor {
       this.parsedData = { nodes, edges };
       return this.parsedData;
     } catch (error) {
-      const errorMessage = `XML解析异常: ${(error as Error).message}`;
+      const errorMessage = `XML parsing exception: ${(error as Error).message}`;
       console.error('[XML Parser] 解析异常详情:', error);
       console.error('[XML Parser] 错误消息:', errorMessage);
       console.error('[XML Parser] 错误堆栈:', (error as Error).stack);

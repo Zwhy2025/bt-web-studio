@@ -24,6 +24,8 @@ import {
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
 import { SimpleThemeToggle } from '@/components/theme-toggle'
+import { useI18n } from '@/hooks/use-i18n'
+import { TopBarLanguageSwitcher } from '@/components/language-switcher'
 
 interface TopToolbarProps {
     // 文件操作
@@ -76,6 +78,7 @@ export function TopToolbar({
     executionState = 'idle',
     className
 }: TopToolbarProps) {
+    const { t } = useI18n()
 
     const getExecutionStateColor = () => {
         switch (executionState) {
@@ -93,13 +96,13 @@ export function TopToolbar({
     const getExecutionStateText = () => {
         switch (executionState) {
             case 'running':
-                return '运行中'
+                return t('common:running')
             case 'paused':
-                return '已暂停'
+                return t('common:paused')
             case 'error':
-                return '错误'
+                return t('common:error')
             default:
-                return '空闲'
+                return t('common:ready')
         }
     }
 
@@ -119,7 +122,7 @@ export function TopToolbar({
                     className="text-gray-300 hover:text-white hover:bg-gray-700"
                 >
                     <FileText className="w-4 h-4 mr-1" />
-                    新建
+                    {t('menu:new')}
                 </Button>
 
                 <Button
@@ -129,7 +132,7 @@ export function TopToolbar({
                     className="text-gray-300 hover:text-white hover:bg-gray-700"
                 >
                     <FolderOpen className="w-4 h-4 mr-1" />
-                    打开
+                    {t('menu:open')}
                 </Button>
 
                 <Button
@@ -139,7 +142,7 @@ export function TopToolbar({
                     className="text-gray-300 hover:text-white hover:bg-gray-700"
                 >
                     <Save className="w-4 h-4 mr-1" />
-                    保存
+                    {t('menu:save')}
                 </Button>
 
                 <Separator orientation="vertical" className="h-6 bg-gray-600" />
@@ -151,7 +154,7 @@ export function TopToolbar({
                     className="text-gray-300 hover:text-white hover:bg-gray-700"
                 >
                     <Upload className="w-4 h-4 mr-1" />
-                    导入
+                    {t('menu:import')}
                 </Button>
 
                 <Button
@@ -161,7 +164,7 @@ export function TopToolbar({
                     className="text-gray-300 hover:text-white hover:bg-gray-700"
                 >
                     <Download className="w-4 h-4 mr-1" />
-                    导出
+                    {t('menu:export')}
                 </Button>
             </div>
 
@@ -269,7 +272,7 @@ export function TopToolbar({
                         <WifiOff className="w-4 h-4 text-red-500" />
                     )}
                     <span className="text-sm text-gray-400">
-                        {isConnected ? '已连接' : '未连接'}
+                        {isConnected ? t('common:connected') : t('common:disconnected')}
                     </span>
                 </div>
 
@@ -279,9 +282,11 @@ export function TopToolbar({
                     className="text-gray-300 hover:text-white hover:bg-gray-700"
                 >
                     <Bug className="w-4 h-4 mr-1" />
-                    调试
+                    {t('menu:debug')}
                 </Button>
 
+                <TopBarLanguageSwitcher />
+                
                 <SimpleThemeToggle />
 
                 <Button

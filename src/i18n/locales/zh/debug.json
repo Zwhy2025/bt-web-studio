@@ -1,0 +1,15 @@
+{
+  "connectDebugger": "连接调试器",
+  "connecting": "连接中...",
+  "connected": "已连接",
+  "disconnected": "未连接",
+  "disconnect": "断开",
+  "start": "开始",
+  "continueExecution": "继续执行",
+  "pauseExecution": "暂停执行",
+  "stopExecution": "停止执行",
+  "stepExecution": "单步执行",
+  "startContinueExecution": "开始/继续执行",
+  "simulateSubtree": "模拟子树执行",
+  "simulate": "模拟"
+}

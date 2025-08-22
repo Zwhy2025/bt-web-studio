@@ -24,6 +24,7 @@ import {
     Settings
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
+import { useI18n } from '@/hooks/use-i18n'
 
 // 时间轴事件类型
 export interface TimelineEvent {
@@ -67,6 +68,7 @@ export function TimelinePanel({
     onFilterChange,
     className
 }: TimelinePanelProps) {
+    const { t } = useI18n()
     const [zoomLevel, setZoomLevel] = useState(1)
     const [filterText, setFilterText] = useState('')
     const [selectedEventType, setSelectedEventType] = useState<string>('all')
@@ -116,15 +118,15 @@ export function TimelinePanel({
     const getEventTypeText = (type: string) => {
         switch (type) {
             case 'start':
-                return '开始'
+                return t('nodes:nodeStatus.running')
             case 'success':
-                return '成功'
+                return t('nodes:nodeStatus.success')
             case 'failure':
-                return '失败'
+                return t('nodes:nodeStatus.failure')
             case 'running':
-                return '运行中'
+                return t('nodes:nodeStatus.running')
             default:
-                return '未知'
+                return t('common:unknown')
         }
     }
 
@@ -274,7 +276,7 @@ export function TimelinePanel({
                             <div className="relative">
                                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
                                 <Input
-                                    placeholder="搜索节点..."
+                                    placeholder={t('toolbar:searchNodes')}
                                     value={filterText}
                                     onChange={(e) => setFilterText(e.target.value)}
                                     className="w-32 h-8 pl-7 bg-gray-700 border-gray-600 text-white text-xs placeholder-gray-400"
@@ -286,11 +288,11 @@ export function TimelinePanel({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">全部</SelectItem>
-                                    <SelectItem value="start">开始</SelectItem>
-                                    <SelectItem value="success">成功</SelectItem>
-                                    <SelectItem value="failure">失败</SelectItem>
-                                    <SelectItem value="running">运行中</SelectItem>
+                                    <SelectItem value="all">{t('nodes:nodeCategories.all')}</SelectItem>
+                                    <SelectItem value="start">{t('nodes:nodeStatus.running')}</SelectItem>
+                                    <SelectItem value="success">{t('nodes:nodeStatus.success')}</SelectItem>
+                                    <SelectItem value="failure">{t('nodes:nodeStatus.failure')}</SelectItem>
+                                    <SelectItem value="running">{t('nodes:nodeStatus.running')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -333,7 +335,7 @@ export function TimelinePanel({
 
                         {/* 统计信息 */}
                         <Badge variant="secondary" className="bg-gray-700 text-gray-300 text-xs">
-                            {filteredEvents.length} 事件
+                            {filteredEvents.length} {t('panels:events')}
                         </Badge>
                     </div>
                 </div>

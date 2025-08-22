@@ -226,7 +226,7 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
     if (nodes.length === 0) {
       return {
         xml: "",
-        error: "无法生成XML: 行为树为空，没有任何节点"
+        error: "Cannot generate XML: behavior tree is empty, no nodes found"
       };
     }
 
@@ -237,14 +237,14 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
     if (rootNodes.length === 0) {
       return {
         xml: "",
-        error: "无法生成XML: 找不到根节点（所有节点都有入边，可能存在循环）"
+        error: "Cannot generate XML: no root node found (all nodes have incoming edges, possible circular reference)"
       };
     }
 
     if (rootNodes.length > 1) {
       return {
         xml: "",
-        error: `无法生成XML: 存在多个根节点 (${rootNodes.length}个)，行为树必须只有一个根节点`
+        error: `Cannot generate XML: multiple root nodes found (${rootNodes.length}), behavior tree must have only one root node`
       };
     }
 
@@ -348,7 +348,7 @@ export function generateXML(nodes: Node[], edges: Edge[]): { xml: string, error?
   } catch (error) {
     return {
       xml: "",
-      error: `XML生成异常: ${(error as Error).message}`
+      error: `XML generation exception: ${(error as Error).message}`
     };
   }
 }

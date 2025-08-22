@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { cn } from '@/core/utils/utils'
+import { useI18n } from '@/hooks/use-i18n'
 
 interface ResizableLayoutProps {
     topToolbar: React.ReactNode
@@ -120,6 +121,7 @@ export function PanelToggleButton({
     position,
     className
 }: PanelToggleButtonProps) {
+    const { t } = useI18n()
     const getIcon = () => {
         switch (position) {
             case 'left':
@@ -156,7 +158,7 @@ export function PanelToggleButton({
                 getPositionClasses(),
                 className
             )}
-            title={`${isCollapsed ? '展开' : '折叠'}面板`}
+            title={`${isCollapsed ? t('layout:expand') : t('layout:collapse')}${t('layout:panel')}`}
         >
             {getIcon()}
         </button>

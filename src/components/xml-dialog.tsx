@@ -16,6 +16,7 @@ import { AlertCircle, FileDown, FileUp, Copy, CheckCircle, Eye, EyeOff, Info, Up
 import { generateXML, sampleXML, formatXMLString } from "@/core/bt/xml-utils";
 import { Node, Edge } from "reactflow";
 import { useToast } from "@/hooks/use-toast";
+import { useI18n } from "@/hooks/use-i18n";
 import { parseXMLUnified, applyLayoutUnified, behaviorTreeManager } from '@/core/bt/unified-behavior-tree-manager';
 
 interface ImportDialogProps {
@@ -25,6 +26,7 @@ interface ImportDialogProps {
 }
 
 export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps) {
+    const { t } = useI18n()
   const [xml, setXml] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [fileName, setFileName] = useState<string>("");
@@ -36,7 +38,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.xml')) {
-      setError("请选择XML文件");
+      setError(t("xml:pleaseSelectXmlFile"));
       return;
     }
 
@@ -48,14 +50,14 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       setError(undefined);
     };
     reader.onerror = () => {
-      setError("文件读取失败");
+      setError(t("xml:fileReadFailed"));
     };
     reader.readAsText(file, 'utf-8');
   };
 
   const handleImport = async () => {
     if (!xml.trim()) {
-      setError("请选择XML文件或输入XML内容");
+      setError(t("xml:pleaseSelectOrInputXml"));
       return;
     }
 
@@ -74,12 +76,12 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       setError(undefined);
 
       toast({
-        title: "导入成功",
-        description: fileName ? `已导入文件: ${fileName}` : "XML内容已成功导入",
+        title: t("messages:importSuccess"),
+        description: fileName ? t("xml:importedFile", { fileName }) : t("xml:xmlContentImportedSuccessfully"),
       });
     } catch (error) {
-      console.error("解析失败:", error);
-      setError(error instanceof Error ? error.message : "解析失败");
+      console.error(t("xml:parseFailed"), error);
+      setError(error instanceof Error ? error.message : t("xml:parseFailed"));
     }
   };
 
@@ -96,12 +98,12 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
 
   const handleLoadSample = () => {
     setXml(sampleXML);
-    setFileName("示例行为树.xml");
+    setFileName(t("xml:sampleBehaviorTree"));
     setError(undefined);
 
     toast({
-      title: "示例XML已加载",
-      description: "可以直接导入或进行修改后导入",
+      title: t("xml:sampleXmlLoaded"),
+      description: t("xml:canImportDirectlyOrModify"),
     });
   };
 
@@ -109,7 +111,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh]">
         <DialogHeader>
-          <DialogTitle>导入 BehaviorTree.CPP XML</DialogTitle>
+          <DialogTitle>{t("xml:importBehaviorTreeXml")}</DialogTitle>
           <DialogDescription>
             选择XML文件或直接粘贴XML内容，将其转换为可视化行为树。
           </DialogDescription>
@@ -120,7 +122,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Upload className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">选择文件</span>
+              <span className="text-sm font-medium">{t("xml:selectFile")}</span>
             </div>
 
             <div className="flex gap-2">
@@ -138,7 +140,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
                 className="flex-1"
               >
                 <FileUp className="mr-2 h-4 w-4" />
-                选择 XML 文件
+                {t("xml:selectXmlFile")}
               </Button>
 
               {fileName && (
@@ -162,14 +164,14 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
           {/* 文本输入区域 */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">或直接输入/粘贴 XML 内容</span>
+              <span className="text-sm font-medium">            {t("xml:orDirectInputXml")}</span>
             </div>
 
             <Textarea
               value={xml}
               onChange={(e) => setXml(e.target.value)}
               className="font-mono text-xs h-[250px] resize-none"
-              placeholder="在此粘贴 BehaviorTree.CPP XML 内容..."
+              placeholder={t("xml:pasteXmlContentHere")}
             />
           </div>
 
@@ -184,7 +186,7 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 sm:flex-none">
-              取消
+              {t("common:cancel")}
             </Button>
             <Button
               variant="secondary"
@@ -192,18 +194,18 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
               className="flex-1 sm:flex-none"
             >
               <TestTube className="mr-2 h-4 w-4" />
-              示例XML
+                            {t("xml:sampleXml")}
             </Button>
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             {xml && (
               <Button variant="secondary" onClick={handleClear} className="flex-1 sm:flex-none">
-                清空
+                {t("common:clear")}
               </Button>
             )}
             <Button onClick={handleImport} disabled={!xml.trim()} className="flex-1 sm:flex-none">
               <FileUp className="mr-2 h-4 w-4" />
-              导入
+                            {t("common:import")}
             </Button>
           </div>
         </DialogFooter>
@@ -220,6 +222,7 @@ interface ExportDialogProps {
 }
 
 export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogProps) {
+  const { t } = useI18n()
   const [xml, setXml] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [showFormatted, setShowFormatted] = useState(true);
@@ -246,20 +249,20 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
 
         // 检查常见问题
         if (nodes.length === 0) {
-          warnings.push("行为树为空，没有任何节点");
+          warnings.push(t("xml:emptyBehaviorTree"));
         }
         if (rootNodes.length === 0 && nodes.length > 0) {
-          warnings.push("没有找到根节点，所有节点都有入边");
+          warnings.push(t("xml:noRootNodeFound"));
         }
         if (rootNodes.length > 1) {
-          warnings.push(`存在多个根节点 (${rootNodes.length}个)，这可能导致问题`);
+          warnings.push(t("xml:multipleRootNodes", { count: rootNodes.length }));
         }
 
         // 检查孤立节点
         const connectedNodes = new Set([...edges.map(e => e.source), ...edges.map(e => e.target)]);
         const isolatedNodes = nodes.filter(node => !connectedNodes.has(node.id) && rootNodes.length > 0);
         if (isolatedNodes.length > 0) {
-          warnings.push(`存在 ${isolatedNodes.length} 个孤立节点，未连接到主树`);
+          warnings.push(t("xml:isolatedNodesFound", { count: isolatedNodes.length }));
         }
 
         setValidationInfo({
@@ -288,8 +291,8 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
     URL.revokeObjectURL(url);
 
     toast({
-      title: "下载成功",
-      description: "XML 文件已保存到下载文件夹",
+      title: t("xml:downloadSuccess"),
+      description: t("xml:fileDownloadedToFolder"),
     });
   };
 
@@ -299,14 +302,14 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
     try {
       await navigator.clipboard.writeText(xml);
       toast({
-        title: "复制成功",
-        description: "XML 内容已复制到剪贴板",
+        title: t("xml:copySuccess"),
+        description: t("xml:xmlCopiedToClipboard"),
       });
     } catch (err) {
-      console.error("无法复制到剪贴板:", err);
+      console.error(t("xml:cannotCopyToClipboard"), err);
       toast({
-        title: "复制失败",
-        description: "无法访问剪贴板，请手动选择文本复制",
+        title: t("xml:copyFailed"),
+        description: t("xml:cannotAccessClipboard"),
         variant: "destructive",
       });
     }
@@ -318,15 +321,15 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
       <DialogContent className="sm:max-w-[700px] max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            导出 BehaviorTree.CPP XML
+                        {t("xml:exportBehaviorTreeXml")}
             {validationInfo && (
               <Badge variant={validationInfo.hasRoot && validationInfo.warnings.length === 0 ? "default" : "secondary"}>
-                {validationInfo.nodeCount} 节点, {validationInfo.edgeCount} 连接
+                {t("xml:nodeCount", { count: validationInfo.nodeCount })}, {t("xml:edgeCount", { count: validationInfo.edgeCount })}
               </Badge>
             )}
           </DialogTitle>
           <DialogDescription>
-            当前行为树已转换为 BehaviorTree.CPP 格式的 XML。您可以复制或下载此 XML 文件。
+                        {t("xml:currentTreeConvertedDesc")}
           </DialogDescription>
         </DialogHeader>
 
@@ -337,7 +340,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Info className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">验证结果</span>
+                  <span className="text-sm font-medium">{t("xml:validationResult")}</span>
                 </div>
                 <Button
                   variant="ghost"
@@ -346,25 +349,25 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
                   className="h-6 px-2"
                 >
                   {showFormatted ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                  {showFormatted ? "原始" : "格式化"}
+                  {showFormatted ? t("xml:raw") : t("xml:formatted")}
                 </Button>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Badge variant={validationInfo.hasRoot ? "default" : "destructive"}>
                   {validationInfo.hasRoot ? <CheckCircle className="h-3 w-3 mr-1" /> : <AlertCircle className="h-3 w-3 mr-1" />}
-                  {validationInfo.hasRoot ? "有效根节点" : "缺少根节点"}
+                  {validationInfo.hasRoot ? t("xml:validRootNode") : t("xml:missingRootNode")}
                 </Badge>
 
                 {validationInfo.warnings.length === 0 ? (
                   <Badge variant="default">
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    结构正常
+                    {t("xml:structureNormal")}
                   </Badge>
                 ) : (
                   <Badge variant="secondary">
                     <AlertCircle className="h-3 w-3 mr-1" />
-                    {validationInfo.warnings.length} 个警告
+                    {t("xml:warningCount", { count: validationInfo.warnings.length })}
                   </Badge>
                 )}
               </div>
@@ -397,7 +400,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
               value={showFormatted ? formatXMLString(xml) : xml}
               readOnly
               className="font-mono text-xs h-[300px] resize-none"
-              placeholder="生成的 XML 将显示在这里..."
+              placeholder={t("xml:generatedXmlWillShow")}
             />
           )}
         </div>
@@ -405,7 +408,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 sm:flex-none">
-              关闭
+                            {t("common:close")}
             </Button>
             <Button
               variant="secondary"
@@ -414,7 +417,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
               className="flex-1 sm:flex-none"
             >
               <Copy className="mr-2 h-4 w-4" />
-              复制
+                            {t("common:copy")}
             </Button>
           </div>
           <Button
@@ -423,7 +426,7 @@ export function ExportDialog({ open, onOpenChange, nodes, edges }: ExportDialogP
             className="w-full sm:w-auto"
           >
             <FileDown className="mr-2 h-4 w-4" />
-            下载 XML
+                        {t("xml:downloadXml")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Trash2, Database, Plus, Edit2, Check, X } from 'lucide-react'
 import { useBlackboard, useActions, BlackboardEntry } from '@/core/store/behavior-tree-store'
 import { useToast } from '@/hooks/use-toast'
+import { useI18n } from "@/hooks/use-i18n"
 
 // 辅助函数：解析和验证输入值
 function parseAndValidateValue(value: string, type: BlackboardEntry['type'], toast: any): { success: boolean; parsedValue?: any } {
@@ -17,19 +18,19 @@ function parseAndValidateValue(value: string, type: BlackboardEntry['type'], toa
     switch (type) {
       case 'number':
         if (value.trim() === '') {
-          toast({ title: '请输入数字值', variant: 'destructive' })
+          toast({ title: t('messages:enterNumericValue'), variant: 'destructive' })
           return { success: false }
         }
         parsedValue = parseFloat(value)
         if (isNaN(parsedValue)) {
-          toast({ title: '请输入有效的数字', variant: 'destructive' })
+          toast({ title: t('messages:enterValidNumber'), variant: 'destructive' })
           return { success: false }
         }
         break
       case 'boolean':
         const lowerValue = value.toLowerCase().trim()
         if (lowerValue !== 'true' && lowerValue !== 'false') {
-          toast({ title: '布尔值请输入 true 或 false', variant: 'destructive' })
+          toast({ title: t('messages:enterBooleanValue'), variant: 'destructive' })
           return { success: false }
         }
         parsedValue = lowerValue === 'true'
@@ -45,7 +46,7 @@ function parseAndValidateValue(value: string, type: BlackboardEntry['type'], toa
         parsedValue = value
     }
   } catch (error) {
-    toast({ title: '对象格式错误，请输入有效的JSON格式', variant: 'destructive' })
+    toast({ title: t('messages:invalidJsonFormat'), variant: 'destructive' })
     return { success: false }
   }
   
@@ -53,6 +54,7 @@ function parseAndValidateValue(value: string, type: BlackboardEntry['type'], toa
 }
 
 export function BlackboardPanel() {
+    const { t } = useI18n()
   const blackboard = useBlackboard()
   const { setBlackboardValue, deleteBlackboardKey, clearBlackboard } = useActions()
   const { toast } = useToast()
@@ -68,7 +70,7 @@ export function BlackboardPanel() {
 
   const handleAddEntry = () => {
     if (!newKey.trim()) {
-      toast({ title: '请输入键名', variant: 'destructive' })
+      toast({ title: t('messages:enterKeyName'), variant: 'destructive' })
       return
     }
     
@@ -126,10 +128,10 @@ export function BlackboardPanel() {
 
   const getPlaceholder = (type: BlackboardEntry['type']) => {
     switch (type) {
-      case 'number': return '例如：100'
-      case 'boolean': return 'true 或 false'
+      case 'number': return t('panels:numberExample')
+      case 'boolean': return t('panels:booleanExample')
       case 'object': return '{"key": "value"}'
-      default: return '输入值'
+      default: return t('panels:enterValue')
     }
   }
 
@@ -140,7 +142,7 @@ export function BlackboardPanel() {
       <CardHeader className="pb-3 flex-shrink-0">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Database className="h-4 w-4" />
-          黑板 ({entries.length})
+          {t('panels:blackboard')} ({entries.length})
           {entries.length > 0 && (
             <Button
               size="sm"
@@ -148,7 +150,7 @@ export function BlackboardPanel() {
               onClick={clearBlackboard}
               className="ml-auto h-6 px-2"
             >
-              清空
+              {t("common:clear")}
             </Button>
           )}
         </CardTitle>
@@ -159,7 +161,7 @@ export function BlackboardPanel() {
         <div className="space-y-2 flex-shrink-0">
           <div className="flex gap-2">
             <Input
-              placeholder="键名"
+              placeholder={t('panels:keyName')}
               value={newKey}
               onChange={(e) => setNewKey(e.target.value)}
               className="text-xs"
@@ -169,10 +171,10 @@ export function BlackboardPanel() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="string">字符串</SelectItem>
-                <SelectItem value="number">数字</SelectItem>
-                <SelectItem value="boolean">布尔值</SelectItem>
-                <SelectItem value="object">对象</SelectItem>
+                <SelectItem value="string">{t('common:string')}</SelectItem>
+                <SelectItem value="number">{t('common:number')}</SelectItem>
+                <SelectItem value="boolean">{t('common:boolean')}</SelectItem>
+                <SelectItem value="object">{t('common:object')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -204,7 +206,7 @@ export function BlackboardPanel() {
           <div className="space-y-2">
             {entries.length === 0 ? (
               <div className="text-center text-muted-foreground text-xs py-4">
-                暂无数据
+                {t('panels:noData')}
               </div>
             ) : (
               entries.map((entry) => (
@@ -219,10 +221,10 @@ export function BlackboardPanel() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="string">字符串</SelectItem>
-                            <SelectItem value="number">数字</SelectItem>
-                            <SelectItem value="boolean">布尔值</SelectItem>
-                            <SelectItem value="object">对象</SelectItem>
+                            <SelectItem value="string">{t('common:string')}</SelectItem>
+                            <SelectItem value="number">{t('common:number')}</SelectItem>
+                            <SelectItem value="boolean">{t('common:boolean')}</SelectItem>
+                            <SelectItem value="object">{t('common:object')}</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

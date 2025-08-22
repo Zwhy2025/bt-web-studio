@@ -1,0 +1,19 @@
+{
+  "expand": "展开",
+  "collapse": "折叠",
+  "panel": "面板",
+  "nodeLibrary": "节点库",
+  "propertyPanel": "属性面板",
+  "leftSide": "左侧",
+  "rightSide": "右侧",
+  "bottom": "底部",
+  "collapsePanelWithShortcut": "折叠{{panel}}面板 ({{shortcut}})",
+  "expandPanelWithShortcut": "展开{{panel}}面板 ({{shortcut}})",
+  "collapsePanel": "折叠{{panel}}面板",
+  "panelShortcuts": "面板快捷键",
+  "leftSidePanel": "左侧面板",
+  "rightSidePanel": "右侧面板",
+  "leftSide": "左侧",
+  "rightSide": "右侧",
+  "collapsePanelWithShortcut": "折叠{{panel}}面板 ({{shortcut}})"
+}

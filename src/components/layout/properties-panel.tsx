@@ -26,6 +26,7 @@ import {
     Play
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
+import { useI18n } from '@/hooks/use-i18n'
 
 // 节点属性接口
 interface NodeProperty {
@@ -77,6 +78,7 @@ export function PropertiesPanel({
     className
 }: PropertiesPanelProps) {
     const [activeTab, setActiveTab] = useState('properties')
+    const { t } = useI18n()
 
     const getStatusIcon = (status?: string) => {
         switch (status) {
@@ -94,13 +96,13 @@ export function PropertiesPanel({
     const getStatusText = (status?: string) => {
         switch (status) {
             case 'running':
-                return '运行中'
+                return t('common:running')
             case 'success':
-                return '成功'
+                return t('common:success')
             case 'failure':
-                return '失败'
+                return t('common:failed')
             default:
-                return '空闲'
+                return t('common:ready')
         }
     }
 
@@ -134,7 +136,7 @@ export function PropertiesPanel({
                             checked={property.value}
                             onCheckedChange={(checked) => handlePropertyChange(property.key, checked)}
                         />
-                        <Label className="text-sm text-gray-300">{property.value ? '是' : '否'}</Label>
+                        <Label className="text-sm text-gray-300">{property.value ? t('common:enabled') : t('common:disabled')}</Label>
                     </div>
                 )
             case 'select':
@@ -188,12 +190,12 @@ export function PropertiesPanel({
         return (
             <div className={cn("h-full flex flex-col bg-gray-800", className)}>
                 <div className="p-4 border-b border-gray-700">
-                    <h2 className="text-lg font-semibold text-white">属性面板</h2>
+                    <h2 className="text-lg font-semibold text-white">{t('panels:properties')}</h2>
                 </div>
                 <div className="flex-1 flex items-center justify-center">
                     <div className="text-center text-gray-400">
                         <Settings className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>选择一个节点查看其属性</p>
+                        <p>{t('panels:nodeInformation')}</p>
                     </div>
                 </div>
             </div>
@@ -205,7 +207,7 @@ export function PropertiesPanel({
             {/* 标题栏 */}
             <div className="p-4 border-b border-gray-700">
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-semibold text-white">属性面板</h2>
+                    <h2 className="text-lg font-semibold text-white">{t('layout:propertyPanel')}</h2>
                     <div className="flex items-center space-x-2">
                         {getStatusIcon(selectedNode.status)}
                         <span className="text-sm text-gray-400">
@@ -230,10 +232,10 @@ export function PropertiesPanel({
             <div className="flex-1 overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
                     <TabsList className="grid w-full grid-cols-4 bg-gray-700 m-2">
-                        <TabsTrigger value="properties" className="text-xs">属性</TabsTrigger>
-                        <TabsTrigger value="ports" className="text-xs">端口</TabsTrigger>
-                        <TabsTrigger value="debug" className="text-xs">调试</TabsTrigger>
-                        <TabsTrigger value="code" className="text-xs">代码</TabsTrigger>
+                        <TabsTrigger value="properties" className="text-xs">{t('panels:properties')}</TabsTrigger>
+                        <TabsTrigger value="ports" className="text-xs">{t('panels:ports')}</TabsTrigger>
+                        <TabsTrigger value="debug" className="text-xs">{t('panels:debug')}</TabsTrigger>
+                        <TabsTrigger value="code" className="text-xs">{t('panels:code')}</TabsTrigger>
                     </TabsList>
 
                     <div className="flex-1 overflow-hidden">
@@ -271,7 +273,7 @@ export function PropertiesPanel({
                                         <CardHeader className="pb-3">
                                             <CardTitle className="text-sm text-white flex items-center">
                                                 <Target className="w-4 h-4 mr-2" />
-                                                输入端口
+                                                {t('panels:inputPorts')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
@@ -291,7 +293,7 @@ export function PropertiesPanel({
                                         <CardHeader className="pb-3">
                                             <CardTitle className="text-sm text-white flex items-center">
                                                 <Link className="w-4 h-4 mr-2" />
-                                                输出端口
+                                                {t('panels:outputPorts')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent className="space-y-2">
@@ -317,13 +319,13 @@ export function PropertiesPanel({
                                         <CardHeader className="pb-3">
                                             <CardTitle className="text-sm text-white flex items-center">
                                                 <Bug className="w-4 h-4 mr-2" />
-                                                断点控制
+                                                {t('panels:breakpointControl')}
                                             </CardTitle>
                                         </CardHeader>
                                         <CardContent>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-sm text-gray-300">
-                                                    {hasBreakpoint ? '已设置断点' : '未设置断点'}
+                                                    {hasBreakpoint ? t('panels:breakpointSet') : t('panels:noBreakpointSet')}
                                                 </span>
                                                 <Button
                                                     size="sm"
@@ -336,7 +338,7 @@ export function PropertiesPanel({
                                                         }
                                                     }}
                                                 >
-                                                    {hasBreakpoint ? '移除断点' : '添加断点'}
+                                                    {hasBreakpoint ? t('panels:removeBreakpoint') : t('panels:addBreakpoint')}
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -348,19 +350,19 @@ export function PropertiesPanel({
                                             <CardHeader className="pb-3">
                                                 <CardTitle className="text-sm text-white flex items-center">
                                                     <Clock className="w-4 h-4 mr-2" />
-                                                    执行统计
+                                                    {t('panels:executionStatistics')}
                                                 </CardTitle>
                                             </CardHeader>
                                             <CardContent className="space-y-3">
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <div className="text-xs text-gray-400">执行次数</div>
+                                                        <div className="text-xs text-gray-400">{t('panels:executionCount')}</div>
                                                         <div className="text-lg font-semibold text-white">
                                                             {selectedNode.debugInfo.executionCount}
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs text-gray-400">成功率</div>
+                                                        <div className="text-xs text-gray-400">{t('panels:successRate')}</div>
                                                         <div className="text-lg font-semibold text-white">
                                                             {(selectedNode.debugInfo.successRate * 100).toFixed(1)}%
                                                         </div>
@@ -369,13 +371,13 @@ export function PropertiesPanel({
                                                 <Separator className="bg-gray-600" />
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <div className="text-xs text-gray-400">最后执行时间</div>
+                                                        <div className="text-xs text-gray-400">{t('panels:lastExecutionTime')}</div>
                                                         <div className="text-sm text-white">
                                                             {selectedNode.debugInfo.lastExecutionTime}ms
                                                         </div>
                                                     </div>
                                                     <div>
-                                                        <div className="text-xs text-gray-400">平均执行时间</div>
+                                                        <div className="text-xs text-gray-400">{t('panels:averageExecutionTime')}</div>
                                                         <div className="text-sm text-white">
                                                             {selectedNode.debugInfo.averageExecutionTime}ms
                                                         </div>
@@ -395,10 +397,10 @@ export function PropertiesPanel({
                                         <CardHeader className="pb-3">
                                             <CardTitle className="text-sm text-white flex items-center">
                                                 <Code className="w-4 h-4 mr-2" />
-                                                节点代码
+                                                {t('panels:nodeCode')}
                                             </CardTitle>
                                             <CardDescription className="text-gray-400">
-                                                查看节点的XML表示和生成的代码
+                                                {t('panels:viewNodeXmlAndCode')}
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent>
@@ -424,69 +426,72 @@ ${selectedNode.ports.output.length > 0 ? selectedNode.ports.output.map(p => `  <
 }
 
 // 默认的示例节点数据
-export const createSampleNodeInfo = (nodeId: string): SelectedNodeInfo => ({
-    id: nodeId,
-    name: 'Sample Node',
-    type: 'Sequence',
-    category: 'control',
-    description: '这是一个示例节点，用于演示属性面板功能',
-    status: 'idle',
-    properties: [
-        {
-            key: 'name',
-            label: '节点名称',
-            type: 'string',
-            value: 'Sample Node',
-            required: true,
-            description: '节点的显示名称'
-        },
-        {
-            key: 'enabled',
-            label: '启用状态',
-            type: 'boolean',
-            value: true,
-            description: '是否启用此节点'
-        },
-        {
-            key: 'priority',
-            label: '优先级',
-            type: 'select',
-            value: 'normal',
-            options: [
-                { label: '低', value: 'low' },
-                { label: '正常', value: 'normal' },
-                { label: '高', value: 'high' }
-            ],
-            description: '节点执行优先级'
-        },
-        {
-            key: 'timeout',
-            label: '超时时间',
-            type: 'number',
-            value: 5000,
-            description: '节点执行超时时间（毫秒）'
-        },
-        {
-            key: 'description',
-            label: '描述',
-            type: 'textarea',
-            value: '这是一个示例节点的详细描述',
-            description: '节点的详细说明'
-        }
-    ],
-    ports: {
-        input: [
-            { id: 'in1', name: '输入', type: 'flow' }
+export const createSampleNodeInfo = (): SelectedNodeInfo => {
+    // 需要在组件内部使用，才能访问t函数
+    return {
+        id: 'sample_node',
+        name: 'Sample Node',
+        type: 'Sequence',
+        category: 'control',
+        description: 'Sample node for demonstrating properties panel functionality',
+        status: 'idle',
+        properties: [
+            {
+                key: 'name',
+                label: 'Node Name',
+                type: 'string',
+                value: 'Sample Node',
+                required: true,
+                description: 'Display name of the node'
+            },
+            {
+                key: 'enabled',
+                label: 'Enabled Status',
+                type: 'boolean',
+                value: true,
+                description: 'Whether to enable this node'
+            },
+            {
+                key: 'priority',
+                label: 'Priority',
+                type: 'select',
+                value: 'normal',
+                options: [
+                    { label: 'Low', value: 'low' },
+                    { label: 'Normal', value: 'normal' },
+                    { label: 'High', value: 'high' }
+                ],
+                description: 'Node execution priority'
+            },
+            {
+                key: 'timeout',
+                label: 'Timeout',
+                type: 'number',
+                value: 5000,
+                description: 'Node execution timeout (milliseconds)'
+            },
+            {
+                key: 'description',
+                label: 'Description',
+                type: 'textarea',
+                value: 'This is a detailed description of a sample node',
+                description: 'Detailed description of the node'
+            }
         ],
-        output: [
-            { id: 'out1', name: '成功', type: 'flow' },
-            { id: 'out2', name: '失败', type: 'flow' }
-        ]
-    },
-    debugInfo: {
-        executionCount: 42,
-        lastExecutionTime: 150,
-        averageExecutionTime: 125,
-        successRate: 0.85
+        ports: {
+            input: [
+                { id: 'in1', name: 'Input', type: 'flow' }
+            ],
+            output: [
+                { id: 'out1', name: 'Success', type: 'flow' },
+                { id: 'out2', name: 'Failure', type: 'flow' }
+            ]
+        },
+        debugInfo: {
+            executionCount: 42,
+            lastExecutionTime: 150,
+            averageExecutionTime: 125,
+            successRate: 0.85
+        }
     }
-})
+}

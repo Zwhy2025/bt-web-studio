@@ -1,0 +1,23 @@
+{
+  "jumpToStart": "Jump to Start",
+  "jumpToEnd": "Jump to End",
+  "backward": "Backward 1s",
+  "forward": "Forward 1s",
+  "play": "Play",
+  "pause": "Pause",
+  "start": "Start",
+  "success": "Success",
+  "failure": "Failure",
+  "running": "Running",
+  "searchNodes": "Search nodes...",
+  "zoomOut": "Zoom Out (-)",
+  "zoomIn": "Zoom In (+)",
+  "zoomLevel": "Zoom Level",
+  "fitToWindow": "Fit to Window (0)",
+  "leftClickDrag": "Left Click Drag",
+  "shiftLeftClickPan": "Shift+Left Click Pan",
+  "events": "Events",
+  "speed": "Speed",
+  "noEventData": "No Event Data",
+  "eventTimeline": "Event Timeline"
+}

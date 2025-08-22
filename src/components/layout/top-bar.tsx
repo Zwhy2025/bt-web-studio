@@ -2,7 +2,9 @@ import React from "react"
 import { Menubar, MenubarMenu, MenubarTrigger, MenubarContent, MenubarItem, MenubarSeparator } from "@/components/ui/menubar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Brain, Plus, Import, Download, Save, Bug } from "lucide-react"
+import { Search, Brain, Plus, Import, Download, Save, Bug, Languages, Keyboard, Info } from "lucide-react"
+import { useI18n } from "@/hooks/use-i18n"
+import { LanguageSwitcher } from "@/components/language-switcher"
 
 interface TopBarProps {
   onImportClick: () => void;
@@ -11,6 +13,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ onImportClick, onExportClick, onNewProject }: TopBarProps) {
+  const { t } = useI18n()
   return (
     <header className="w-full border-b bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-3 px-3 py-2">
@@ -18,51 +21,63 @@ export function TopBar({ onImportClick, onExportClick, onNewProject }: TopBarPro
         <div className="font-semibold tracking-tight">BT Web Studio</div>
         <Menubar className="ml-2">
           <MenubarMenu>
-            <MenubarTrigger>文件</MenubarTrigger>
+            <MenubarTrigger>{t('menu:file')}</MenubarTrigger>
             <MenubarContent>
               <MenubarItem onSelect={onNewProject}>
-                <Plus className="mr-2 h-4 w-4" /> 新建项目
+                <Plus className="mr-2 h-4 w-4" /> {t('menu:newProject')}
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem onSelect={onImportClick}>
-                <Import className="mr-2 h-4 w-4" /> 导入 XML
+                <Import className="mr-2 h-4 w-4" /> {t('menu:importXML')}
               </MenubarItem>
               <MenubarItem onSelect={onExportClick}>
-                <Download className="mr-2 h-4 w-4" /> 导出 XML
+                <Download className="mr-2 h-4 w-4" /> {t('menu:exportXML')}
               </MenubarItem>
               <MenubarSeparator />
               <MenubarItem>
-                <Save className="mr-2 h-4 w-4" /> 保存
+                <Save className="mr-2 h-4 w-4" /> {t('menu:save')}
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
-            <MenubarTrigger>编辑</MenubarTrigger>
+            <MenubarTrigger>{t('menu:edit')}</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>撤销</MenubarItem>
-              <MenubarItem>重做</MenubarItem>
+              <MenubarItem>{t('menu:undo')}</MenubarItem>
+              <MenubarItem>{t('menu:redo')}</MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
-            <MenubarTrigger>视图</MenubarTrigger>
+            <MenubarTrigger>{t('menu:view')}</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>缩放至适配</MenubarItem>
-              <MenubarItem>显示最小地图</MenubarItem>
+              <MenubarItem>{t('menu:zoomToFit')}</MenubarItem>
+              <MenubarItem>{t('menu:showMinimap')}</MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
-            <MenubarTrigger>调试</MenubarTrigger>
+            <MenubarTrigger>{t('menu:debug')}</MenubarTrigger>
             <MenubarContent>
               <MenubarItem>
-                <Bug className="mr-2 h-4 w-4" /> 打开断点面板
+                <Bug className="mr-2 h-4 w-4" /> {t('menu:openBreakpointPanel')}
               </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
           <MenubarMenu>
-            <MenubarTrigger>帮助</MenubarTrigger>
+            <MenubarTrigger>{t('menu:help')}</MenubarTrigger>
             <MenubarContent>
-              <MenubarItem>快捷键</MenubarItem>
-              <MenubarItem>关于</MenubarItem>
+              <MenubarItem>
+                <Keyboard className="mr-2 h-4 w-4" /> {t('menu:shortcuts')}
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem>
+                <Languages className="mr-2 h-4 w-4" /> {t('toolbar:language')}
+                <div className="ml-auto">
+                  <LanguageSwitcher position="settings" variant="toggle" />
+                </div>
+              </MenubarItem>
+              <MenubarSeparator />
+              <MenubarItem>
+                <Info className="mr-2 h-4 w-4" /> {t('menu:about')}
+              </MenubarItem>
             </MenubarContent>
           </MenubarMenu>
         </Menubar>
@@ -72,15 +87,15 @@ export function TopBar({ onImportClick, onExportClick, onNewProject }: TopBarPro
         <div className="ml-auto flex items-center gap-2">
           <div className="relative w-64 max-w-[40vw]">
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input className="pl-8" placeholder="搜索节点、模板或命令..." aria-label="全局搜索" />
+            <Input className="pl-8" placeholder={t('toolbar:searchPlaceholder')} aria-label={t('toolbar:globalSearch')} />
           </div>
           <Button variant="outline" size="sm" onClick={onImportClick}>
             <Import className="mr-2 h-4 w-4" />
-            导入
+            {t('menu:import')}
           </Button>
           <Button size="sm" onClick={onExportClick}>
             <Download className="mr-2 h-4 w-4" />
-            导出
+            {t('menu:export')}
           </Button>
         </div>
       </div>

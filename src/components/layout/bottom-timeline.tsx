@@ -1,8 +1,10 @@
 import React from "react"
 import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 import { TimelinePanel, createSampleTimelineState } from "@/components/layout/timeline-panel"
+import { useI18n } from "@/hooks/use-i18n"
 
 export function BottomTimeline() {
+    const { t } = useI18n()
     const {
         timelinePosition,
         totalDuration,
@@ -56,10 +58,10 @@ export function BottomTimeline() {
         <div className="h-full min-h-[200px] bg-gray-800">
             <div className="p-2 border-b border-gray-700">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-gray-300">时间轴回放</h3>
+                    <h3 className="text-sm font-medium text-gray-300">{t('panels:timeline')}</h3>
                     {!hasEvents && (
                         <span className="text-xs text-gray-500">
-                            (示例数据 - 连接调试器后显示真实数据)
+                            ({t('messages:loadingData')})
                         </span>
                     )}
                 </div>
@@ -67,11 +69,11 @@ export function BottomTimeline() {
             <div className="h-[calc(100%-3rem)]">
                 <TimelinePanel
                     timelineState={timelineState}
-                    onPlay={hasEvents ? actions.startReplay : () => console.log('示例播放')}
-                    onPause={hasEvents ? actions.pauseReplay : () => console.log('示例暂停')}
-                    onStop={hasEvents ? actions.stopReplay : () => console.log('示例停止')}
-                    onSeek={hasEvents ? actions.seekToTime : (time) => console.log('示例跳转到:', time)}
-                    onSpeedChange={hasEvents ? actions.setPlaybackSpeed : (speed) => console.log('示例速度:', speed)}
+                    onPlay={hasEvents ? actions.startReplay : () => console.log(t('toolbar:play'))}
+                    onPause={hasEvents ? actions.pauseReplay : () => console.log(t('toolbar:pause'))}
+                    onStop={hasEvents ? actions.stopReplay : () => console.log(t('toolbar:stop'))}
+                    onSeek={hasEvents ? actions.seekToTime : (time) => console.log(t('panels:currentStep'), time)}
+                    onSpeedChange={hasEvents ? actions.setPlaybackSpeed : (speed) => console.log(t('panels:playbackSpeed'), speed)}
                     className="h-full"
                 />
             </div>

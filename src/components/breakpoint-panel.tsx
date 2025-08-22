@@ -63,6 +63,7 @@ import {
 } from "@/core/debugger/breakpoint-manager"
 import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 import { useToast } from "@/hooks/use-toast"
+import { useI18n } from "@/hooks/use-i18n"
 
 // 断点类型图标映射
 const breakpointTypeIcons = {
@@ -74,14 +75,17 @@ const breakpointTypeIcons = {
     [BreakpointType.CONDITIONAL]: <AlertTriangle className="h-4 w-4 text-yellow-500" />,
 }
 
-// 断点类型名称映射
-const breakpointTypeNames = {
-    [BreakpointType.ALWAYS]: "总是中断",
-    [BreakpointType.ON_ENTRY]: "进入时中断",
-    [BreakpointType.ON_EXIT]: "退出时中断",
-    [BreakpointType.ON_SUCCESS]: "成功时中断",
-    [BreakpointType.ON_FAILURE]: "失败时中断",
-    [BreakpointType.CONDITIONAL]: "条件断点",
+// 断点类型名称映射函数
+const getBreakpointTypeName = (type: BreakpointType, t: any) => {
+    const names = {
+        [BreakpointType.ALWAYS]: t("panels:breakpointTypes.always"),
+        [BreakpointType.ON_ENTRY]: t("panels:breakpointTypes.onEntry"),
+        [BreakpointType.ON_EXIT]: t("panels:breakpointTypes.onExit"),
+        [BreakpointType.ON_SUCCESS]: t("panels:breakpointTypes.onSuccess"),
+        [BreakpointType.ON_FAILURE]: t("panels:breakpointTypes.onFailure"),
+        [BreakpointType.CONDITIONAL]: t("panels:breakpointTypes.conditional"),
+    }
+    return names[type]
 }
 
 // 调试会话状态图标
@@ -92,7 +96,7 @@ const sessionStateIcons = {
     [DebugSessionState.STEPPING]: <StepForward className="h-4 w-4 text-blue-500" />,
 }
 
-// 添加断点对话框
+// {t("panels:addBreakpoint")}对话框
 function AddBreakpointDialog({
     nodeId,
     open,
@@ -102,6 +106,7 @@ function AddBreakpointDialog({
     open: boolean
     onOpenChange: (open: boolean) => void
 }) {
+    const { t } = useI18n()
     const [type, setType] = useState<BreakpointType>(BreakpointType.ALWAYS)
     const [condition, setCondition] = useState("")
     const [maxHits, setMaxHits] = useState("")
@@ -119,11 +124,11 @@ function AddBreakpointDialog({
         breakpointManager.addBreakpoint(nodeId, type, options)
 
         toast({
-            title: "断点已添加",
-            description: `已在节点 ${nodeId} 添加${breakpointTypeNames[type]}`,
+            title: t("messages:breakpointAdded"),
+            description: `${t("messages:breakpointAddedAt")} ${nodeId} ${t("messages:breakpointAddedType")}${getBreakpointTypeName(type, t)}`,
         })
 
-        // 重置表单
+        // {t("common:reset")}表单
         setType(BreakpointType.ALWAYS)
         setCondition("")
         setMaxHits("")
@@ -135,7 +140,7 @@ function AddBreakpointDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>添加断点</DialogTitle>
+                    <DialogTitle>{t("panels:addBreakpoint")}</DialogTitle>
                     <DialogDescription>
                         为节点 {nodeId} 配置断点设置
                     </DialogDescription>
@@ -150,11 +155,11 @@ function AddBreakpointDialog({
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                {Object.entries(breakpointTypeNames).map(([key, name]) => (
-                                    <SelectItem key={key} value={key}>
+                                {Object.values(BreakpointType).map((typeValue) => (
+                                    <SelectItem key={typeValue} value={typeValue}>
                                         <div className="flex items-center gap-2">
-                                            {breakpointTypeIcons[key as BreakpointType]}
-                                            {name}
+                                            {breakpointTypeIcons[typeValue as BreakpointType]}
+                                            {getBreakpointTypeName(typeValue as BreakpointType, t)}
                                         </div>
                                     </SelectItem>
                                 ))}
@@ -171,7 +176,7 @@ function AddBreakpointDialog({
                                 id="condition"
                                 value={condition}
                                 onChange={(e) => setCondition(e.target.value)}
-                                placeholder="例: status === 'success'"
+                                placeholder={t("panels:conditionExample")}
                                 className="col-span-3"
                             />
                         </div>
@@ -186,7 +191,7 @@ function AddBreakpointDialog({
                             type="number"
                             value={maxHits}
                             onChange={(e) => setMaxHits(e.target.value)}
-                            placeholder="不限制"
+                            placeholder={t("panels:noLimit")}
                             className="col-span-3"
                         />
                     </div>
@@ -199,14 +204,14 @@ function AddBreakpointDialog({
                             id="logMessage"
                             value={logMessage}
                             onChange={(e) => setLogMessage(e.target.value)}
-                            placeholder="可选的日志消息"
+                            placeholder={t("panels:optionalLogMessage")}
                             className="col-span-3"
                         />
                     </div>
                 </div>
                 <DialogFooter>
                     <Button type="submit" onClick={handleSubmit}>
-                        添加断点
+                        {t("panels:addBreakpoint")}
                     </Button>
                 </DialogFooter>
             </DialogContent>
@@ -229,8 +234,8 @@ function BreakpointItem({ breakpoint }: { breakpoint: Breakpoint }) {
     const handleRemove = () => {
         breakpointManager.removeBreakpoint(breakpoint.id)
         toast({
-            title: "断点已移除",
-            description: `已移除节点 ${nodeLabel} 的断点`,
+            title: t("messages:breakpointRemoved"),
+            description: t("messages:breakpointRemovedFrom").replace("{{node}}", nodeLabel),
         })
     }
 
@@ -281,12 +286,12 @@ function BreakpointItem({ breakpoint }: { breakpoint: Breakpoint }) {
             </ContextMenuTrigger>
             <ContextMenuContent>
                 <ContextMenuItem onClick={handleToggle}>
-                    {breakpoint.enabled ? '禁用' : '启用'}断点
+                    {breakpoint.enabled ? '{t("common:disable")}' : '{t("common:enable")}'}断点
                 </ContextMenuItem>
                 <ContextMenuSeparator />
                 <ContextMenuItem onClick={handleRemove} className="text-destructive">
                     <Trash2 className="mr-2 h-4 w-4" />
-                    删除断点
+                    {t("panels:removeBreakpoint")}
                 </ContextMenuItem>
             </ContextMenuContent>
         </ContextMenu>
@@ -310,7 +315,7 @@ function DebugControls() {
     const handleStart = () => {
         breakpointManager.startDebugSession()
         toast({
-            title: "调试会话已开始",
+            title: t("messages:debugSessionStarted"),
             description: "断点调试功能已激活",
         })
     }
@@ -330,7 +335,7 @@ function DebugControls() {
     const handleStop = () => {
         breakpointManager.stopExecution()
         toast({
-            title: "调试会话已停止",
+            title: t("messages:debugSessionStopped"),
             description: "断点调试功能已停用",
         })
     }
@@ -340,10 +345,10 @@ function DebugControls() {
             <div className="flex items-center gap-1">
                 {sessionStateIcons[sessionState]}
                 <span className="text-sm font-medium">
-                    {sessionState === DebugSessionState.STOPPED && "已停止"}
-                    {sessionState === DebugSessionState.RUNNING && "运行中"}
-                    {sessionState === DebugSessionState.PAUSED && "已暂停"}
-                    {sessionState === DebugSessionState.STEPPING && "单步执行"}
+                    {sessionState === DebugSessionState.STOPPED && t("common:stopped")}
+                    {sessionState === DebugSessionState.RUNNING && t("common:running")}
+                    {sessionState === DebugSessionState.PAUSED && t("common:paused")}
+                    {sessionState === DebugSessionState.STEPPING && t("common:stepping")}
                 </span>
                 {pausedNode && (
                     <Badge variant="outline" className="text-xs">
@@ -365,7 +370,7 @@ function DebugControls() {
                                 <Play className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>开始调试</TooltipContent>
+                        <TooltipContent>{t("toolbar:startDebug")}</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -399,7 +404,7 @@ function DebugControls() {
                                 <StepForward className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>单步执行</TooltipContent>
+                        <TooltipContent>{t("toolbar:stepExecute")}</TooltipContent>
                     </Tooltip>
 
                     <Tooltip>
@@ -413,7 +418,7 @@ function DebugControls() {
                                 <Square className="h-4 w-4" />
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>停止调试</TooltipContent>
+                        <TooltipContent>{t("toolbar:stopDebug")}</TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
             </div>
@@ -437,7 +442,7 @@ export function BreakpointPanel() {
         const unsubscribeHitEvents = breakpointManager.subscribeHitEvents((event) => {
             setHitEvents(prev => [...prev, event])
             toast({
-                title: "断点命中",
+                title: t("messages:breakpointHit"),
                 description: `节点 ${event.nodeId} 在 ${event.nodeStatus} 状态时命中断点`,
             })
         })
@@ -455,8 +460,8 @@ export function BreakpointPanel() {
     const handleClearAll = () => {
         breakpointManager.clearAllBreakpoints()
         toast({
-            title: "已清除所有断点",
-            description: "所有断点已被移除",
+            title: t("messages:allBreakpointsCleared"),
+            description: t("messages:allBreakpointsRemoved"),
         })
     }
 
@@ -471,8 +476,8 @@ export function BreakpointPanel() {
         URL.revokeObjectURL(url)
 
         toast({
-            title: "断点配置已导出",
-            description: "断点配置已保存到文件",
+            title: t("messages:breakpointConfigExported"),
+            description: t("messages:breakpointConfigSaved"),
         })
     }
 
@@ -485,13 +490,13 @@ export function BreakpointPanel() {
             const json = e.target?.result as string
             if (breakpointManager.importBreakpoints(json)) {
                 toast({
-                    title: "断点配置已导入",
-                    description: "断点配置已成功加载",
+                    title: t("messages:breakpointConfigImported"),
+                    description: t("messages:breakpointConfigLoaded"),
                 })
             } else {
                 toast({
-                    title: "导入失败",
-                    description: "断点配置文件格式错误",
+                    title: t('messages:importFailed'),
+                    description: t("messages:invalidBreakpointConfigFormat"),
                     variant: "destructive",
                 })
             }
@@ -510,7 +515,7 @@ export function BreakpointPanel() {
             {/* 断点统计 */}
             <div className="p-3 border-b">
                 <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium">断点管理</span>
+                    <span className="text-sm font-medium">{t('panels:breakpointManagement')}</span>
                     <div className="flex items-center gap-1">
                         <TooltipProvider>
                             <Tooltip>
@@ -523,7 +528,7 @@ export function BreakpointPanel() {
                                         <Plus className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>添加断点</TooltipContent>
+                                <TooltipContent>{t("panels:addBreakpoint")}</TooltipContent>
                             </Tooltip>
 
                             <Tooltip>
@@ -537,7 +542,7 @@ export function BreakpointPanel() {
                                         <Download className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>导出断点配置</TooltipContent>
+                                <TooltipContent>{t('panels:exportBreakpointConfig')}</TooltipContent>
                             </Tooltip>
 
                             <Tooltip>
@@ -560,7 +565,7 @@ export function BreakpointPanel() {
                                         />
                                     </label>
                                 </TooltipTrigger>
-                                <TooltipContent>导入断点配置</TooltipContent>
+                                <TooltipContent>{t('panels:importBreakpointConfig')}</TooltipContent>
                             </Tooltip>
 
                             <Tooltip>
@@ -574,16 +579,16 @@ export function BreakpointPanel() {
                                         <RotateCcw className="h-4 w-4" />
                                     </Button>
                                 </TooltipTrigger>
-                                <TooltipContent>清除所有断点</TooltipContent>
+                                <TooltipContent>{t('panels:clearAllBreakpoints')}</TooltipContent>
                             </Tooltip>
                         </TooltipProvider>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>总计: {stats.total}</span>
-                    <span>启用: {stats.enabled}</span>
-                    <span>命中: {stats.hitCount}</span>
+                    <span>{t('common:total')}: {stats.total}</span>
+                    <span>{t("common:enable")}: {stats.enabled}</span>
+                    <span>{t('panels:hitCount')}: {stats.hitCount}</span>
                 </div>
             </div>
 
@@ -593,8 +598,8 @@ export function BreakpointPanel() {
                     {breakpoints.length === 0 ? (
                         <div className="text-center py-8 text-muted-foreground">
                             <Target className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                            <p className="text-sm">暂无断点</p>
-                            <p className="text-xs">右键节点或点击上方按钮添加断点</p>
+                            <p className="text-sm">{t('panels:noBreakpoints')}</p>
+                            <p className="text-xs">{t('panels:addBreakpointHint')}</p>
                         </div>
                     ) : (
                         breakpoints.map((breakpoint) => (
@@ -609,7 +614,7 @@ export function BreakpointPanel() {
                 <>
                     <Separator />
                     <div className="p-2">
-                        <div className="text-sm font-medium mb-2">命中历史</div>
+                        <div className="text-sm font-medium mb-2">{t('panels:hitHistory')}</div>
                         <ScrollArea className="h-32">
                             <div className="space-y-1">
                                 {hitEvents.slice(-10).reverse().map((event, index) => (
@@ -631,7 +636,7 @@ export function BreakpointPanel() {
                 </>
             )}
 
-            {/* 添加断点对话框 */}
+            {/* {t("panels:addBreakpoint")}对话框 */}
             <AddBreakpointDialog
                 nodeId={selectedNodeId}
                 open={addDialogOpen}

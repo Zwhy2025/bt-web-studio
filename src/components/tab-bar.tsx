@@ -9,8 +9,10 @@ import {
   ContextMenuTrigger 
 } from '@/components/ui/context-menu'
 import { useBehaviorTreeStore, useActions, useCurrentSession } from '@/core/store/behavior-tree-store'
+import { useI18n } from '@/hooks/use-i18n'
 
 export const TabBar: React.FC = () => {
+  const { t } = useI18n()
   const sessions = useBehaviorTreeStore(state => state.sessions)
   const activeSessionId = useBehaviorTreeStore(state => state.activeSessionId)
   const currentSession = useCurrentSession()
@@ -122,17 +124,17 @@ export const TabBar: React.FC = () => {
             
             <ContextMenuContent>
               <ContextMenuItem onClick={() => startRename(session.id, session.name)}>
-                重命名
+                {t('menu:rename')}
               </ContextMenuItem>
-              <ContextMenuItem onClick={() => actions.createSession(`${session.name} 副本`)}>
-                复制
+              <ContextMenuItem onClick={() => actions.createSession(`${session.name} ${t('common:duplicate')}`)}>
+                {t('common:duplicate')}
               </ContextMenuItem>
               {sessions.length > 1 && (
                 <ContextMenuItem 
                   onClick={() => handleDeleteSession(session.id)}
                   className="text-destructive focus:text-destructive"
                 >
-                  关闭
+                  {t('common:close')}
                 </ContextMenuItem>
               )}
             </ContextMenuContent>
@@ -144,8 +146,8 @@ export const TabBar: React.FC = () => {
       {/* 会话信息 */}
       {currentSession && (
         <div className="text-xs text-muted-foreground px-2 border-l">
-          节点: {currentSession.nodes.length} | 
-          连线: {currentSession.edges.length}
+          {t('panels:nodes')}: {currentSession.nodes.length} | 
+          {t('panels:connections')}: {currentSession.edges.length}
         </div>
       )}
     </div>
