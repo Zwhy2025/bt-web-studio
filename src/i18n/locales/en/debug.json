@@ -1,4 +1,6 @@
 {
+  "title": "Debug Mode",
+  "description": "Debug and monitor behavior tree execution",
   "connectDebugger": "Connect Debugger",
   "connecting": "Connecting...",
   "connected": "Connected",
@@ -11,5 +13,95 @@
   "stepExecution": "Step Execution",
   "startContinueExecution": "Start/Continue Execution",
   "simulateSubtree": "Simulate Subtree Execution",
-  "simulate": "Simulate"
+  "simulate": "Simulate",
+  "controls": {
+    "play": "Play",
+    "pause": "Pause",
+    "stop": "Stop",
+    "stepInto": "Step Into",
+    "stepOver": "Step Over",
+    "stepOut": "Step Out",
+    "restart": "Restart",
+    "reset": "Reset"
+  },
+  "status": {
+    "idle": "Idle",
+    "running": "Running",
+    "paused": "Paused",
+    "stopped": "Stopped",
+    "error": "Error",
+    "completed": "Completed"
+  },
+  "visualization": {
+    "title": "Visualization Options",
+    "options": "Options",
+    "executionPath": "Execution Path",
+    "nodeStatus": "Node Status",
+    "activeHighlight": "Active Highlight",
+    "breakpoints": "Breakpoints"
+  },
+  "breakpoints": {
+    "title": "Breakpoints",
+    "add": "Add Breakpoint",
+    "remove": "Remove Breakpoint",
+    "clear": "Clear Breakpoint",
+    "clearAll": "Clear All",
+    "toggle": "Toggle Breakpoint",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "condition": "Condition",
+    "hitCount": "Hit Count",
+    "searchPlaceholder": "Search breakpoints...",
+    "items": "{{count}} breakpoints",
+    "noBreakpoints": "No breakpoints set",
+    "noBreakpointsDesc": "Double-click nodes to set breakpoints"
+  },
+  "monitor": {
+    "title": "Monitor",
+    "performance": "Performance",
+    "blackboard": "Blackboard",
+    "callStack": "Call Stack",
+    "variables": "Variables",
+    "executionStatus": "Execution Status",
+    "metrics": "Metrics",
+    "cpuUsage": "CPU Usage",
+    "memoryUsage": "Memory Usage",
+    "executionTime": "Execution Time",
+    "nodeCount": "Node Count",
+    "noCallStack": "No call stack",
+    "noCallStackDesc": "Start debugging to see call stack"
+  },
+  "canvas": {
+    "title": "Debug Canvas",
+    "loading": "Loading canvas...",
+    "loadingDesc": "Preparing debug environment",
+    "fitView": "Fit to View",
+    "executions": "{{count}} executions",
+    "notConnected": "Debugger not connected",
+    "notConnectedDesc": "Connect to a debug session to start debugging"
+  },
+  "connection": {
+    "title": "Connection",
+    "host": "Host",
+    "port": "Port",
+    "connect": "Connect",
+    "connected": "Connected",
+    "disconnect": "Disconnect",
+    "retry": "Retry",
+    "timeout": "Connection timeout",
+    "failed": "Connection failed",
+    "lost": "Connection lost"
+  },
+  "panels": {
+    "debugger": "Debugger",
+    "monitor": "Monitor",
+    "logs": "Logs"
+  },
+  "tabs": {
+    "breakpoints": "Breakpoints",
+    "callStack": "Call Stack",
+    "variables": "Variables",
+    "monitor": "Monitor",
+    "logs": "Logs"
+  }
 }

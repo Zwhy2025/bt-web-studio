@@ -1,0 +1,176 @@
+{
+  "title": "编排模式",
+  "description": "可视化行为树编辑和构建",
+  "toolbar": {
+    "title": "编排工具栏",
+    "newTree": "新建行为树",
+    "openTree": "打开行为树",
+    "saveTree": "保存行为树",
+    "exportTree": "导出行为树",
+    "importTree": "导入行为树",
+    "validate": "验证行为树",
+    "autoLayout": "自动布局",
+    "settings": "编排设置",
+    "undo": "撤销",
+    "redo": "重做",
+    "copy": "复制",
+    "paste": "粘贴",
+    "delete": "删除",
+    "selectAll": "全选",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fitView": "适应视图",
+    "resetZoom": "重置缩放",
+    "save": "保存",
+    "fileMenu": "文件菜单",
+    "align": "对齐",
+    "alignmentOptions": "对齐选项",
+    "layout": "布局"
+  },
+  "nodeLibrary": {
+    "title": "节点库",
+    "search": "搜索节点...",
+    "categories": {
+      "all": "全部",
+      "control": "控制节点",
+      "decorator": "装饰节点",
+      "action": "动作节点",
+      "condition": "条件节点",
+      "subtree": "子树节点"
+    },
+    "filters": {
+      "title": "过滤器",
+      "showBuiltIn": "内置节点",
+      "showCustom": "自定义节点",
+      "showFavorites": "收藏节点"
+    },
+    "actions": {
+      "addToFavorites": "添加到收藏",
+      "removeFromFavorites": "从收藏中移除",
+      "viewDocumentation": "查看文档",
+      "createCustom": "创建自定义节点"
+    },
+    "dragHint": "拖拽节点到画布以添加节点",
+    "searchPlaceholder": "搜索节点...",
+    "sort": "排序",
+    "categories": {
+      "all": "全部",
+      "control": "控制节点",
+      "decorator": "装饰节点",
+      "action": "动作节点",
+      "condition": "条件节点",
+      "subtree": "子树节点",
+      "favorites": "收藏",
+      "recent": "最近使用"
+    },
+    "stats": "统计",
+    "usageCount": "使用次数"
+  },
+  "propertyPanel": {
+    "title": "属性面板",
+    "nodeProperties": "节点属性",
+    "generalSettings": "常规设置",
+    "advancedSettings": "高级设置",
+    "validation": "验证",
+    "documentation": "文档",
+    "fields": {
+      "name": "名称",
+      "description": "描述",
+      "enabled": "启用",
+      "id": "ID",
+      "type": "类型",
+      "category": "分类"
+    },
+    "actions": {
+      "apply": "应用",
+      "reset": "重置",
+      "defaults": "恢复默认"
+    },
+    "validation": {
+      "required": "此字段为必填项",
+      "invalid": "无效值",
+      "duplicate": "名称重复"
+    },
+    "noSelection": "未选中任何节点",
+    "noSelectionDesc": "选中一个节点来查看其属性"
+  },
+  "canvas": {
+    "title": "行为树画布",
+    "loading": "加载画布中...",
+    "loadingDesc": "正在准备行为树编辑器",
+    "emptyTitle": "开始构建你的行为树",
+    "emptyDescription": "从节点库拖拽节点到此处开始创建行为树",
+    "controls": {
+      "zoomIn": "放大",
+      "zoomOut": "缩小",
+      "fitView": "适应视图",
+      "resetZoom": "重置缩放",
+      "toggleGrid": "切换网格",
+      "toggleMiniMap": "切换缩略图"
+    },
+    "nodeCount": "{{count}} 个节点",
+    "selectedNodes": "已选择 {{count}} 个",
+    "zoom": "{{level}}%",
+    "validation": {
+      "errors": "{{count}} 个错误",
+      "warnings": "{{count}} 个警告",
+      "valid": "行为树有效",
+      "noErrors": "无错误"
+    },
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fitView": "适应视图",
+    "resetZoom": "重置缩放",
+    "toggleGrid": "切换网格",
+    "toggleMiniMap": "切换缩略图"
+  },
+  "actions": {
+    "newFile": "新建文件",
+    "openFile": "打开文件",
+    "saveFile": "保存文件",
+    "saveAsFile": "另存为...",
+    "export": "导出",
+    "import": "导入",
+    "validate": "验证",
+    "autoLayout": "自动布局",
+    "toggleGrid": "切换网格",
+    "toggleSnap": "切换对齐网格",
+    "save": "保存",
+    "undo": "撤销",
+    "redo": "重做",
+    "copy": "复制",
+    "cut": "剪切",
+    "paste": "粘贴",
+    "alignLeft": "左对齐",
+    "alignCenter": "居中对齐",
+    "alignRight": "右对齐",
+    "alignTop": "顶部对齐",
+    "alignMiddle": "中间对齐",
+    "alignBottom": "底部对齐",
+    "distributeHorizontally": "水平分布",
+    "distributeVertically": "垂直分布",
+    "layoutTree": "树形布局",
+    "layoutHierarchy": "层次布局",
+    "layoutForce": "力导向布局",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "fitToView": "适应视图"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "newFile": "Ctrl+N",
+    "openFile": "Ctrl+O",
+    "saveFile": "Ctrl+S",
+    "undo": "Ctrl+Z",
+    "redo": "Ctrl+Y",
+    "copy": "Ctrl+C",
+    "paste": "Ctrl+V",
+    "delete": "Delete",
+    "selectAll": "Ctrl+A",
+    "validate": "F5"
+  },
+  "validation": {
+    "valid": "行为树有效",
+    "noErrors": "无错误"
+  }
+}

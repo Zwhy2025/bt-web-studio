@@ -9,6 +9,9 @@ import timeline from './timeline.json'
 import xml from './xml.json'
 import layout from './layout.json'
 import canvas from './canvas.json'
+import composer from './composer.json'
+import replay from './replay.json'
+import modes from './modes.json'
 
 const zhResources = {
   common,
@@ -21,7 +24,10 @@ const zhResources = {
   timeline,
   xml,
   layout,
-  canvas
+  canvas,
+  composer,
+  replay,
+  modes
 }
 
 export default zhResources

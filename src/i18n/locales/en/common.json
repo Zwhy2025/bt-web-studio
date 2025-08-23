@@ -71,5 +71,11 @@
   "normal": "Normal",
   "high": "High",
   "yes": "Yes",
-  "no": "No"
+  "no": "No",
+  "modes": {
+    "switching": "Switching modes...",
+    "composer": "Composer",
+    "debug": "Debug",
+    "replay": "Replay"
+  }
 }

@@ -69,5 +69,17 @@
   "layout": "布局",
   "gridSnap": "网格吸附",
   "rename": "重命名",
-  "delete": "删除"
+  "delete": "删除",
+  "snapToGrid": "吸附到网格",
+  "showExecutionPath": "显示执行路径",
+  "showNodeStatus": "显示节点状态",
+  "showEventFlow": "显示事件流",
+  "showHeatmap": "显示热力图",
+  "replay": "回放",
+  "clearBreakpoints": "清除断点",
+  "startDebugging": "开始调试",
+  "stopDebugging": "停止调试",
+  "loadReplaySession": "加载回放会话",
+  "exportReplayData": "导出回放数据",
+  "analyzeSession": "分析会话"
 }

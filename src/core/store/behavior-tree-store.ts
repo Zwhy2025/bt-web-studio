@@ -8,6 +8,10 @@ import { createBlackboardSlice, BlackboardSlice } from './blackboardState';
 import { createDebuggerSlice, DebuggerSlice } from './debuggerState';
 import { createTimelineSlice, TimelineSlice } from './timelineState';
 import { createUiSlice, UiSlice } from './uiState';
+import { createWorkflowModeSlice, WorkflowModeSlice } from './workflowModeState';
+import { createComposerModeSlice, ComposerModeSlice } from './composerModeState';
+import { createDebugModeSlice, DebugModeSlice } from './debugModeState';
+import { createReplayModeSlice, ReplayModeSlice } from './replayModeState';
 
 // 节点状态枚举
 export enum NodeStatus {
@@ -91,7 +95,7 @@ export interface ProjectSession {
 }
 
 // 合并所有 Slices 的类型定义
-export type BehaviorTreeState = SessionSlice & TreeSlice & BlackboardSlice & DebuggerSlice & TimelineSlice & UiSlice;
+export type BehaviorTreeState = SessionSlice & TreeSlice & BlackboardSlice & DebuggerSlice & TimelineSlice & UiSlice & WorkflowModeSlice & ComposerModeSlice & DebugModeSlice & ReplayModeSlice;
 
 // 创建最终的 store
 export const useBehaviorTreeStore = create<BehaviorTreeState>()(
@@ -104,6 +108,10 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
     const debuggerSlice = createDebuggerSlice(set, get, api);
     const timelineSlice = createTimelineSlice(set, get, api);
     const uiSlice = createUiSlice(set, get, api);
+    const workflowModeSlice = createWorkflowModeSlice(set, get, api);
+    const composerModeSlice = createComposerModeSlice(set, get, api);
+    const debugModeSlice = createDebugModeSlice(set, get, api);
+    const replayModeSlice = createReplayModeSlice(set, get, api);
 
     return {
       ...sessionSlice,
@@ -112,6 +120,10 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
       ...debuggerSlice,
       ...timelineSlice,
       ...uiSlice,
+      ...workflowModeSlice,
+      ...composerModeSlice,
+      ...debugModeSlice,
+      ...replayModeSlice,
 
       // 使用默认会话覆盖初始状态
       currentSession: defaultSession,
@@ -129,6 +141,10 @@ export const useBehaviorTreeStore = create<BehaviorTreeState>()(
         ...debuggerSlice.actions,
         ...timelineSlice.actions,
         ...uiSlice.actions,
+        ...workflowModeSlice.actions,
+        ...composerModeSlice.composerActions,
+        ...debugModeSlice.debugActions,
+        ...replayModeSlice.replayActions,
       },
     };
   })
@@ -146,3 +162,72 @@ export const useExecutionEvents = () => useBehaviorTreeStore((state) => state.ex
 export const useSelectedNodes = () => useBehaviorTreeStore((state) => state.selectedNodeIds);
 export const useSelectedEdges = () => useBehaviorTreeStore((state) => state.selectedEdgeIds);
 export const useActions = () => useBehaviorTreeStore((state) => state.actions);
+
+// 工作流模式相关选择器
+export const useCurrentMode = () => useBehaviorTreeStore((state) => state.currentMode);
+export const usePreviousMode = () => useBehaviorTreeStore((state) => state.previousMode);
+export const useIsTransitioning = () => useBehaviorTreeStore((state) => state.isTransitioning);
+export const useTransitionProgress = () => useBehaviorTreeStore((state) => state.transitionProgress);
+export const useModeHistory = () => useBehaviorTreeStore((state) => state.modeHistory);
+
+// 编排模式相关选择器
+export const useActiveTool = () => useBehaviorTreeStore((state) => state.activeTool);
+export const useComposerSelectedNodes = () => useBehaviorTreeStore((state) => state.selectedNodeIds);
+export const useSnapToGrid = () => useBehaviorTreeStore((state) => state.alignment?.snapToGrid || false);
+export const useCanvasConfig = () => useBehaviorTreeStore((state) => state.viewport);
+// 缓存的选择器 - 修复getSnapshot警告
+const behaviorTreeDataSelector = (state: BehaviorTreeState) => {
+  // 创建一个稳定的对象引用，避免每次返回新对象
+  const result = {
+    nodes: state.nodes,
+    edges: state.edges
+  };
+  
+  // 使用WeakMap缓存结果以确保相同的输入总是返回相同的对象引用
+  if (!(behaviorTreeDataSelector as any).cache) {
+    (behaviorTreeDataSelector as any).cache = new WeakMap();
+  }
+  
+  const cache = (behaviorTreeDataSelector as any).cache;
+  if (cache.has(state)) {
+    return cache.get(state);
+  }
+  
+  cache.set(state, result);
+  return result;
+};
+
+export const useBehaviorTreeData = () => {
+  return useBehaviorTreeStore(behaviorTreeDataSelector);
+};
+export const useViewport = () => useBehaviorTreeStore((state) => state.viewport);
+export const useNodeLibraryConfig = () => useBehaviorTreeStore((state) => state.nodeLibrary);
+export const usePropertyPanelConfig = () => useBehaviorTreeStore((state) => state.propertyPanel);
+export const useEditHistory = () => useBehaviorTreeStore((state) => state.editHistory);
+export const useValidationErrors = () => useBehaviorTreeStore((state) => state.validationErrors);
+export const useComposerActions = () => useBehaviorTreeStore((state) => state.composerActions);
+
+// 调试模式相关选择器
+export const useDebugSession = () => useBehaviorTreeStore((state) => state.currentSession);
+export const useExecutionStatus = () => useBehaviorTreeStore((state) => state.executionStatus);
+export const useBreakpoints = () => useBehaviorTreeStore((state) => state.breakpoints);
+export const useCallStack = () => useBehaviorTreeStore((state) => state.callStack);
+export const useWatchVariables = () => useBehaviorTreeStore((state) => state.watchVariables);
+export const useDebugLogs = () => useBehaviorTreeStore((state) => state.logs);
+export const useDebugActions = () => useBehaviorTreeStore((state) => state.debugActions);
+
+// 回放模式相关选择器
+export const useReplaySession = () => useBehaviorTreeStore((state) => state.currentSession);
+export const useReplayStatus = () => useBehaviorTreeStore((state) => state.replayStatus);
+export const useCurrentTime = () => useBehaviorTreeStore((state) => state.currentTime);
+export const useVisibleEvents = () => useBehaviorTreeStore((state) => state.visibleEvents);
+export const useTimelineMarkers = () => useBehaviorTreeStore((state) => state.timelineMarkers);
+export const useAnalysisResult = () => useBehaviorTreeStore((state) => state.analysisResult);
+export const useReplayActions = () => useBehaviorTreeStore((state) => state.replayActions);
+export const useReplayEvents = () => useBehaviorTreeStore((state) => state.executionEvents || []);
+export const useEventFilters = () => useBehaviorTreeStore((state) => state.eventFilter);
+export const useTimelineState = () => useBehaviorTreeStore((state) => ({
+  isPlaying: state.replayStatus === 'playing',
+  currentTime: state.currentTime,
+  duration: state.totalDuration || 0
+}));

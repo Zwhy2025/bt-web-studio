@@ -1,0 +1,40 @@
+{
+  "title": "Workflow Modes",
+  "description": "Switch between different work modes",
+  "modes": {
+    "composer": "Composer",
+    "debug": "Debug", 
+    "replay": "Replay"
+  },
+  "modeDescriptions": {
+    "composer": "Create and edit behavior trees",
+    "debug": "Debug and monitor tree execution",
+    "replay": "Analyze execution logs and sessions"
+  },
+  "switching": {
+    "switchTo": "Switch to {{mode}} Mode",
+    "switching": "Switching to {{mode}}...",
+    "switchSuccess": "Switched to {{mode}} mode",
+    "switchFailed": "Failed to switch mode: {{reason}}",
+    "confirm": "Switch Mode",
+    "confirmMessage": "Are you sure you want to switch to {{mode}} mode? Any unsaved changes will be lost.",
+    "unsavedChanges": "You have unsaved changes",
+    "saveFirst": "Save changes before switching"
+  },
+  "validation": {
+    "cannotSwitch": "Cannot switch to {{mode}} mode",
+    "reasonBusy": "System is busy",
+    "reasonError": "An error occurred",
+    "reasonUnsaved": "Unsaved changes detected"
+  },
+  "indicators": {
+    "current": "Current Mode",
+    "available": "Available Modes",
+    "transitioning": "Transitioning..."
+  },
+  "shortcuts": {
+    "switchToComposer": "Ctrl+1",
+    "switchToDebug": "Ctrl+2", 
+    "switchToReplay": "Ctrl+3"
+  }
+}
