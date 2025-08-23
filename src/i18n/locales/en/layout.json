@@ -1,0 +1,16 @@
+{
+  "expand": "Expand",
+  "collapse": "Collapse",
+  "panel": "Panel",
+  "nodeLibrary": "Node Library",
+  "propertyPanel": "Property Panel",
+  "leftSide": "Left Side",
+  "rightSide": "Right Side",
+  "bottom": "bottom",
+  "collapsePanelWithShortcut": "Collapse {{panel}} panel ({{shortcut}})",
+  "expandPanelWithShortcut": "Expand {{panel}} panel ({{shortcut}})",
+  "collapsePanel": "Collapse {{panel}} panel",
+  "panelShortcuts": "Panel Shortcuts",
+  "leftSidePanel": "Left Side Panel",
+  "rightSidePanel": "Right Side Panel"
+}

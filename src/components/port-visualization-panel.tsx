@@ -12,8 +12,10 @@ import {
 } from 'lucide-react';
 import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
 import { useSelectedNodes } from '@/core/store/behavior-tree-store';
+import { useI18n } from '@/hooks/use-i18n';
 
 export function PortVisualizationPanel() {
+  const { t } = useI18n()
   const selectedNodeIds = useSelectedNodes();
   const nodes = useBehaviorTreeStore(state => state.nodes);
   
@@ -50,7 +52,7 @@ export function PortVisualizationPanel() {
     if (node.type === 'subtree' && node.data?.subtreeDefinition?.ports) {
       return {
         ports: node.data.subtreeDefinition.ports,
-        title: `子树: ${node.data.subtreeId || 'Unknown'}`
+        title: `${t('nodes:subtree')}: ${node.data.subtreeId || 'Unknown'}`
       };
     }
     
@@ -65,22 +67,22 @@ export function PortVisualizationPanel() {
       <CardHeader className="pb-3 flex-shrink-0">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Eye className="h-4 w-4" />
-          端口可视化
+          {t('panels:portVisualization')}
         </CardTitle>
       </CardHeader>
       
       <CardContent className="flex-1 flex flex-col gap-3 p-3 min-h-0">
         {selectedNodes.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">
-            请选择一个节点查看端口信息
+            {t('panels:selectNodeToViewPorts')}
           </div>
         ) : selectedNodes.length > 1 ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">
-            请选择单个节点查看详细端口信息
+            {t('panels:selectSingleNodeForDetails')}
           </div>
         ) : !portInfo ? (
           <div className="flex-1 flex items-center justify-center text-muted-foreground text-xs">
-            该节点没有端口信息
+            {t('panels:noPortInformation')}
           </div>
         ) : (
           <div className="flex-1 flex flex-col min-h-0">
@@ -118,7 +120,7 @@ export function PortVisualizationPanel() {
                           
                           {port.default && (
                             <div className="text-xs text-muted-foreground mt-1">
-                              默认值: <code className="font-mono">{port.default}</code>
+                              {t('panels:defaultValue')}: <code className="font-mono">{port.default}</code>
                             </div>
                           )}
                         </div>
@@ -127,7 +129,7 @@ export function PortVisualizationPanel() {
                   ))
                 ) : (
                   <div className="text-center text-muted-foreground text-xs py-4">
-                    该节点没有定义端口
+                    {t('panels:noPortsDefined')}
                   </div>
                 )}
               </div>

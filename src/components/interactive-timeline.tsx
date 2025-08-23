@@ -26,6 +26,7 @@ import {
     MousePointer2
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
+import { useI18n } from '@/hooks/use-i18n'
 
 // 时间轴事件类型
 export interface TimelineEvent {
@@ -69,6 +70,7 @@ export function InteractiveTimeline({
     onFilterChange,
     className
 }: InteractiveTimelineProps) {
+    const { t } = useI18n()
     // 缩放和平移状态
     const [zoomLevel, setZoomLevel] = useState(1)
     const [panOffset, setPanOffset] = useState(0)
@@ -140,17 +142,17 @@ export function InteractiveTimeline({
     const getEventTypeText = useCallback((type: string) => {
         switch (type) {
             case 'start':
-                return '开始'
+                return t('timeline:start')
             case 'success':
-                return '成功'
+                return t('timeline:success')
             case 'failure':
-                return '失败'
+                return t('timeline:failure')
             case 'running':
-                return '运行中'
+                return t('timeline:running')
             default:
-                return '未知'
+                return t('common:unknown')
         }
-    }, [])
+    }, [t])
 
     // 过滤事件
     const filteredEvents = useMemo(() => {
@@ -343,7 +345,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={() => onSeek?.(0)}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-600"
-                                title="跳转到开始"
+                                title={t('timeline:jumpToStart')}
                             >
                                 <SkipBack className="w-4 h-4" />
                             </Button>
@@ -353,7 +355,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={() => onSeek?.(Math.max(0, timelineState.currentTime - 1000))}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-600"
-                                title="后退1秒"
+                                title={t('timeline:backward')}
                             >
                                 <Rewind className="w-4 h-4" />
                             </Button>
@@ -368,7 +370,7 @@ export function InteractiveTimeline({
                                         ? "bg-blue-600 hover:bg-blue-700 text-white"
                                         : "bg-green-600 hover:bg-green-700 text-white"
                                 )}
-                                title={timelineState.isPlaying ? "暂停" : "播放"}
+                                title={timelineState.isPlaying ? t('timeline:pause') : t('timeline:play')}
                             >
                                 {timelineState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                             </Button>
@@ -378,7 +380,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={onStop}
                                 className="w-8 h-8 p-0 bg-red-600 hover:bg-red-700 text-white"
-                                title="停止"
+                                title={t('debug:stop')}
                             >
                                 <Square className="w-4 h-4" />
                             </Button>
@@ -388,7 +390,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={() => onSeek?.(Math.min(timelineState.totalDuration, timelineState.currentTime + 1000))}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-600"
-                                title="前进1秒"
+                                title={t('timeline:forward')}
                             >
                                 <FastForward className="w-4 h-4" />
                             </Button>
@@ -398,7 +400,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={() => onSeek?.(timelineState.totalDuration)}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-600"
-                                title="跳转到结束"
+                                title={t('timeline:jumpToEnd')}
                             >
                                 <SkipForward className="w-4 h-4" />
                             </Button>
@@ -437,7 +439,7 @@ export function InteractiveTimeline({
                             <div className="relative">
                                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
                                 <Input
-                                    placeholder="搜索节点..."
+                                    placeholder={t('timeline:searchNodes')}
                                     value={filterText}
                                     onChange={(e) => setFilterText(e.target.value)}
                                     className="w-32 h-8 pl-7 bg-gray-700 border-gray-600 text-white text-xs placeholder-gray-400"
@@ -449,11 +451,11 @@ export function InteractiveTimeline({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">全部</SelectItem>
-                                    <SelectItem value="start">开始</SelectItem>
-                                    <SelectItem value="success">成功</SelectItem>
-                                    <SelectItem value="failure">失败</SelectItem>
-                                    <SelectItem value="running">运行中</SelectItem>
+                                    <SelectItem value="all">{t('common:all')}</SelectItem>
+                                    <SelectItem value="start">{t('timeline:start')}</SelectItem>
+                                    <SelectItem value="success">{t('timeline:success')}</SelectItem>
+                                    <SelectItem value="failure">{t('timeline:failure')}</SelectItem>
+                                    <SelectItem value="running">{t('timeline:running')}</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
@@ -467,12 +469,12 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={handleZoomOut}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-700"
-                                title="缩小 (-)"
+                                title={t('timeline:zoomOut')}
                             >
                                 <ZoomOut className="w-4 h-4" />
                             </Button>
 
-                            <span className="text-xs text-gray-400 w-12 text-center" title="缩放级别">
+                            <span className="text-xs text-gray-400 w-12 text-center" title={t('timeline:zoomLevel')}>
                                 {Math.round(zoomLevel * 100)}%
                             </span>
 
@@ -481,7 +483,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={handleZoomIn}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-700"
-                                title="放大 (+)"
+                                title={t('timeline:zoomIn')}
                             >
                                 <ZoomIn className="w-4 h-4" />
                             </Button>
@@ -491,7 +493,7 @@ export function InteractiveTimeline({
                                 variant="ghost"
                                 onClick={handleZoomFit}
                                 className="w-8 h-8 p-0 text-gray-300 hover:text-white hover:bg-gray-700"
-                                title="适应窗口 (0)"
+                                title={t('timeline:fitToWindow')}
                             >
                                 <Maximize2 className="w-4 h-4" />
                             </Button>
@@ -500,14 +502,14 @@ export function InteractiveTimeline({
                         {/* 交互提示 */}
                         <div className="flex items-center space-x-1 text-xs text-gray-500">
                             <MousePointer2 className="w-3 h-3" />
-                            <span>左键拖拽</span>
+                            <span>{t('timeline:leftClickDrag')}</span>
                             <Move className="w-3 h-3 ml-2" />
-                            <span>Shift+左键平移</span>
+                            <span>{t('timeline:shiftLeftClickPan')}</span>
                         </div>
 
                         {/* 统计信息 */}
                         <Badge variant="secondary" className="bg-gray-700 text-gray-300 text-xs">
-                            {filteredEvents.length} 事件
+                            {filteredEvents.length} {t('timeline:events')}
                         </Badge>
                     </div>
                 </div>

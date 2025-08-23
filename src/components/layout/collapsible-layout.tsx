@@ -23,6 +23,7 @@ import {
 import { cn } from '@/core/utils/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useMediaQuery } from '@/hooks/use-media-query'
+import { useI18n } from '@/hooks/use-i18n'
 
 interface CollapsibleLayoutProps {
     leftPanel: React.ReactNode
@@ -46,6 +47,7 @@ export function CollapsibleLayout({
     bottomPanel,
     className
 }: CollapsibleLayoutProps) {
+    const { t } = useI18n()
     const isMobile = useIsMobile()
     const isTablet = useMediaQuery('(max-width: 1024px)')
 
@@ -163,7 +165,7 @@ export function CollapsibleLayout({
                         >
                             <Menu className="h-4 w-4" />
                         </Button>
-                        <span className="text-sm font-medium">节点库</span>
+                        <span className="text-sm font-medium">{t('layout:nodeLibrary')}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                         <Button
@@ -188,8 +190,8 @@ export function CollapsibleLayout({
                         <div className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-background border-r shadow-lg">
                             <div className="flex items-center justify-between p-4 border-b">
                                 <h3 className="font-semibold">
-                                    {activeMobilePanel === 'left' && '节点库'}
-                                    {activeMobilePanel === 'right' && '属性面板'}
+                                    {activeMobilePanel === 'left' && t('layout:nodeLibrary')}
+                                    {activeMobilePanel === 'right' && t('layout:propertyPanel')}
                                 </h3>
                                 <Button
                                     variant="ghost"
@@ -237,7 +239,7 @@ export function CollapsibleLayout({
                                         size="sm"
                                         onClick={toggleLeftPanel}
                                         className="absolute top-2 right-2 h-8 w-8 p-0 bg-secondary z-50"
-                                        title="折叠左侧面板 (Ctrl+Shift+L)"
+                                        title={t('layout:collapsePanelWithShortcut', { panel: t('layout:leftSide'), shortcut: 'Ctrl+Shift+L' })}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </Button>
@@ -260,7 +262,7 @@ export function CollapsibleLayout({
                                         size="sm"
                                         onClick={toggleLeftPanel}
                                         className="h-8 w-8 p-0 bg-secondary z-50"
-                                        title="展开左侧面板 (Ctrl+Shift+L)"
+                                        title={t('layout:expandPanelWithShortcut', { panel: t('layout:leftSide'), shortcut: 'Ctrl+Shift+L' })}
                                     >
                                         <PanelLeftOpen className="h-4 w-4" />
                                     </Button>
@@ -274,7 +276,7 @@ export function CollapsibleLayout({
                                             size="sm"
                                             onClick={toggleRightPanel}
                                             className="h-8 w-8 p-0 bg-secondary z-50"
-                                            title="展开右侧面板 (Ctrl+Shift+R)"
+                                            title={t('layout:expandPanelWithShortcut', { panel: t('layout:rightSide'), shortcut: 'Ctrl+Shift+R' })}
                                         >
                                             <PanelRightOpen className="h-4 w-4" />
                                         </Button>
@@ -300,7 +302,7 @@ export function CollapsibleLayout({
                                         size="sm"
                                         onClick={toggleRightPanel}
                                         className="absolute top-2 left-2 h-8 w-8 p-0 bg-secondary z-50"
-                                        title="折叠右侧面板 (Ctrl+Shift+R)"
+                                        title={t('layout:collapsePanelWithShortcut', { panel: t('layout:rightSide'), shortcut: 'Ctrl+Shift+R' })}
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
@@ -322,7 +324,7 @@ export function CollapsibleLayout({
                             size="sm"
                             onClick={() => setBottomPanelState(prev => ({ ...prev, isCollapsed: true }))}
                             className="absolute top-2 right-2 h-6 w-6 p-0 opacity-60 hover:opacity-100 z-10"
-                            title="折叠底部面板"
+                            title={t('layout:collapsePanel', { panel: t('layout:bottom') })}
                         >
                             <ChevronDown className="h-3 w-3" />
                         </Button>
@@ -338,10 +340,10 @@ export function CollapsibleLayout({
                         size="sm"
                         onClick={() => setBottomPanelState(prev => ({ ...prev, isCollapsed: false }))}
                         className="h-6 w-20 p-0 opacity-60 hover:opacity-100"
-                        title="展开底部面板"
+                        title={t('panels:expandPanel')}
                     >
                         <ChevronUp className="h-3 w-3 mr-1" />
-                        <span className="text-xs">时间轴</span>
+                        <span className="text-xs">{t('panels:timeline')}</span>
                     </Button>
                 </div>
             )}
@@ -380,14 +382,14 @@ export function PanelStatusIndicator() {
     return (
         <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-background/95 backdrop-blur border rounded-lg p-3 shadow-lg">
             <div className="text-sm text-foreground space-y-2">
-                <div className="font-medium text-center">面板快捷键</div>
+                <div className="font-medium text-center">{t('layout:panelShortcuts')}</div>
                 <div className="space-y-1 text-xs">
                     <div className="flex items-center justify-between gap-4">
-                        <span>左侧面板</span>
+                        <span>{t('layout:leftSidePanel')}</span>
                         <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+Shift+L</kbd>
                     </div>
                     <div className="flex items-center justify-between gap-4">
-                        <span>右侧面板</span>
+                        <span>{t('layout:rightSidePanel')}</span>
                         <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+Shift+R</kbd>
                     </div>
                 </div>

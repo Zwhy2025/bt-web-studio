@@ -1,0 +1,15 @@
+{
+  "connectDebugger": "Connect Debugger",
+  "connecting": "Connecting...",
+  "connected": "Connected",
+  "disconnected": "Disconnected",
+  "disconnect": "Disconnect",
+  "start": "Start",
+  "continueExecution": "Continue Execution",
+  "pauseExecution": "Pause Execution",
+  "stopExecution": "Stop Execution",
+  "stepExecution": "Step Execution",
+  "startContinueExecution": "Start/Continue Execution",
+  "simulateSubtree": "Simulate Subtree Execution",
+  "simulate": "Simulate"
+}

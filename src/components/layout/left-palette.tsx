@@ -2,8 +2,58 @@ import React, { useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
-import { Search, ChevronRight, ChevronDown, GitBranch, Zap, HelpCircle, Wrench, Layers } from "lucide-react"
-import { NODE_LIBRARY } from "@/components/layout/node-library-panel"
+import { Search, ChevronRight, ChevronDown, GitBranch, Zap, Eye, Brackets } from "lucide-react"
+import { useI18n } from "@/hooks/use-i18n"
+
+// 创建轻量化的节点库数据
+const useNodeCategories = () => {
+    const { t } = useI18n()
+    
+    return useMemo(() => [
+        {
+            name: t('nodes:actionNodes'),
+            icon: <Zap className="h-4 w-4" />,
+            items: [
+                { label: 'AlwaysFailure', type: 'AlwaysFailure', desc: t('nodes:nodeDescriptions.AlwaysFailure') },
+                { label: 'AlwaysSuccess', type: 'AlwaysSuccess', desc: t('nodes:nodeDescriptions.AlwaysSuccess') },
+                { label: 'Script', type: 'Script', desc: t('nodes:nodeDescriptions.Script') },
+                { label: 'SetBlackboard', type: 'SetBlackboard', desc: t('nodes:nodeDescriptions.SetBlackboard') },
+                { label: 'Sleep', type: 'Sleep', desc: t('nodes:nodeDescriptions.Sleep') }
+            ]
+        },
+        {
+            name: t('nodes:conditionNodes'),
+            icon: <Eye className="h-4 w-4" />,
+            items: [
+                { label: 'ScriptCondition', type: 'ScriptCondition', desc: t('nodes:nodeDescriptions.ScriptCondition') }
+            ]
+        },
+        {
+            name: t('nodes:controlNodes'),
+            icon: <GitBranch className="h-4 w-4" />,
+            items: [
+                { label: 'AsyncFallback', type: 'AsyncFallback', desc: t('nodes:nodeDescriptions.AsyncFallback') },
+                { label: 'AsyncSequence', type: 'AsyncSequence', desc: t('nodes:nodeDescriptions.AsyncSequence') },
+                { label: 'Fallback', type: 'Fallback', desc: t('nodes:nodeDescriptions.Fallback') },
+                { label: 'IfThenElse', type: 'IfThenElse', desc: t('nodes:nodeDescriptions.IfThenElse') },
+                { label: 'Parallel', type: 'Parallel', desc: t('nodes:nodeDescriptions.Parallel') },
+                { label: 'Sequence', type: 'Sequence', desc: t('nodes:nodeDescriptions.Sequence') }
+            ]
+        },
+        {
+            name: t('nodes:decoratorNodes'),
+            icon: <Brackets className="h-4 w-4" />,
+            items: [
+                { label: 'Delay', type: 'Delay', desc: t('nodes:nodeDescriptions.Delay') },
+                { label: 'ForceFailure', type: 'ForceFailure', desc: t('nodes:nodeDescriptions.ForceFailure') },
+                { label: 'ForceSuccess', type: 'ForceSuccess', desc: t('nodes:nodeDescriptions.ForceSuccess') },
+                { label: 'Inverter', type: 'Inverter', desc: t('nodes:nodeDescriptions.Inverter') },
+                { label: 'Repeat', type: 'Repeat', desc: t('nodes:nodeDescriptions.Repeat') },
+                { label: 'Timeout', type: 'Timeout', desc: t('nodes:nodeDescriptions.Timeout') }
+            ]
+        }
+    ], [t])
+}
 
 // ---------- Node Category Section Component ----------
 function NodeCategorySection({
@@ -18,6 +68,7 @@ function NodeCategorySection({
     onDragStart: (e: React.DragEvent, type: string) => void;
 }) {
     const [isExpanded, setIsExpanded] = React.useState(true);
+    const { t } = useI18n(); // 在子组件中也需要使用i18n hook
 
     return (
         <div className="space-y-1">
@@ -47,7 +98,7 @@ function NodeCategorySection({
                             draggable
                             onDragStart={(e) => onDragStart(e, item.type)}
                             role="button"
-                            aria-label={`拖拽以创建 ${item.label}`}
+                            aria-label={`${t('common:create')} ${item.label}`}
                             className="rounded-md border bg-card/60 backdrop-blur hover:bg-accent/50 transition-colors p-2 cursor-grab active:cursor-grabbing"
                         >
                             <div className="flex items-center justify-between">
@@ -65,19 +116,8 @@ function NodeCategorySection({
 
 // ---------- Left Palette ----------
 export function LeftPalette() {
-    // 使用从 node-library-panel.tsx 导入的节点库定义
-    const nodeCategories = useMemo(
-        () => NODE_LIBRARY.map(category => ({
-            name: category.name,
-            icon: <category.icon className="h-4 w-4" />,
-            items: category.nodes.map(node => ({
-                label: node.name,
-                type: node.id,
-                desc: node.description
-            }))
-        })),
-        []
-    )
+    const { t } = useI18n()
+    const nodeCategories = useNodeCategories() // 使用动态节点库
 
     const onDragStart = (event: React.DragEvent, nodeType: string) => {
         event.dataTransfer.setData("application/reactflow", nodeType)
@@ -89,10 +129,10 @@ export function LeftPalette() {
     return (
         <aside className="h-full flex flex-col">
             <div className="p-3">
-                <div className="font-medium mb-2">节点库</div>
+                <div className="font-medium mb-2">{t('panels:nodeLibrary')}</div>
                 <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input className="pl-8" placeholder="搜索节点/模板..." />
+                    <Input className="pl-8" placeholder={t('panels:searchInPanel')} />
                 </div>
             </div>
             <Separator />

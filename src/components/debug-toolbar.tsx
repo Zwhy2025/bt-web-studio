@@ -14,10 +14,12 @@ import {
 
 import { DEBUGGER_URL } from '@/config';
 import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
+import { useI18n } from '@/hooks/use-i18n';
 
 import { DebugState } from '@/core/store/behavior-tree-store';
 
 export function DebugToolbar() {
+  const { t } = useI18n();
   const {
     debugState,
     isDebuggerConnected,
@@ -64,15 +66,15 @@ export function DebugToolbar() {
   // 确定连接按钮的状态和图标
   let connectButtonVariant: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive" = "outline";
   let connectButtonIcon = <Plug className="h-4 w-4" />;
-  let connectButtonText = "连接调试器";
+  let connectButtonText = t('debug:connectDebugger');
 
   if (debugState === DebugState.CONNECTING) {
     connectButtonVariant = "secondary";
-    connectButtonText = "连接中...";
+    connectButtonText = t('debug:connecting');
   } else if (isDebuggerConnected) {
     connectButtonVariant = "default";
     connectButtonIcon = <CheckCircle className="h-4 w-4" />;
-    connectButtonText = "已连接";
+    connectButtonText = t('debug:connected');
   }
 
   // 确定执行控制按钮是否禁用
@@ -92,13 +94,13 @@ export function DebugToolbar() {
       <div className="flex items-center gap-1">
         {/* 状态指示灯 */}
         {debugState === DebugState.CONNECTING && (
-          <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" title="正在连接" />
+          <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" title={t('debug:connecting')} />
         )}
         {isDebuggerConnected && debugState !== DebugState.CONNECTING && (
-          <div className="h-2 w-2 rounded-full bg-green-500" title="已连接" />
+          <div className="h-2 w-2 rounded-full bg-green-500" title={t('debug:connected')} />
         )}
         {!isDebuggerConnected && debugState !== DebugState.CONNECTING && (
-          <div className="h-2 w-2 rounded-full bg-gray-500" title="未连接" />
+          <div className="h-2 w-2 rounded-full bg-gray-500" title={t('debug:disconnected')} />
         )}
 
         {/* 连接/断开按钮 */}
@@ -110,7 +112,7 @@ export function DebugToolbar() {
             disabled={debugState === DebugState.CONNECTING}
           >
             <XCircle className="h-4 w-4 mr-1" />
-            断开
+            {t('debug:disconnect')}
           </Button>
         ) : (
           <Button
@@ -135,7 +137,7 @@ export function DebugToolbar() {
           variant="outline"
           onClick={handleStart}
           disabled={isStartDisabled}
-          title="开始/继续执行"
+          title={t('debug:startContinueExecution')}
         >
           <Play className="h-4 w-4" />
         </Button>
@@ -144,7 +146,7 @@ export function DebugToolbar() {
           variant="outline"
           onClick={handlePause}
           disabled={isPauseDisabled}
-          title="暂停执行"
+          title={t('debug:pauseExecution')}
         >
           <Pause className="h-4 w-4" />
         </Button>
@@ -153,7 +155,7 @@ export function DebugToolbar() {
           variant="outline"
           onClick={handleStep}
           disabled={isStepDisabled}
-          title="单步执行"
+          title={t('debug:stepExecution')}
         >
           <StepForward className="h-4 w-4" />
         </Button>
@@ -162,7 +164,7 @@ export function DebugToolbar() {
           variant="outline"
           onClick={handleStop}
           disabled={isStopDisabled}
-          title="停止执行"
+          title={t('debug:stopExecution')}
         >
           <Square className="h-4 w-4" />
         </Button>
@@ -178,10 +180,10 @@ export function DebugToolbar() {
             size="sm"
             variant="outline"
             onClick={handleSimulateSubtree}
-            title="模拟子树执行"
+            title={t('debug:simulateSubtree')}
           >
             <TreePine className="h-4 w-4" />
-            <span className="ml-1">模拟</span>
+            <span className="ml-1">{t('debug:simulate')}</span>
           </Button>
         </div>
       )}

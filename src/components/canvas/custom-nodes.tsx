@@ -1,5 +1,6 @@
 import React from "react"
 import { Handle, Position, type NodeProps } from "reactflow"
+import { useI18n } from "@/hooks/use-i18n"
 import { 
     HelpCircle, Brackets, GitBranch, Workflow, Shuffle, 
     AlertTriangle, Wrench, Code, Database, Clock, Timer, 
@@ -93,7 +94,7 @@ function NodeShell({
             {breakpoint && (
                 <div 
                     className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 border-2 border-background flex items-center justify-center"
-                    title="断点"
+                    title={t("common:breakpoint")}
                 >
                     <div className="h-1.5 w-1.5 rounded-full bg-background"></div>
                 </div>
@@ -137,6 +138,7 @@ function Ports() {
 
 // 统一的节点组件
 export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & { type: string }) {
+    const { t } = useI18n()
     // 根据节点类型确定图标和样式
     const getNodeConfig = () => {
         // 动作节点
@@ -267,7 +269,7 @@ export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & 
                                     e.stopPropagation();
                                     actions.toggleSubTreeExpansion(subtreeId);
                                 }}
-                                title={isExpanded ? "折叠子树" : "展开子树"}
+                                title={isExpanded ? t("nodes:collapseSubtree") : t("nodes:expandSubtree")}
                             >
                                 {isExpanded ? (
                                     <ChevronDown className="h-4 w-4" />
@@ -286,7 +288,7 @@ export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & 
                             {data?.subtreeParameters && Object.keys(data.subtreeParameters).length > 0 && (
                                 <AccordionItem value="parameters">
                                     <AccordionTrigger className="text-xs font-medium">
-                                        参数 ({Object.keys(data.subtreeParameters).length})
+                                        {t("nodes:parameters")} ({Object.keys(data.subtreeParameters).length})
                                     </AccordionTrigger>
                                     <AccordionContent>
                                         <div className="space-y-2 text-xs">
@@ -303,7 +305,7 @@ export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & 
                             {data.subtreeDefinition.ports && data.subtreeDefinition.ports.length > 0 && (
                                 <AccordionItem value="ports">
                                     <AccordionTrigger className="text-xs font-medium">
-                                        端口 ({data.subtreeDefinition.ports.length})
+                                        {t("nodes:ports")} ({data.subtreeDefinition.ports.length})
                                     </AccordionTrigger>
                                     <AccordionContent>
                                         <div className="space-y-3 text-xs">
@@ -318,7 +320,7 @@ export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & 
                                                         <p className="text-muted-foreground pl-5 text-xs">{port.description}</p>
                                                     )}
                                                     {port.default && (
-                                                        <p className="text-muted-foreground pl-5 text-xs">默认: <code className="font-mono">{port.default}</code></p>
+                                                        <p className="text-muted-foreground pl-5 text-xs">{t("nodes:default")}: <code className="font-mono">{port.default}</code></p>
                                                     )}
                                                 </div>
                                             ))}

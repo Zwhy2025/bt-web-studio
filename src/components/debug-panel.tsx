@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { DebugToolbar } from './debug-toolbar';
 import { PortVisualizationPanel } from './port-visualization-panel';
+import { useI18n } from '@/hooks/use-i18n';
 
 export function DebugPanel() {
+  const { t } = useI18n()
   const {
     blackboard,
     executionEvents,
@@ -57,7 +59,7 @@ export function DebugPanel() {
     // 为了演示，我们直接在本地更新
     actions.setBlackboardValue(newKey, parsedValue, newType);
 
-    // 清空输入框
+    // {t("common:clear")}输入框
     setNewKey('');
     setNewValue('');
   };
@@ -73,15 +75,15 @@ export function DebugPanel() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="blackboard" className="flex items-center gap-2">
             <MemoryStick className="h-4 w-4" />
-            黑板
+            {t('panels:blackboard')}
           </TabsTrigger>
           <TabsTrigger value="events" className="flex items-center gap-2">
             <ListOrdered className="h-4 w-4" />
-            事件
+            {t('panels:eventStream')}
           </TabsTrigger>
           <TabsTrigger value="ports" className="flex items-center gap-2">
             <Eye className="h-4 w-4" />
-            端口
+            {t('panels:nodePorts')}
           </TabsTrigger>
         </TabsList>
 
@@ -90,15 +92,15 @@ export function DebugPanel() {
             {/* 添加黑板变量 */}
             {isDebuggerConnected && (
               <div className="mb-4 p-2 bg-muted rounded-md">
-                <h4 className="text-sm font-medium mb-2">添加/修改变量</h4>
+                <h4 className="text-sm font-medium mb-2">{t('panels:addVariable')}</h4>
                 <div className="grid grid-cols-[1fr_1fr_80px_1fr] gap-2">
                   <Input
-                    placeholder="键名"
+                    placeholder={t('panels:variableName')}
                     value={newKey}
                     onChange={(e) => setNewKey(e.target.value)}
                   />
                   <Input
-                    placeholder="值"
+                    placeholder={t('panels:variableValue')}
                     value={newValue}
                     onChange={(e) => setNewValue(e.target.value)}
                   />
@@ -107,12 +109,12 @@ export function DebugPanel() {
                     value={newType}
                     onChange={(e) => setNewType(e.target.value as 'string' | 'number' | 'boolean' | 'object')}
                   >
-                    <option value="string">String</option>
-                    <option value="number">Number</option>
-                    <option value="boolean">Boolean</option>
-                    <option value="object">Object</option>
+                    <option value="string">{t('nodes:dataTypes.string')}</option>
+                    <option value="number">{t('nodes:dataTypes.number')}</option>
+                    <option value="boolean">{t('nodes:dataTypes.boolean')}</option>
+                    <option value="object">{t('nodes:dataTypes.object')}</option>
                   </select>
-                  <Button size="sm" onClick={handleSetBlackboardValue}>设置</Button>
+                  <Button size="sm" onClick={handleSetBlackboardValue}>{t('common:save')}</Button>
                 </div>
               </div>
             )}
@@ -121,7 +123,7 @@ export function DebugPanel() {
             <ScrollArea className="flex-1">
               {Object.keys(blackboard).length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
-                  暂无黑板变量
+                  {t('panels:blackboardVariables')}
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -149,7 +151,7 @@ export function DebugPanel() {
             <ScrollArea className="flex-1">
               {executionEvents.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
-                  暂无执行事件
+                  {t('panels:executionHistory')}
                 </div>
               ) : (
                 <div className="space-y-2">

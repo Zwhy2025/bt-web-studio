@@ -193,7 +193,7 @@ export class NodeStateManager {
         if (!node) return NodeStatus.FAILURE
 
         // 开始执行节点
-        this.updateNodeStatus(nodeId, NodeStatus.RUNNING, `开始执行 ${node.data?.label || nodeId}`)
+        this.updateNodeStatus(nodeId, NodeStatus.RUNNING, `Start executing ${node.data?.label || nodeId}`)
 
         // 模拟执行时间
         await new Promise(resolve => setTimeout(resolve, speed))
@@ -315,7 +315,7 @@ export class NodeStateManager {
         }
 
         // 更新节点最终状态
-        this.updateNodeStatus(nodeId, result, `执行完成: ${result}`)
+        this.updateNodeStatus(nodeId, result, `Execution completed: ${result}`)
 
         return result
     }

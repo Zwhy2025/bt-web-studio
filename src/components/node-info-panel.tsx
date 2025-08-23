@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
+import { useI18n } from '@/hooks/use-i18n';
 import { Info, Settings, Code, Link, Play, Pause, CheckCircle, XCircle } from 'lucide-react';
 
 interface NodeInfoPanelProps {
@@ -13,6 +14,7 @@ interface NodeInfoPanelProps {
 
 export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
     const { nodes } = useBehaviorTreeStore();
+    const { t } = useI18n();
 
     const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null;
 
@@ -22,11 +24,11 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                         <Info className="h-4 w-4" />
-                        节点信息
+                        {t('panels:nodeInfo')}
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-center h-32 text-muted-foreground">
-                    请选择一个节点查看详细信息
+                    {t('panels:selectNodeToViewInfo')}
                 </CardContent>
             </Card>
         );
@@ -49,34 +51,34 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
     const getStatusText = (status?: string) => {
         switch (status) {
             case 'running':
-                return '运行中';
+                return t('nodes:nodeStatus.running');
             case 'success':
-                return '成功';
+                return t('nodes:nodeStatus.success');
             case 'failure':
-                return '失败';
+                return t('nodes:nodeStatus.failure');
             case 'idle':
             default:
-                return '空闲';
+                return t('nodes:nodeStatus.idle');
         }
     };
 
     const getNodeTypeText = (type: string) => {
         const typeMap: Record<string, string> = {
-            'action': '动作节点',
-            'condition': '条件节点',
-            'control-sequence': '顺序控制',
-            'control-selector': '选择控制',
-            'control-parallel': '并行控制',
-            'decorator': '装饰器',
-            'subtree': '子树',
+            'action': t('nodes:actionNodes'),
+            'condition': t('nodes:conditionNodes'),
+            'control-sequence': t('nodes:sequence'),
+            'control-selector': t('nodes:selector'),
+            'control-parallel': t('nodes:parallel'),
+            'decorator': t('nodes:decoratorNodes'),
+            'subtree': t('nodes:subtreeNodes'),
         };
         return typeMap[type] || type;
     };
 
     const renderParameters = () => {
-        const params = selectedNode.data.parameters || selectedNode.data.attributes || {};
+        const params = selectedNode.data.parameters || {};
         if (Object.keys(params).length === 0) {
-            return <div className="text-muted-foreground text-sm">无参数</div>;
+            return <div className="text-muted-foreground text-sm">{t('panels:noParameters')}</div>;
         }
 
         return (
@@ -94,11 +96,11 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
     };
 
     const renderPorts = () => {
-        const definition = selectedNode.data.subtreeDefinition || selectedNode.data.nodeDefinition;
+        const definition = (selectedNode.data as any).subtreeDefinition || (selectedNode.data as any).nodeDefinition;
         const ports = definition?.ports || [];
 
         if (ports.length === 0) {
-            return <div className="text-muted-foreground text-sm">无端口定义</div>;
+            return <div className="text-muted-foreground text-sm">{t('panels:noPortDefinition')}</div>;
         }
 
         return (
@@ -107,14 +109,14 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
                     <div key={index} className="border rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-2">
                             <Badge variant={port.type === 'input' ? 'default' : port.type === 'output' ? 'secondary' : 'outline'}>
-                                {port.type === 'input' ? '输入' : port.type === 'output' ? '输出' : '输入输出'}
+                                {port.type === 'input' ? t('nodes:portTypes.input') : port.type === 'output' ? t('nodes:portTypes.output') : t('nodes:portTypes.bidirectional')}
                             </Badge>
                             <span className="font-medium">{port.name}</span>
                         </div>
                         <div className="text-sm space-y-1">
-                            <div><span className="font-medium">类型:</span> {port.dataType}</div>
-                            {port.default && <div><span className="font-medium">默认值:</span> {port.default}</div>}
-                            {port.description && <div><span className="font-medium">描述:</span> {port.description}</div>}
+                            <div><span className="font-medium">{t('common:type')}:</span> {port.dataType}</div>
+                            {port.default && <div><span className="font-medium">{t('nodes:default')}:</span> {port.default}</div>}
+                            {port.description && <div><span className="font-medium">{t('panels:nodeDescription')}:</span> {port.description}</div>}
                         </div>
                     </div>
                 ))}
@@ -129,14 +131,14 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
             <div className="space-y-3">
                 <div className="flex items-center gap-2">
                     <Link className="h-4 w-4" />
-                    <span className="font-medium">子树引用</span>
+                    <span className="font-medium">{t('panels:subtreeReference')}</span>
                 </div>
                 <div className="space-y-2">
-                    <div><span className="font-medium">子树ID:</span> {selectedNode.data.subtreeId || '未知'}</div>
-                    <div><span className="font-medium">是否展开:</span> {selectedNode.data.isExpanded ? '是' : '否'}</div>
+                    <div><span className="font-medium">{t('panels:subtreeId')}:</span> {selectedNode.data.subtreeId || t('common:unknown')}</div>
+                    <div><span className="font-medium">{t('panels:isExpanded')}:</span> {selectedNode.data.isExpanded ? t('common:yes') : t('common:no')}</div>
                     {selectedNode.data.subtreeParameters && (
                         <div>
-                            <span className="font-medium">子树参数:</span>
+                            <span className="font-medium">{t('panels:subtreeParameters')}:</span>
                             <pre className="mt-1 text-xs bg-muted p-2 rounded">
                                 {JSON.stringify(selectedNode.data.subtreeParameters, null, 2)}
                             </pre>
@@ -153,21 +155,21 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
         return (
             <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                    <span className="font-medium">执行次数:</span>
+                    <span className="font-medium">{t('panels:executionCount')}:</span>
                     <Badge variant="outline">{executionCount || 0}</Badge>
                 </div>
                 {lastExecutionTime && (
                     <div>
-                        <span className="font-medium">最后执行:</span>
+                        <span className="font-medium">{t('panels:lastExecutionTime')}:</span>
                         <span className="text-sm text-muted-foreground ml-2">
                             {new Date(lastExecutionTime).toLocaleString()}
                         </span>
                     </div>
                 )}
                 <div className="flex items-center gap-2">
-                    <span className="font-medium">断点:</span>
+                    <span className="font-medium">{t('panels:breakpointSet')}:</span>
                     <Badge variant={breakpoint ? 'destructive' : 'outline'}>
-                        {breakpoint ? '已设置' : '未设置'}
+                        {breakpoint ? t('panels:breakpointSet') : t('panels:noBreakpointSet')}
                     </Badge>
                 </div>
             </div>
@@ -179,7 +181,7 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Info className="h-4 w-4" />
-                    节点信息
+                    {t('panels:nodeInfo')}
                 </CardTitle>
                 <div className="flex items-center gap-2">
                     {getStatusIcon(selectedNode.data.status)}
@@ -192,31 +194,31 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
                     <div className="p-6">
                         <Tabs defaultValue="basic" className="w-full">
                             <TabsList className="grid w-full grid-cols-4">
-                                <TabsTrigger value="basic">基本信息</TabsTrigger>
-                                <TabsTrigger value="parameters">参数</TabsTrigger>
-                                <TabsTrigger value="ports">端口</TabsTrigger>
-                                <TabsTrigger value="execution">执行</TabsTrigger>
+                                <TabsTrigger value="basic">{t('panels:basicInfo')}</TabsTrigger>
+                                <TabsTrigger value="parameters">{t('nodes:parameters')}</TabsTrigger>
+                                <TabsTrigger value="ports">{t('nodes:ports')}</TabsTrigger>
+                                <TabsTrigger value="execution">{t('panels:execution')}</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="basic" className="space-y-4">
                                 <div>
-                                    <h4 className="font-medium mb-2">节点标识</h4>
+                                    <h4 className="font-medium mb-2">{t('panels:nodeIdentifier')}</h4>
                                     <div className="space-y-2 text-sm">
                                         <div><span className="font-medium">ID:</span> {selectedNode.id}</div>
-                                        <div><span className="font-medium">标签:</span> {selectedNode.data.label}</div>
-                                        <div><span className="font-medium">类型:</span> {getNodeTypeText(selectedNode.type || 'unknown')}</div>
+                                        <div><span className="font-medium">{t('panels:label')}:</span> {selectedNode.data.label}</div>
+                                        <div><span className="font-medium">{t('common:type')}:</span> {getNodeTypeText(selectedNode.type || 'unknown')}</div>
                                     </div>
                                 </div>
 
                                 <Separator />
 
                                 <div>
-                                    <h4 className="font-medium mb-2">位置信息</h4>
+                                    <h4 className="font-medium mb-2">{t('panels:positionInfo')}</h4>
                                     <div className="space-y-2 text-sm">
                                         <div><span className="font-medium">X:</span> {selectedNode.position.x}</div>
                                         <div><span className="font-medium">Y:</span> {selectedNode.position.y}</div>
-                                        {selectedNode.width && <div><span className="font-medium">宽度:</span> {selectedNode.width}</div>}
-                                        {selectedNode.height && <div><span className="font-medium">高度:</span> {selectedNode.height}</div>}
+                                        {selectedNode.width && <div><span className="font-medium">{t('panels:width')}:</span> {selectedNode.width}</div>}
+                                        {selectedNode.height && <div><span className="font-medium">{t('panels:height')}:</span> {selectedNode.height}</div>}
                                     </div>
                                 </div>
 
@@ -231,7 +233,7 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
                                     <>
                                         <Separator />
                                         <div>
-                                            <h4 className="font-medium mb-2">描述</h4>
+                                            <h4 className="font-medium mb-2">{t('panels:nodeDescription')}</h4>
                                             <p className="text-sm text-muted-foreground">{selectedNode.data.description}</p>
                                         </div>
                                     </>
@@ -242,7 +244,7 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
                                 <div>
                                     <h4 className="font-medium mb-2 flex items-center gap-2">
                                         <Settings className="h-4 w-4" />
-                                        节点参数
+                                        {t('nodes:parameters')}
                                     </h4>
                                     {renderParameters()}
                                 </div>
@@ -252,7 +254,7 @@ export function NodeInfoPanel({ selectedNodeId }: NodeInfoPanelProps) {
                                 <div>
                                     <h4 className="font-medium mb-2 flex items-center gap-2">
                                         <Code className="h-4 w-4" />
-                                        端口定义
+                                        {t('panels:portDefinition')}
                                     </h4>
                                     {renderPorts()}
                                 </div>
