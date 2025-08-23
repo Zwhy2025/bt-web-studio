@@ -9,8 +9,6 @@ import { FunctionTabs } from "@/components/layout/function-tabs"
 interface TopBarProps {
   onImportClick: () => void;
   onExportClick: () => void;
-  onNewProject: () => void;
-  onSave?: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
 }
@@ -18,8 +16,6 @@ interface TopBarProps {
 export function TopBar({ 
   onImportClick, 
   onExportClick, 
-  onNewProject,
-  onSave,
   onUndo,
   onRedo 
 }: TopBarProps) {
@@ -44,10 +40,8 @@ export function TopBar({
         {/* 右侧：功能特化区域（File / Connection / Load / Help） */}
         <div className="ml-auto flex items-center gap-2">
           <FunctionTabs
-            onNewProject={onNewProject}
             onImportClick={onImportClick}
             onExportClick={onExportClick}
-            onSave={onSave}
           />
           <Separator orientation="vertical" className="h-5" />
           <LanguageSwitcher position="settings" variant="toggle" />

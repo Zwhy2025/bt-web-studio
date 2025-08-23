@@ -1,4 +1,7 @@
 import { create } from 'zustand';
+import { useMemo } from 'react';
+import { create } from 'zustand';
+import { shallow } from 'zustand/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Node, Edge } from 'reactflow';
 
@@ -175,30 +178,12 @@ export const useActiveTool = () => useBehaviorTreeStore((state) => state.activeT
 export const useComposerSelectedNodes = () => useBehaviorTreeStore((state) => state.selectedNodeIds);
 export const useSnapToGrid = () => useBehaviorTreeStore((state) => state.alignment?.snapToGrid || false);
 export const useCanvasConfig = () => useBehaviorTreeStore((state) => state.viewport);
-// 缓存的选择器 - 修复getSnapshot警告
-const behaviorTreeDataSelector = (state: BehaviorTreeState) => {
-  // 创建一个稳定的对象引用，避免每次返回新对象
-  const result = {
-    nodes: state.nodes,
-    edges: state.edges
-  };
-  
-  // 使用WeakMap缓存结果以确保相同的输入总是返回相同的对象引用
-  if (!(behaviorTreeDataSelector as any).cache) {
-    (behaviorTreeDataSelector as any).cache = new WeakMap();
-  }
-  
-  const cache = (behaviorTreeDataSelector as any).cache;
-  if (cache.has(state)) {
-    return cache.get(state);
-  }
-  
-  cache.set(state, result);
-  return result;
-};
-
+// 稳定的选择器：仅当 nodes/edges 变更时才更新引用
 export const useBehaviorTreeData = () => {
-  return useBehaviorTreeStore(behaviorTreeDataSelector);
+  const nodes = useBehaviorTreeStore((state) => state.nodes);
+  const edges = useBehaviorTreeStore((state) => state.edges);
+
+  return useMemo(() => ({ nodes, edges }), [nodes, edges]);
 };
 export const useViewport = () => useBehaviorTreeStore((state) => state.viewport);
 export const useNodeLibraryConfig = () => useBehaviorTreeStore((state) => state.nodeLibrary);
@@ -226,8 +211,14 @@ export const useAnalysisResult = () => useBehaviorTreeStore((state) => state.ana
 export const useReplayActions = () => useBehaviorTreeStore((state) => state.replayActions);
 export const useReplayEvents = () => useBehaviorTreeStore((state) => state.executionEvents || []);
 export const useEventFilters = () => useBehaviorTreeStore((state) => state.eventFilter);
-export const useTimelineState = () => useBehaviorTreeStore((state) => ({
-  isPlaying: state.replayStatus === 'playing',
-  currentTime: state.currentTime,
-  duration: state.totalDuration || 0
-}));
+export const useTimelineState = () => {
+  const replayStatus = useBehaviorTreeStore((state) => state.replayStatus);
+  const currentTime = useBehaviorTreeStore((state) => state.currentTime);
+  const totalDuration = useBehaviorTreeStore((state) => state.totalDuration);
+
+  return useMemo(() => ({
+    isPlaying: replayStatus === 'playing',
+    currentTime,
+    duration: totalDuration || 0
+  }), [replayStatus, currentTime, totalDuration]);
+};

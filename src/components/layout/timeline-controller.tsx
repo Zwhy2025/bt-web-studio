@@ -10,7 +10,8 @@ import {
   useCurrentTime,
   useReplayStatus,
   useVisibleEvents,
-  useTimelineState
+  useTimelineState,
+  useReplayEvents
 } from '@/core/store/behavior-tree-store';
 import { useI18n } from '@/hooks/use-i18n';
 import { 
@@ -44,14 +45,14 @@ function PlaybackControls() {
 
   const handlePlay = useCallback(() => {
     if (isPlaying) {
-      replayActions.pausePlayback();
+      replayActions.pause();
     } else {
-      replayActions.startPlayback();
+      replayActions.play();
     }
   }, [isPlaying, replayActions]);
 
   const handleStop = useCallback(() => {
-    replayActions.stopPlayback();
+    replayActions.stop();
   }, [replayActions]);
 
   const handleStepBack = useCallback(() => {
@@ -63,12 +64,12 @@ function PlaybackControls() {
   }, [replayActions]);
 
   const handleJumpToStart = useCallback(() => {
-    replayActions.jumpToTime(0);
+    replayActions.seekToTime(0);
   }, [replayActions]);
 
   const handleJumpToEnd = useCallback(() => {
     if (replaySession) {
-      replayActions.jumpToTime(replaySession.duration);
+      replayActions.seekToTime(replaySession.duration);
     }
   }, [replayActions, replaySession]);
 
@@ -181,7 +182,7 @@ function PlaybackSpeedControl() {
 
   const handleSpeedChange = useCallback((speed: number) => {
     setPlaybackRate(speed);
-    replayActions.setPlaybackRate(speed);
+    replayActions.setPlaybackSpeed(speed);
     setCustomSpeed(false);
   }, [replayActions]);
 

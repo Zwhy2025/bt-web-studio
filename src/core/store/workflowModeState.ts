@@ -173,14 +173,14 @@ export const createWorkflowModeSlice: StateCreator<
       transitionProgress: 0
     }));
     
-    // 模拟过渡动画
+    // 模拟过渡动画（放慢以便可见的进度条）
     const animateTransition = async () => {
-      for (let progress = 0; progress <= 100; progress += 10) {
+      for (let progress = 0; progress <= 100; progress += 5) {
         set(state => ({
           ...state,
           transitionProgress: progress
         }));
-        await new Promise(resolve => setTimeout(resolve, 20));
+        await new Promise(resolve => setTimeout(resolve, 60));
       }
       
       // 完成切换
@@ -207,7 +207,25 @@ export const createWorkflowModeSlice: StateCreator<
         console.log(`Restoring state for mode: ${targetMode}`, targetModeState);
       }
     };
-    
+    // 安全超时兜底，防止意外情况下过渡卡住
+    setTimeout(() => {
+      const state = get();
+      if (state.isTransitioning && state.pendingMode === targetMode) {
+        set(s => ({
+          ...s,
+          previousMode: currentMode,
+          currentMode: targetMode,
+          pendingMode: null,
+          isTransitioning: false,
+          transitionProgress: 100,
+          modeHistory: [
+            ...s.modeHistory,
+            { mode: targetMode, timestamp: Date.now() }
+          ]
+        }));
+      }
+    }, 4000);
+
     animateTransition();
   };
   

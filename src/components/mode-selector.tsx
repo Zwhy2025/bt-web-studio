@@ -11,14 +11,7 @@ import {
 } from '@/core/store/behavior-tree-store';
 import { WorkflowMode } from '@/core/store/workflowModeState';
 import { useI18n } from '@/hooks/use-i18n';
-import { 
-  Edit, 
-  Bug, 
-  PlayCircle, 
-  Loader2,
-  CheckCircle,
-  AlertCircle 
-} from 'lucide-react';
+import { Edit, Bug, PlayCircle } from 'lucide-react';
 
 // 模式配置
 interface ModeConfig {
@@ -93,18 +86,7 @@ export function ModeSelector({
     }
   };
 
-  // 获取模式状态指示器
-  const getModeStatusIndicator = (mode: WorkflowMode) => {
-    if (isTransitioning && currentMode === mode) {
-      return <Loader2 className="h-3 w-3 animate-spin" />;
-    }
-    
-    if (currentMode === mode) {
-      return <CheckCircle className="h-3 w-3" />;
-    }
-    
-    return null;
-  };
+  // 顶部模式旁不显示加载/状态图标，保持简洁
 
   // 检查模式是否可切换
   const canSwitchToMode = (mode: WorkflowMode) => {
@@ -120,7 +102,7 @@ export function ModeSelector({
     const { mode, icon: Icon, labelKey, descriptionKey, color, activeColor } = config;
     const isActive = currentMode === mode;
     const canSwitch = canSwitchToMode(mode);
-    const statusIndicator = getModeStatusIndicator(mode);
+    const statusIndicator = null;
 
     const baseClasses = cn(
       'relative flex items-center gap-2 transition-all duration-200',
@@ -167,11 +149,7 @@ export function ModeSelector({
           </div>
         )}
         
-        {/* 过渡进度指示器 */}
-        {isTransitioning && currentMode === mode && (
-          <div className="absolute bottom-0 left-0 h-0.5 bg-current opacity-60 transition-all duration-300"
-               style={{ width: `${transitionProgress}%` }} />
-        )}
+        {/* 不显示模式按钮内的进度条 */}
       </div>
     );
 
@@ -228,16 +206,7 @@ export function ModeSelector({
     >
       {modeConfigs.map(renderModeItem)}
       
-      {/* 全局过渡状态指示器 */}
-      {isTransitioning && (
-        <div className="flex items-center gap-2 px-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          <span>{t('modes.switching')}</span>
-          <Badge variant="outline" className="text-xs">
-            {transitionProgress}%
-          </Badge>
-        </div>
-      )}
+      {/* 顶部不再展示全局过渡状态提示 */}
     </div>
   );
 }

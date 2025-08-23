@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useEffect, useState, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -18,35 +18,20 @@ import ReactFlow, {
   OnEdgesChange,
   OnDrop,
   OnDragOver,
-  XYPosition,
-  MarkerType,
   Panel,
 } from 'reactflow';
-import isEqual from 'lodash/isEqual';
 import { cn } from '@/core/utils/utils';
 import { useI18n } from '@/hooks/use-i18n';
-import { 
+import {
   useComposerActions,
   useActiveTool,
   useSelectedNodes,
   useSnapToGrid,
-  useCanvasConfig,
   useBehaviorTreeData
 } from '@/core/store/behavior-tree-store';
 import { ComposerTool } from '@/core/store/composerModeState';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Grid3X3,
-  Map,
-  ZoomIn,
-  ZoomOut,
-  Maximize,
-  RotateCcw,
-  Eye,
-  EyeOff,
-  Info
-} from 'lucide-react';
+import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info } from 'lucide-react';
 
 // 引入ReactFlow样式
 import 'reactflow/dist/style.css';
@@ -54,11 +39,6 @@ import 'reactflow/dist/style.css';
 // 自定义节点类型
 import { BehaviorTreeNode } from '../nodes/behavior-tree-node';
 import ControlSequenceNode from '../nodes/control-sequence-node';
-
-interface ComposerCanvasProps {
-  children?: React.ReactNode;
-  className?: string;
-}
 
 // 自定义节点类型映射
 const nodeTypes = {
@@ -71,12 +51,12 @@ const nodeTypes = {
 const defaultEdgeOptions = {
   animated: false,
   type: 'smoothstep',
-  markerEnd: { type: MarkerType.ArrowClosed },
+  // markerEnd: { type: MarkerType.ArrowClosed },
   style: { stroke: '#64748b', strokeWidth: 2 },
 };
 
 // 画布控制面板
-function CanvasControls({ 
+function CanvasControls({
   reactFlowInstance,
   showGrid,
   onToggleGrid,
@@ -110,61 +90,25 @@ function CanvasControls({
   return (
     <Panel position="top-right" className="flex flex-col gap-2">
       <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border rounded-md p-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleZoomIn}
-          className="h-8 w-8 p-0"
-          title={t('composer:canvas.zoomIn')}
-        >
+        <Button variant="ghost" size="sm" onClick={handleZoomIn} className="h-8 w-8 p-0" title={t('composer:canvas.zoomIn')}>
           <ZoomIn className="h-4 w-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleZoomOut}
-          className="h-8 w-8 p-0"
-          title={t('composer:canvas.zoomOut')}
-        >
+        <Button variant="ghost" size="sm" onClick={handleZoomOut} className="h-8 w-8 p-0" title={t('composer:canvas.zoomOut')}>
           <ZoomOut className="h-4 w-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleFitView}
-          className="h-8 w-8 p-0"
-          title={t('composer:canvas.fitView')}
-        >
+        <Button variant="ghost" size="sm" onClick={handleFitView} className="h-8 w-8 p-0" title={t('composer:canvas.fitView')}>
           <Maximize className="h-4 w-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleResetZoom}
-          className="h-8 w-8 p-0"
-          title={t('composer:canvas.resetZoom')}
-        >
+        <Button variant="ghost" size="sm" onClick={handleResetZoom} className="h-8 w-8 p-0" title={t('composer:canvas.resetZoom')}>
           <RotateCcw className="h-4 w-4" />
         </Button>
       </div>
 
       <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border rounded-md p-1">
-        <Button
-          variant={showGrid ? "default" : "ghost"}
-          size="sm"
-          onClick={onToggleGrid}
-          className="h-8 w-8 p-0"
-          title={t('composer:canvas.toggleGrid')}
-        >
+        <Button variant={showGrid ? "default" : "ghost"} size="sm" onClick={onToggleGrid} className="h-8 w-8 p-0" title={t('composer:canvas.toggleGrid')}>
           <Grid3X3 className="h-4 w-4" />
         </Button>
-        <Button
-          variant={showMiniMap ? "default" : "ghost"}
-          size="sm"
-          onClick={onToggleMiniMap}
-          className="h-8 w-8 p-0"
-          title={t('composer:canvas.toggleMiniMap')}
-        >
+        <Button variant={showMiniMap ? "default" : "ghost"} size="sm" onClick={onToggleMiniMap} className="h-8 w-8 p-0" title={t('composer:canvas.toggleMiniMap')}>
           <Map className="h-4 w-4" />
         </Button>
       </div>
@@ -173,12 +117,12 @@ function CanvasControls({
 }
 
 // 画布信息面板
-function CanvasInfo({ 
-  nodeCount, 
+function CanvasInfo({
+  nodeCount,
   selectedNodeCount,
-  zoomLevel 
-}: { 
-  nodeCount: number; 
+  zoomLevel
+}: {
+  nodeCount: number;
   selectedNodeCount: number;
   zoomLevel: number;
 }) {
@@ -203,10 +147,10 @@ function CanvasInfo({
 }
 
 // ReactFlow画布组件
-function ReactFlowCanvas({ 
+function ReactFlowCanvas({
   className,
-  children 
-}: { 
+  children
+}: {
   className?: string;
   children?: React.ReactNode;
 }) {
@@ -215,66 +159,29 @@ function ReactFlowCanvas({
   const activeTool = useActiveTool();
   const selectedNodes = useSelectedNodes();
   const snapToGrid = useSnapToGrid();
-  const canvasConfig = useCanvasConfig();
   const behaviorTreeData = useBehaviorTreeData();
 
-  // ReactFlow实例
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
-  // 画布状态
   const [showGrid, setShowGrid] = useState(true);
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  // 初始化节点和边
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // 分别获取节点和边，避免对象引用变化导致的无限循环
-  const treeNodes = useMemo(() => behaviorTreeData?.nodes || [], [behaviorTreeData?.nodes]);
-  const treeEdges = useMemo(() => behaviorTreeData?.edges || [], [behaviorTreeData?.edges]);
-
-  // 创建一个自定义的深度比较hook来避免无限循环
-  const useDeepCompareMemo = (value: any, deps: any[]) => {
-    const ref = useRef();
-    
-    if (!ref.current || !isEqual(ref.current, value)) {
-      ref.current = value;
-    }
-    
-    return useMemo(() => ref.current, deps);
-  };
-
-  // 使用自定义hook来处理节点和边的更新
-  const stableTreeNodes = useDeepCompareMemo(treeNodes, [treeNodes]);
-  const stableTreeEdges = useDeepCompareMemo(treeEdges, [treeEdges]);
-
-  // 仅在实际数据变化时同步 - 修复无限循环问题
   useEffect(() => {
-    if (stableTreeNodes.length > 0 || (stableTreeNodes.length === 0 && nodes.length > 0)) {
-      setNodes((prevNodes) => {
-        // 只有当节点实际发生变化时才更新
-        if (!isEqual(prevNodes, stableTreeNodes)) {
-          return stableTreeNodes;
-        }
-        return prevNodes;
-      });
+    if (behaviorTreeData && behaviorTreeData.nodes) {
+      setNodes(behaviorTreeData.nodes);
     }
-  }, [stableTreeNodes, setNodes]);
+  }, [behaviorTreeData?.nodes, setNodes]);
 
   useEffect(() => {
-    if (stableTreeEdges.length > 0 || (stableTreeEdges.length === 0 && edges.length > 0)) {
-      setEdges((prevEdges) => {
-        // 只有当边实际发生变化时才更新
-        if (!isEqual(prevEdges, stableTreeEdges)) {
-          return stableTreeEdges;
-        }
-        return prevEdges;
-      });
+    if (behaviorTreeData && behaviorTreeData.edges) {
+      setEdges(behaviorTreeData.edges);
     }
-  }, [stableTreeEdges, setEdges]);
+  }, [behaviorTreeData?.edges, setEdges]);
 
-  // 连接处理
   const onConnect: OnConnect = useCallback((connection: Connection) => {
     const edge = {
       ...connection,
@@ -285,7 +192,6 @@ function ReactFlowCanvas({
     composerActions.addConnection(connection);
   }, [setEdges, composerActions]);
 
-  // 拖拽处理
   const onDragOver: OnDragOver = useCallback((event) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
@@ -300,12 +206,11 @@ function ReactFlowCanvas({
       y: event.clientY - reactFlowBounds.top,
     });
 
-    // 获取拖拽数据
     const data = event.dataTransfer.getData('application/json');
     if (!data || !position) return;
 
     try {
-      const { type, nodeType, nodeData } = JSON.parse(data);
+      const { type, nodeData } = JSON.parse(data);
       if (type === 'node') {
         const newNode: Node = {
           id: `node-${Date.now()}`,
@@ -328,16 +233,14 @@ function ReactFlowCanvas({
     }
   }, [reactFlowInstance, snapToGrid, setNodes, composerActions]);
 
-  // 节点选择处理
   const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
     composerActions.setSelectedNodes(selectedNodes.map(node => node.id));
   }, [composerActions]);
 
-  // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || 
-          event.target instanceof HTMLTextAreaElement) {
+      if (event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement) {
         return;
       }
 
@@ -364,7 +267,6 @@ function ReactFlowCanvas({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNodes, composerActions]);
 
-  // 监听缩放和位置变化
   const onMove = useCallback((_: React.MouseEvent, viewport: { x: number; y: number; zoom: number }) => {
     setZoomLevel(viewport.zoom);
   }, []);
@@ -387,7 +289,7 @@ function ReactFlowCanvas({
         connectionMode={ConnectionMode.Loose}
         snapToGrid={snapToGrid}
         snapGrid={[20, 20]}
-        deleteKeyCode={null} // 禁用默认删除，使用自定义处理
+        deleteKeyCode={null}
         multiSelectionKeyCode={['Meta', 'Control']}
         panOnDrag={activeTool === ComposerTool.PAN}
         selectionOnDrag={activeTool === ComposerTool.SELECT}
@@ -401,21 +303,11 @@ function ReactFlowCanvas({
       >
         {/* 背景网格 */}
         {showGrid && (
-          <Background 
-            variant={BackgroundVariant.Dots} 
-            gap={20} 
-            size={1}
-            color="#e2e8f0"
-          />
+          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />
         )}
 
         {/* 控制器 */}
-        <Controls 
-          showZoom={false}
-          showFitView={false}
-          showInteractive={false}
-          position="bottom-right"
-        />
+        <Controls showZoom={false} showFitView={false} showInteractive={false} position="bottom-right" />
 
         {/* 小地图 */}
         {showMiniMap && (
@@ -449,11 +341,7 @@ function ReactFlowCanvas({
         />
 
         {/* 画布信息面板 */}
-        <CanvasInfo
-          nodeCount={nodes.length}
-          selectedNodeCount={selectedNodes.length}
-          zoomLevel={zoomLevel}
-        />
+        <CanvasInfo nodeCount={nodes.length} selectedNodeCount={selectedNodes.length} zoomLevel={zoomLevel} />
 
         {/* 空状态提示 */}
         {nodes.length === 0 && (
@@ -462,29 +350,22 @@ function ReactFlowCanvas({
               <div className="text-muted-foreground mb-2">
                 <Grid3X3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               </div>
-              <h3 className="text-lg font-medium mb-2">
-                {t('composer:canvas.emptyTitle')}
-              </h3>
-              <p className="text-sm text-muted-foreground max-w-xs">
-                {t('composer:canvas.emptyDescription')}
-              </p>
+              <h3 className="text-lg font-medium mb-2">{t('composer:canvas.emptyTitle')}</h3>
+              <p className="text-sm text-muted-foreground max-w-xs">{t('composer:canvas.emptyDescription')}</p>
             </div>
           </Panel>
         )}
       </ReactFlow>
-
       {children}
     </div>
   );
 }
 
 // 主画布组件
-export default function ComposerCanvas({ children, className }: ComposerCanvasProps) {
+export default function ComposerCanvas({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
     <ReactFlowProvider>
-      <ReactFlowCanvas className={className}>
-        {children}
-      </ReactFlowCanvas>
+      <ReactFlowCanvas className={className}>{children}</ReactFlowCanvas>
     </ReactFlowProvider>
   );
 }

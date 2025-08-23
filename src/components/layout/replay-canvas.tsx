@@ -23,7 +23,8 @@ import {
   useVisibleEvents,
   useTimelineMarkers,
   useBehaviorTreeData,
-  useReplayActions
+  useReplayActions,
+  useTimelineState
 } from '@/core/store/behavior-tree-store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';

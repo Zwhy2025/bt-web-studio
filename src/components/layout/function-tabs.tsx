@@ -8,7 +8,7 @@ import { useBehaviorTreeStore, useCurrentMode, useDebugActions } from '@/core/st
 import { DebugSessionStatus } from '@/core/store/debugModeState';
 import { WorkflowMode } from '@/core/store/workflowModeState';
 import { 
-  FileText, FolderPlus, Save, Upload, Download,
+  FileText, Upload, Download,
   Link2, Link2Off, Wifi, WifiOff,
   ClipboardList, HelpCircle
 } from 'lucide-react';
@@ -31,13 +31,11 @@ export const getVisibleTabsForMode = (mode: WorkflowMode): FunctionTabKey[] => {
 interface FunctionTabsProps {
   className?: string;
   // File actions
-  onNewProject?: () => void;
   onImportClick?: () => void;
   onExportClick?: () => void;
-  onSave?: () => void;
 }
 
-export function FunctionTabs({ className, onNewProject, onImportClick, onExportClick, onSave }: FunctionTabsProps) {
+export function FunctionTabs({ className, onImportClick, onExportClick }: FunctionTabsProps) {
   const { t } = useI18n();
   const mode = useCurrentMode();
   const debugActions = useDebugActions();
@@ -64,13 +62,57 @@ export function FunctionTabs({ className, onNewProject, onImportClick, onExportC
   const handleLoadReplayFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // For now, create a mock session from the filename; real parsing lives elsewhere
     const replayActions = (useBehaviorTreeStore.getState() as any).replayActions as any;
-    if (replayActions?.loadSession) {
-      replayActions.loadSession(file.name);
-    }
-    // reset input to allow re-select same file
-    e.currentTarget.value = '';
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || '');
+        let events: any[] = [];
+
+        // Try JSON first
+        try {
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            events = parsed;
+          } else if (Array.isArray((parsed as any).events)) {
+            events = (parsed as any).events;
+          }
+        } catch {
+          // Not JSON — fallback: treat each non-empty line as a tick event
+          const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+          const start = Date.now();
+          events = lines.map((line, idx) => ({
+            id: `${idx}`,
+            timestamp: start + idx * 10,
+            nodeId: 'node-1',
+            type: 'tick',
+            status: 'success',
+            payload: line
+          }));
+        }
+
+        // Normalize minimal shape for replay slice
+        const normalized = events.map((e, idx) => ({
+          id: e.id ?? String(idx),
+          timestamp: typeof e.timestamp === 'number' ? e.timestamp : Date.now() + idx * 10,
+          nodeId: e.nodeId ?? e.node_id ?? 'node-1',
+          type: e.type ?? 'tick',
+          status: e.status ?? 'success',
+        }));
+
+        if (replayActions?.createSessionFromEvents) {
+          replayActions.createSessionFromEvents(normalized, { source: file.name });
+        } else if (replayActions?.loadSession) {
+          // Fallback to filename-only loader
+          replayActions.loadSession(file.name);
+        }
+      } finally {
+        // reset input to allow re-select same file
+        e.currentTarget.value = '';
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -85,20 +127,13 @@ export function FunctionTabs({ className, onNewProject, onImportClick, onExportC
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onNewProject}>
-              <FolderPlus className="h-4 w-4 mr-2" /> {t('menu:newProject') || 'New Project'}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onImportClick}>
               <Upload className="h-4 w-4 mr-2" /> {t('menu:importXML') || 'Import XML'}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={onExportClick}>
               <Download className="h-4 w-4 mr-2" /> {t('menu:exportXML') || 'Export XML'}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onSave}>
-              <Save className="h-4 w-4 mr-2" /> {t('menu:save') || 'Save'}
-            </DropdownMenuItem>
+            {/* 无保存按钮 */}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
