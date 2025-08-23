@@ -1,0 +1,124 @@
+{
+  "title": "Composer Mode",
+  "description": "Visual behavior tree editing and composition",
+  "toolbar": {
+    "title": "Composer Toolbar",
+    "newTree": "New Tree",
+    "openTree": "Open Tree",
+    "saveTree": "Save Tree",
+    "exportTree": "Export Tree",
+    "importTree": "Import Tree",
+    "validate": "Validate Tree",
+    "autoLayout": "Auto Layout",
+    "settings": "Composer Settings",
+    "undo": "Undo",
+    "redo": "Redo",
+    "copy": "Copy",
+    "paste": "Paste",
+    "delete": "Delete",
+    "selectAll": "Select All",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "fitView": "Fit View",
+    "resetZoom": "Reset Zoom"
+  },
+  "nodeLibrary": {
+    "title": "Node Library",
+    "search": "Search nodes...",
+    "categories": {
+      "all": "All",
+      "control": "Control",
+      "decorator": "Decorator", 
+      "action": "Action",
+      "condition": "Condition",
+      "subtree": "SubTree"
+    },
+    "filters": {
+      "title": "Filters",
+      "showBuiltIn": "Built-in Nodes",
+      "showCustom": "Custom Nodes",
+      "showFavorites": "Favorites"
+    },
+    "actions": {
+      "addToFavorites": "Add to Favorites",
+      "removeFromFavorites": "Remove from Favorites",
+      "viewDocumentation": "View Documentation",
+      "createCustom": "Create Custom Node"
+    },
+    "dragHint": "Drag nodes to canvas to add them"
+  },
+  "propertyPanel": {
+    "title": "Properties",
+    "nodeProperties": "Node Properties",
+    "generalSettings": "General Settings",
+    "advancedSettings": "Advanced Settings",
+    "validation": "Validation",
+    "documentation": "Documentation",
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "enabled": "Enabled",
+      "id": "ID",
+      "type": "Type",
+      "category": "Category"
+    },
+    "actions": {
+      "apply": "Apply",
+      "reset": "Reset",
+      "defaults": "Reset to Defaults"
+    },
+    "validation": {
+      "required": "This field is required",
+      "invalid": "Invalid value",
+      "duplicate": "Duplicate name"
+    }
+  },
+  "canvas": {
+    "title": "Behavior Tree Canvas",
+    "loading": "Loading canvas...",
+    "loadingDesc": "Preparing the behavior tree editor",
+    "emptyTitle": "Start Building Your Behavior Tree",
+    "emptyDescription": "Drag nodes from the library to begin creating your behavior tree",
+    "controls": {
+      "zoomIn": "Zoom In",
+      "zoomOut": "Zoom Out",
+      "fitView": "Fit to View",
+      "resetZoom": "Reset Zoom",
+      "toggleGrid": "Toggle Grid",
+      "toggleMiniMap": "Toggle Mini Map"
+    },
+    "nodeCount": "{{count}} nodes",
+    "selectedNodes": "{{count}} selected",
+    "zoom": "{{level}}%",
+    "validation": {
+      "errors": "{{count}} errors",
+      "warnings": "{{count}} warnings",
+      "valid": "Tree is valid"
+    }
+  },
+  "actions": {
+    "newFile": "New File",
+    "openFile": "Open File", 
+    "saveFile": "Save File",
+    "saveAsFile": "Save As...",
+    "export": "Export",
+    "import": "Import",
+    "validate": "Validate",
+    "autoLayout": "Auto Layout",
+    "toggleGrid": "Toggle Grid",
+    "toggleSnap": "Toggle Snap to Grid"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "newFile": "Ctrl+N",
+    "openFile": "Ctrl+O",
+    "saveFile": "Ctrl+S",
+    "undo": "Ctrl+Z",
+    "redo": "Ctrl+Y",
+    "copy": "Ctrl+C",
+    "paste": "Ctrl+V",
+    "delete": "Delete",
+    "selectAll": "Ctrl+A",
+    "validate": "F5"
+  }
+}

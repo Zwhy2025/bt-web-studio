@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # 前端服务
+  frontend:
+    build: .
+    ports:
+      - "3000:3000"
+    depends_on:
+      - proxy
+    environment:
+      - VITE_PROXY_URL=ws://proxy:8080
+    networks:
+      - bt-network
+
+  # Python WebSocket 代理
+  proxy:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - BT_IP=host.docker.internal
+      - REQ_PORT=1234
+      - PUB_PORT=1235
+    networks:
+      - bt-network
+    # 允许访问主机网络（用于连接主机上的 BehaviorTree.CPP 应用）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # BehaviorTree.CPP 示例应用（可选）
+  # bt-app:
+  #   image: your-bt-app-image
+  #   ports:
+  #     - "1234:1234"
+  #     - "1235:1235"
+  #   networks:
+  #     - bt-network
+
+networks:
+  bt-network:
+    driver: bridge

@@ -1,204 +1,113 @@
-import React, { useCallback, useEffect, useState, useRef } from "react"
+import React, { useState } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
-import {
-    Menubar,
-    MenubarMenu,
-    MenubarTrigger,
-    MenubarContent,
-    MenubarItem,
-    MenubarSeparator,
-} from "@/components/ui/menubar"
-import { Button } from "@/components/ui/button"
 import { ImportDialog, ExportDialog } from "@/components/xml-dialog"
-import { Input } from "@/components/ui/input"
-import { Separator } from "@/components/ui/separator"
-import {
-    ResizablePanelGroup,
-    ResizablePanel,
-    ResizableHandle,
-} from "@/components/ui/resizable"
-import { CollapsibleLayout, PanelStatusIndicator } from '@/components/layout/collapsible-layout'
-import {
-    Play,
-    Pause,
-    RefreshCcw,
-    Save,
-    Import,
-    Download,
-    Search,
-    Bug,
-    Plus,
-    CheckCircle2,
-    XCircle,
-    Brain,
-    Signal,
-    RotateCcw,
-    RotateCw,
-    Copy,
-    ClipboardPaste,
-    Trash2,
-    Info,
-    Grid3X3,
-    AlignLeft,
-    Plug,
-    StepForward,
-    Square,
-} from "lucide-react"
-import { RightInspector } from "@/components/right-inspector"
-import ReactFlow, {
-    Background,
-    BackgroundVariant,
-    Controls,
-    MiniMap,
-    Node,
-    Edge,
-    addEdge,
-    Connection,
-    useEdgesState,
-    useNodesState,
-    ReactFlowProvider,
-    useReactFlow,
-    MarkerType,
-    ConnectionLineType,
-    ConnectionMode,
-    NodeDragHandler,
-    OnSelectionChangeParams,
-    OnNodesChange,
-    OnEdgesChange,
-    applyNodeChanges,
-    applyEdgeChanges,
-} from "reactflow"
+import { Node, Edge } from "reactflow"
+import { useToast } from "@/hooks/use-toast"
+import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
+import { useI18n } from "@/hooks/use-i18n"
+import { TopBar } from "@/components/layout/top-bar"
+import { TabBar } from "@/components/tab-bar"
+import { ModeAwareLayout } from "@/components/layout/mode-aware-layout"
+import { PanelStatusIndicator } from '@/components/layout/collapsible-layout'
 
 import "reactflow/dist/style.css"
-import { nodeTypes } from "@/components/canvas/custom-nodes"
-import { useToast } from "@/hooks/use-toast"
-import {
-    ContextMenu,
-    ContextMenuTrigger,
-    ContextMenuContent,
-    ContextMenuItem,
-    ContextMenuSeparator,
-    ContextMenuLabel,
-    ContextMenuShortcut,
-    ContextMenuSub,
-    ContextMenuSubTrigger,
-    ContextMenuSubContent,
-} from "@/components/ui/context-menu"
-import {
-    TooltipProvider,
-    Tooltip,
-    TooltipTrigger,
-    TooltipContent,
-} from "@/components/ui/tooltip"
-import { HistoryManager } from "@/core/utils/history-utils"
-import { autoLayoutTree, scatterNodes } from "@/core/layout/auto-layout-utils"
-import {
-    calculateAlignmentGuides,
-    alignNodes,
-    GRID_SIZE,
-    AlignmentGuide,
-    getNodesInSelectionBox,
-} from "@/core/layout/alignment-utils"
-import {
-    AlignmentGuides,
-    GridSnapIndicator,
-    SelectionBox,
-    GridBackground,
-    AlignmentToolbar
-} from "@/components/canvas/alignment-guides"
-import { BlackboardPanel } from "@/components/blackboard-panel"
-import { TabBar } from "@/components/tab-bar"
-import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
-import { TimelinePanel, createSampleTimelineState } from "@/components/layout/timeline-panel"
-import { LeftPalette } from "@/components/layout/left-palette"
-import { useI18n } from "@/hooks/use-i18n"
-
-import { TopBar } from "@/components/layout/top-bar"
-
-import { BottomTimeline } from "@/components/layout/bottom-timeline"
-
-// ---------- Canvas with React Flow ----------
-type PaletteType =
-    | "action"
-    | "condition"
-    | "control-sequence"
-    | "control-selector"
-    | "decorator"
-    | "subtree"
-
-const initialNodes: Node[] = [
-    {
-        id: "root",
-        position: { x: 100, y: 80 },
-        data: { label: "Root (Sequence)" },
-        type: "control-sequence",
-    },
-]
-
-const initialEdges: Edge[] = []
-
-
-import { BtCanvas } from '@/components/layout/bt-canvas';
 
 function AppContent() {
     const { t } = useI18n()
-    const actions = useBehaviorTreeStore(state => state.actions);
-    const { toast } = useToast();
+    const actions = useBehaviorTreeStore(state => state.actions)
+    const { toast } = useToast()
 
-    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(undefined);
-    const [exportNodes, setExportNodes] = useState<Node[]>([]);
-    const [exportEdges, setExportEdges] = useState<Edge[]>([]);
+    // 对话框状态
+    const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+    const [exportNodes, setExportNodes] = useState<Node[]>([])
+    const [exportEdges, setExportEdges] = useState<Edge[]>([])
 
     // 创建新项目
     const handleNewProject = () => {
-        const projectName = `${t('menu:newProject')} ${new Date().toLocaleTimeString()}`;
-        actions.createSession(projectName);
+        const projectName = `${t('menu:newProject')} ${new Date().toLocaleTimeString()}`
+        actions.createSession(projectName)
         toast({
             title: t('messages:projectCreated'),
             description: `${t('messages:projectCreatedDesc')}：${projectName}`
-        });
-    };
+        })
+    }
+
+    // 保存项目
+    const handleSave = () => {
+        // TODO: 实现保存逻辑
+        toast({
+            title: t('messages:projectSaved'),
+            description: t('messages:projectSavedDesc')
+        })
+    }
+
+    // 撤销操作
+    const handleUndo = () => {
+        // TODO: 实现撤销逻辑
+        console.log('Undo operation')
+    }
+
+    // 重做操作
+    const handleRedo = () => {
+        // TODO: 实现重做逻辑
+        console.log('Redo operation')
+    }
 
     // 导入数据
     const handleImport = (nodes: Node[], edges: Edge[]) => {
-        actions.importData(nodes, edges);
-        setIsImportDialogOpen(false);
+        actions.importData(nodes, edges)
+        setIsImportDialogOpen(false)
         toast({
             title: t('messages:importSuccess'),
-            description: t('messages:importSuccessDesc').replace('{{nodes}}', nodes.length.toString()).replace('{{edges}}', edges.length.toString())
-        });
-    };
+            description: t('messages:importSuccessDesc')
+                .replace('{{nodes}}', nodes.length.toString())
+                .replace('{{edges}}', edges.length.toString())
+        })
+    }
+
+    // 设置导出数据
+    const handleExportData = (nodes: Node[], edges: Edge[]) => {
+        setExportNodes(nodes)
+        setExportEdges(edges)
+    }
 
     return (
         <div className="h-screen w-screen bg-background text-foreground flex flex-col overflow-hidden">
+            {/* 顶部栏 */}
             <TopBar
                 onImportClick={() => setIsImportDialogOpen(true)}
                 onExportClick={() => setIsExportDialogOpen(true)}
                 onNewProject={handleNewProject}
+                onSave={handleSave}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
             />
+            
+            {/* 标签栏 */}
             <TabBar />
+            
+            {/* 主内容区域 - 使用模式感知布局 */}
             <main className="flex-1 min-h-0">
-                <CollapsibleLayout
-                    leftPanel={<LeftPalette />}
-                    centerPanel={
-                        <BtCanvas
-                            onNodesExport={setExportNodes}
-                            onEdgesExport={setExportEdges}
-                            onSelectionChange={setSelectedNodeId}
-                        />
-                    }
-                    rightPanel={<RightInspector selectedNodeId={selectedNodeId} />}
-                    bottomPanel={<BottomTimeline />}
-                />
+                <ModeAwareLayout>
+                    {/* 这里的children将被传递给各个模式的布局组件 */}
+                    <div className="flex-1 flex">
+                        {/* 模式特定的内容将在各自的布局组件中渲染 */}
+                    </div>
+                </ModeAwareLayout>
             </main>
+            
+            {/* 面板状态指示器 */}
             <PanelStatusIndicator />
+            
+            {/* 导入对话框 */}
             <ImportDialog
                 open={isImportDialogOpen}
                 onOpenChange={setIsImportDialogOpen}
                 onImport={handleImport}
             />
+            
+            {/* 导出对话框 */}
             <ExportDialog
                 open={isExportDialogOpen}
                 onOpenChange={setIsExportDialogOpen}
@@ -206,7 +115,7 @@ function AppContent() {
                 edges={exportEdges}
             />
         </div>
-    );
+    )
 }
 
 function App() {

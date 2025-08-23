@@ -1,0 +1,153 @@
+{
+  "title": "Replay Mode",
+  "description": "Timeline replay and session analysis",
+  "toolbar": {
+    "title": "Replay Toolbar",
+    "load": "Load",
+    "save": "Save", 
+    "export": "Export",
+    "loadSession": "Load Session File",
+    "saveSession": "Save Current Session",
+    "exportFormats": "Export Formats",
+    "searchEvents": "Search events...",
+    "filters": "Filters",
+    "view": "View",
+    "visualizations": "Visualizations",
+    "executionPath": "Execution Path",
+    "nodeAnimations": "Node Animations",
+    "eventMarkers": "Event Markers",
+    "eventTypes": "Event Types",
+    "eventLevels": "Event Levels",
+    "clearFilters": "Clear Filters",
+    "noSession": "No Session"
+  },
+  "controls": {
+    "play": "Play",
+    "pause": "Pause", 
+    "stop": "Stop",
+    "stepBack": "Step Backward",
+    "stepForward": "Step Forward",
+    "jumpToStart": "Jump to Start",
+    "jumpToEnd": "Jump to End",
+    "speed": "Playback Speed"
+  },
+  "timeline": {
+    "currentTime": "Current Time",
+    "totalTime": "Total Time", 
+    "position": "Position",
+    "duration": "Duration",
+    "markers": "Timeline Markers",
+    "embedded": "Timeline view embedded in controller"
+  },
+  "events": {
+    "title": "Events",
+    "count": "events",
+    "items": "items",
+    "searchPlaceholder": "Search events...",
+    "filters": "Filters",
+    "advanced": "Advanced",
+    "showTimestamps": "Show Timestamps",
+    "groupByCategory": "Group by Category",
+    "clearFilters": "Clear All Filters",
+    "noEvents": "No Events",
+    "noEventsDesc": "Load a replay session to view events",
+    "noMatches": "No Matching Events",
+    "types": {
+      "node_enter": "Node Enter",
+      "node_exit": "Node Exit", 
+      "node_success": "Node Success",
+      "node_failure": "Node Failure",
+      "blackboard_update": "Blackboard Update",
+      "custom": "Custom"
+    },
+    "levels": {
+      "info": "Info",
+      "warning": "Warning",
+      "error": "Error",
+      "debug": "Debug"
+    },
+    "stats": {
+      "total": "Total",
+      "visible": "Visible"
+    },
+    "clickToEdit": "Click to edit",
+    "evaluationError": "Evaluation error",
+    "lastUpdated": "Last updated",
+    "refresh": "Refresh",
+    "edit": "Edit"
+  },
+  "panels": {
+    "events": "Events",
+    "analysis": "Analysis"
+  },
+  "tabs": {
+    "events": "Events",
+    "timeline": "Timeline",
+    "analysis": "Analysis", 
+    "statistics": "Statistics"
+  },
+  "analysis": {
+    "title": "Data Analysis",
+    "refresh": "Refresh Analysis",
+    "tabs": {
+      "analysis": "Analysis",
+      "statistics": "Statistics"
+    },
+    "performance": {
+      "title": "Performance Analysis",
+      "overall": "Overall Performance",
+      "totalTime": "Total Time",
+      "avgTime": "Average Time", 
+      "successRate": "Success Rate",
+      "failureRate": "Failure Rate",
+      "nodeAnalysis": "Node Analysis",
+      "mostActive": "Most Active Node",
+      "slowest": "Slowest Node",
+      "executions": "executions"
+    },
+    "heatmap": {
+      "title": "Execution Heatmap", 
+      "noData": "No data available"
+    },
+    "statistics": {
+      "overview": "Statistics Overview",
+      "totalEvents": "Total Events",
+      "eventsPerSecond": "Events/sec",
+      "byType": "By Event Type",
+      "byLevel": "By Event Level"
+    },
+    "export": {
+      "title": "Export Analysis Data"
+    }
+  },
+  "canvas": {
+    "title": "Replay Canvas",
+    "loading": "Loading replay session...",
+    "loadingDesc": "Preparing timeline visualization",
+    "emptyTitle": "No Replay Session",
+    "emptyDescription": "Load a session file to start replay analysis",
+    "fitView": "Fit to View",
+    "toggleExecutionPath": "Toggle Execution Path",
+    "toggleAnimations": "Toggle Animations",
+    "nodeCount": "{{count}} nodes",
+    "activeNodes": "{{count}} active",
+    "nearbyEvents": "Nearby Events"
+  },
+  "node": {
+    "executions": "Executions",
+    "avgTime": "Avg Time",
+    "successRate": "Success Rate",
+    "events": "events"
+  },
+  "status": {
+    "noSession": "No Session",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "playing": "Playing",
+    "paused": "Paused",
+    "stopped": "Stopped",
+    "loading": "Loading",
+    "idle": "Idle"
+  },
+  "loadSession": "Load Session"
+}

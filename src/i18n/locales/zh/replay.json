@@ -1,0 +1,152 @@
+{
+  "title": "回放模式",
+  "description": "时间轴回放和会话分析",
+  "toolbar": {
+    "title": "回放工具栏",
+    "load": "加载",
+    "save": "保存",
+    "export": "导出",
+    "loadSession": "加载会话文件",
+    "saveSession": "保存当前会话",
+    "exportFormats": "导出格式",
+    "searchEvents": "搜索事件...",
+    "filters": "过滤器",
+    "view": "视图",
+    "visualizations": "可视化选项",
+    "executionPath": "执行路径",
+    "nodeAnimations": "节点动画",
+    "eventMarkers": "事件标记",
+    "eventTypes": "事件类型",
+    "eventLevels": "事件级别",
+    "clearFilters": "清除过滤器",
+    "noSession": "无会话"
+  },
+  "controls": {
+    "play": "播放",
+    "pause": "暂停",
+    "stop": "停止",
+    "stepBack": "后退一步",
+    "stepForward": "前进一步",
+    "jumpToStart": "跳到开始",
+    "jumpToEnd": "跳到结束",
+    "speed": "播放速度"
+  },
+  "timeline": {
+    "currentTime": "当前时间",
+    "totalTime": "总时间",
+    "position": "位置",
+    "duration": "持续时间",
+    "markers": "时间轴标记",
+    "embedded": "时间轴视图嵌入在控制器中"
+  },
+  "events": {
+    "title": "事件",
+    "count": "个事件",
+    "items": "项",
+    "searchPlaceholder": "搜索事件...",
+    "filters": "过滤器",
+    "advanced": "高级选项",
+    "showTimestamps": "显示时间戳",
+    "groupByCategory": "按分类分组",
+    "clearFilters": "清除所有过滤器",
+    "noEvents": "无事件",
+    "noEventsDesc": "加载回放会话以查看事件",
+    "noMatches": "无匹配事件",
+    "types": {
+      "node_enter": "节点进入",
+      "node_exit": "节点退出",
+      "node_success": "节点成功",
+      "node_failure": "节点失败",
+      "blackboard_update": "黑板更新",
+      "custom": "自定义"
+    },
+    "levels": {
+      "info": "信息",
+      "warning": "警告",
+      "error": "错误",
+      "debug": "调试"
+    },
+    "stats": {
+      "total": "总计",
+      "visible": "可见"
+    },
+    "clickToEdit": "点击编辑",
+    "evaluationError": "计算错误",
+    "lastUpdated": "最后更新",
+    "refresh": "刷新",
+    "edit": "编辑"
+  },
+  "panels": {
+    "events": "事件面板",
+    "analysis": "分析面板"
+  },
+  "tabs": {
+    "events": "事件",
+    "timeline": "时间轴",
+    "analysis": "分析",
+    "statistics": "统计"
+  },
+  "analysis": {
+    "title": "数据分析",
+    "refresh": "刷新分析",
+    "tabs": {
+      "analysis": "分析",
+      "statistics": "统计"
+    },
+    "performance": {
+      "title": "性能分析",
+      "overall": "整体性能",
+      "totalTime": "总耗时",
+      "avgTime": "平均耗时",
+      "successRate": "成功率",
+      "failureRate": "失败率",
+      "nodeAnalysis": "节点分析",
+      "mostActive": "最活跃节点",
+      "slowest": "最慢节点",
+      "executions": "次执行"
+    },
+    "heatmap": {
+      "title": "执行热力图",
+      "noData": "无数据"
+    },
+    "statistics": {
+      "overview": "统计概览",
+      "totalEvents": "事件总数",
+      "eventsPerSecond": "事件/秒",
+      "byType": "按事件类型",
+      "byLevel": "按事件级别"
+    },
+    "export": {
+      "title": "导出分析数据"
+    }
+  },
+  "canvas": {
+    "title": "回放画布",
+    "loading": "加载回放会话中...",
+    "loadingDesc": "正在准备时间轴可视化",
+    "emptyTitle": "无回放会话",
+    "emptyDescription": "加载会话文件以开始回放分析",
+    "fitView": "适应视图",
+    "toggleExecutionPath": "切换执行路径",
+    "toggleAnimations": "切换动画",
+    "nodeCount": "{{count}} 个节点",
+    "activeNodes": "{{count}} 个活跃",
+    "nearbyEvents": "附近事件"
+  },
+  "node": {
+    "executions": "执行次数",
+    "avgTime": "平均耗时",
+    "successRate": "成功率",
+    "events": "个事件"
+  },
+  "status": {
+    "noSession": "无会话",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "playing": "播放中",
+    "paused": "已暂停",
+    "stopped": "已停止",
+    "loading": "加载中",
+    "idle": "空闲"
+  }
+}

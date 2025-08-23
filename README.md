@@ -100,6 +100,14 @@
 * [x] **多语言支持**: 支持多语言，如中文、英文等。
 
 
+## 文档
+
+有关更详细的使用和部署信息，请参阅以下文档：
+
+* [用户使用指南](docs/user-guide.md) - 详细介绍 BT Web Studio 的功能和使用方法
+* [部署指南](docs/deployment-guide.md) - 介绍如何部署 BT Web Studio 到生产环境
+
+
 ## 贡献
 
 欢迎任何形式的贡献！如果您有任何建议、发现 Bug 或希望添加新功能，请随时创建 [Issue](https://github.com/Zwhy2025/bt-web-studio/issues) 或提交 [Pull Request](https://github.com/Zwhy2025/bt-web-studio/pulls)。

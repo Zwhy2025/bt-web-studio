@@ -71,5 +71,33 @@
   "normal": "正常",
   "high": "高",
   "yes": "是",
-  "no": "否"
+  "no": "否",
+  "file": "文件",
+  "share": "分享",
+  "modes": {
+    "composer": {
+      "label": "编排模式"
+    },
+    "debug": {
+      "label": "调试模式"
+    },
+    "replay": {
+      "label": "回放模式"
+    }
+  },
+  "share": "分享",
+  "modes": {
+    "composer": {
+      "label": "编排模式",
+      "description": "编辑和设计行为树"
+    },
+    "debug": {
+      "label": "调试模式",
+      "description": "调试和监控执行"
+    },
+    "replay": {
+      "label": "回放模式",
+      "description": "分析和回放日志"
+    }
+  }
 }

@@ -1,0 +1,337 @@
+/* 模式化布局专用样式 */
+
+/* 编排模式专用样式 */
+.composer-mode {
+  /* 编排模式主色调 - 蓝色系 */
+  --mode-primary: 217 91% 60%;
+  --mode-primary-foreground: 220 13% 8%;
+  --mode-accent: 220 100% 96%;
+  --mode-accent-foreground: 217 91% 60%;
+  --mode-background: var(--background);
+  --mode-surface: var(--card);
+  
+  /* 编排模式专用组件样式 */
+  --composer-toolbar: hsl(var(--mode-primary));
+  --composer-sidebar: hsl(var(--mode-accent));
+  --composer-canvas: hsl(var(--background));
+  --composer-node-library: hsl(var(--mode-surface));
+  --composer-property-panel: hsl(var(--mode-surface));
+}
+
+.composer-mode .mode-toolbar {
+  background: linear-gradient(135deg, 
+    hsl(var(--mode-primary) / 0.05) 0%, 
+    hsl(var(--mode-primary) / 0.02) 100%);
+  border-bottom: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+.composer-mode .mode-sidebar {
+  background: hsl(var(--mode-accent) / 0.3);
+  border-right: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+.composer-mode .mode-canvas {
+  background: var(--mode-canvas);
+}
+
+/* 调试模式专用样式 */
+.debug-mode {
+  /* 调试模式主色调 - 橙色系 */
+  --mode-primary: 25 95% 53%;
+  --mode-primary-foreground: 220 13% 8%;
+  --mode-accent: 25 100% 96%;
+  --mode-accent-foreground: 25 95% 53%;
+  --mode-background: var(--background);
+  --mode-surface: var(--card);
+  
+  /* 调试模式专用组件样式 */
+  --debug-toolbar: hsl(var(--mode-primary));
+  --debug-sidebar: hsl(var(--mode-accent));
+  --debug-canvas: hsl(var(--background));
+  --debug-panel: hsl(var(--mode-surface));
+  
+  /* 调试状态颜色 */
+  --debug-running: 142 76% 36%;
+  --debug-paused: 47 96% 53%;
+  --debug-error: 0 84% 60%;
+  --debug-success: 142 76% 36%;
+}
+
+.debug-mode .mode-toolbar {
+  background: linear-gradient(135deg, 
+    hsl(var(--mode-primary) / 0.05) 0%, 
+    hsl(var(--mode-primary) / 0.02) 100%);
+  border-bottom: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+.debug-mode .mode-sidebar {
+  background: hsl(var(--mode-accent) / 0.3);
+  border-right: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+.debug-mode .mode-canvas {
+  background: var(--mode-canvas);
+}
+
+/* 调试节点状态样式 */
+.debug-mode .node-running {
+  border-color: hsl(var(--debug-running));
+  background: hsl(var(--debug-running) / 0.1);
+  box-shadow: 0 0 10px hsl(var(--debug-running) / 0.3);
+}
+
+.debug-mode .node-paused {
+  border-color: hsl(var(--debug-paused));
+  background: hsl(var(--debug-paused) / 0.1);
+}
+
+.debug-mode .node-error {
+  border-color: hsl(var(--debug-error));
+  background: hsl(var(--debug-error) / 0.1);
+}
+
+.debug-mode .node-success {
+  border-color: hsl(var(--debug-success));
+  background: hsl(var(--debug-success) / 0.1);
+}
+
+/* 回放模式专用样式 */
+.replay-mode {
+  /* 回放模式主色调 - 紫色系 */
+  --mode-primary: 262 83% 58%;
+  --mode-primary-foreground: 220 13% 8%;
+  --mode-accent: 262 100% 96%;
+  --mode-accent-foreground: 262 83% 58%;
+  --mode-background: var(--background);
+  --mode-surface: var(--card);
+  
+  /* 回放模式专用组件样式 */
+  --replay-toolbar: hsl(var(--mode-primary));
+  --replay-sidebar: hsl(var(--mode-accent));
+  --replay-canvas: hsl(var(--background));
+  --replay-timeline: hsl(var(--mode-surface));
+  --replay-controls: hsl(var(--mode-primary));
+  
+  /* 时间轴样式 */
+  --timeline-track: hsl(var(--mode-primary) / 0.2);
+  --timeline-progress: hsl(var(--mode-primary));
+  --timeline-marker: hsl(var(--mode-primary) / 0.6);
+}
+
+.replay-mode .mode-toolbar {
+  background: linear-gradient(135deg, 
+    hsl(var(--mode-primary) / 0.05) 0%, 
+    hsl(var(--mode-primary) / 0.02) 100%);
+  border-bottom: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+.replay-mode .mode-sidebar {
+  background: hsl(var(--mode-accent) / 0.3);
+  border-right: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+.replay-mode .mode-canvas {
+  background: var(--mode-canvas);
+}
+
+.replay-mode .timeline-controller {
+  background: var(--replay-timeline);
+  border-top: 1px solid hsl(var(--mode-primary) / 0.1);
+}
+
+/* 通用模式样式 */
+.mode-transition-wrapper {
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-indicator {
+  transition: all 0.3s ease-in-out;
+}
+
+.mode-indicator.active {
+  background: hsl(var(--mode-primary));
+  color: hsl(var(--mode-primary-foreground));
+  box-shadow: 0 2px 8px hsl(var(--mode-primary) / 0.3);
+}
+
+.mode-indicator.inactive {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.mode-indicator.inactive:hover {
+  background: hsl(var(--mode-primary) / 0.1);
+  color: hsl(var(--mode-primary));
+}
+
+/* 面板通用样式 */
+.mode-panel {
+  background: var(--mode-surface);
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius));
+  transition: all 0.3s ease-in-out;
+}
+
+.mode-panel:hover {
+  border-color: hsl(var(--mode-primary) / 0.3);
+}
+
+.mode-panel-header {
+  background: hsl(var(--mode-primary) / 0.05);
+  border-bottom: 1px solid hsl(var(--mode-primary) / 0.1);
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  color: hsl(var(--mode-primary));
+}
+
+.mode-panel-content {
+  padding: 1rem;
+}
+
+/* 工具栏通用样式 */
+.mode-toolbar-button {
+  transition: all 0.2s ease-in-out;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.mode-toolbar-button:hover {
+  background: hsl(var(--mode-primary) / 0.1);
+  color: hsl(var(--mode-primary));
+  transform: translateY(-1px);
+}
+
+.mode-toolbar-button.active {
+  background: hsl(var(--mode-primary));
+  color: hsl(var(--mode-primary-foreground));
+}
+
+/* 状态指示器样式 */
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: calc(var(--radius));
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.status-indicator.success {
+  background: hsl(142 76% 36% / 0.1);
+  color: hsl(142 76% 36%);
+  border: 1px solid hsl(142 76% 36% / 0.2);
+}
+
+.status-indicator.error {
+  background: hsl(0 84% 60% / 0.1);
+  color: hsl(0 84% 60%);
+  border: 1px solid hsl(0 84% 60% / 0.2);
+}
+
+.status-indicator.warning {
+  background: hsl(47 96% 53% / 0.1);
+  color: hsl(47 96% 53%);
+  border: 1px solid hsl(47 96% 53% / 0.2);
+}
+
+.status-indicator.info {
+  background: hsl(var(--mode-primary) / 0.1);
+  color: hsl(var(--mode-primary));
+  border: 1px solid hsl(var(--mode-primary) / 0.2);
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .mode-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .mode-sidebar.expanded {
+    transform: translateX(0);
+  }
+  
+  .mode-indicator span {
+    display: none;
+  }
+  
+  .mode-toolbar-button span {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .mode-panel {
+    margin: 0.5rem;
+  }
+  
+  .mode-panel-header {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  .mode-panel-content {
+    padding: 0.75rem;
+  }
+}
+
+/* 深色模式适配 */
+.dark .composer-mode {
+  --mode-accent: 220 50% 15%;
+}
+
+.dark .debug-mode {
+  --mode-accent: 25 50% 15%;
+}
+
+.dark .replay-mode {
+  --mode-accent: 262 50% 15%;
+}
+
+.dark .mode-panel {
+  background: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.dark .mode-panel-header {
+  background: hsl(var(--mode-primary) / 0.1);
+  border-color: hsl(var(--mode-primary) / 0.2);
+}
+
+/* 高对比度模式 */
+@media (prefers-contrast: high) {
+  .mode-indicator.active {
+    box-shadow: 0 0 0 2px hsl(var(--mode-primary));
+  }
+  
+  .mode-panel {
+    border-width: 2px;
+  }
+  
+  .status-indicator {
+    border-width: 2px;
+  }
+}
+
+/* 减少动画模式 */
+@media (prefers-reduced-motion: reduce) {
+  .mode-transition-wrapper,
+  .mode-indicator,
+  .mode-panel,
+  .mode-toolbar-button,
+  .status-indicator {
+    transition: none;
+  }
+  
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-in-left,
+  .animate-slide-in-right,
+  .animate-slide-in-up,
+  .animate-slide-in-down,
+  .animate-mode-transition {
+    animation: none;
+  }
+}
