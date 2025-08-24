@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/core/utils/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,6 +72,16 @@ export function ModeSelector({
   const isTransitioning = useIsTransitioning();
   const transitionProgress = useTransitionProgress();
   const actions = useBehaviorTreeStore((state) => state.actions);
+  const [animatingMode, setAnimatingMode] = useState<WorkflowMode | null>(null);
+  const prevModeRef = useRef(currentMode);
+  useEffect(() => {
+    if (prevModeRef.current !== currentMode) {
+      setAnimatingMode(currentMode);
+      const t = setTimeout(() => setAnimatingMode(null), 700);
+      prevModeRef.current = currentMode;
+      return () => clearTimeout(t);
+    }
+  }, [currentMode]);
 
   // 处理模式切换
   const handleModeSwitch = async (targetMode: WorkflowMode) => {
@@ -105,7 +115,7 @@ export function ModeSelector({
     const statusIndicator = null;
 
     const baseClasses = cn(
-      'relative flex items-center gap-2 transition-all duration-200',
+      'relative flex items-center gap-2 transition-all duration-200 overflow-hidden',
       orientation === 'vertical' && 'w-full justify-start',
       !canSwitch && 'opacity-50 cursor-not-allowed'
     );
@@ -116,40 +126,49 @@ export function ModeSelector({
       lg: 'px-4 py-3 text-base',
     };
 
+    const emphasisMap: Record<WorkflowMode, string> = {
+      [WorkflowMode.COMPOSER]: 'ring-1 ring-blue-400/40 shadow-[0_0_0_4px_rgba(59,130,246,.10)]',
+      [WorkflowMode.DEBUG]: 'ring-1 ring-orange-400/40 shadow-[0_0_0_4px_rgba(251,146,60,.10)]',
+      [WorkflowMode.REPLAY]: 'ring-1 ring-green-400/40 shadow-[0_0_0_4px_rgba(34,197,94,.10)]',
+    };
+
     const variantClasses = {
       tabs: cn(
         'border-b-2 border-transparent hover:border-gray-300',
         isActive && 'border-current',
-        isActive ? activeColor : color
+        isActive ? cn(activeColor, 'rounded-md', emphasisMap[mode]) : color
       ),
       pills: cn(
         'rounded-full border',
-        isActive ? activeColor : `border-transparent hover:bg-gray-50 ${color}`
+        isActive ? cn(activeColor, emphasisMap[mode]) : `border-transparent hover:bg-gray-50 ${color}`
       ),
       buttons: cn(
         'rounded-md border border-gray-200 hover:bg-gray-50',
-        isActive && activeColor,
-        !isActive && color
+        isActive ? cn(activeColor, emphasisMap[mode]) : color
       ),
     };
 
     const content = (
       <div className={cn(baseClasses, sizeClasses[size], variantClasses[variant])}>
-        <Icon className={cn('h-4 w-4', size === 'sm' && 'h-3 w-3', size === 'lg' && 'h-5 w-5')} />
+        {isActive && animatingMode === mode && (
+          <span
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full opacity-30 mode-droplet animate-droplet"
+            aria-hidden="true"
+          />
+        )}
+        <Icon className={cn('h-4 w-4 relative z-10', size === 'sm' && 'h-3 w-3', size === 'lg' && 'h-5 w-5')} />
         
         {showLabels && (
-          <span className="font-medium">
+          <span className="font-medium relative z-10">
             {t(labelKey)}
           </span>
         )}
         
         {statusIndicator && (
-          <div className="ml-auto">
+          <div className="ml-auto relative z-10">
             {statusIndicator}
           </div>
         )}
-        
-        {/* 不显示模式按钮内的进度条 */}
       </div>
     );
 
