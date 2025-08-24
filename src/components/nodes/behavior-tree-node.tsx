@@ -69,7 +69,10 @@ function getNodeIcon(category: string, customIcon?: React.ComponentType<{ classN
 }
 
 // 获取节点颜色
-function getNodeColor(category: string, customColor?: string) {
+function getNodeColor(category: string, customColor?: string, isRootNode: boolean = false) {
+  // Root节点使用特殊颜色(红色)
+  if (isRootNode) return 'bg-red-500';
+  
   if (customColor) return customColor;
   
   switch (category) {
@@ -131,11 +134,12 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
   const Icon = data.icon && typeof data.icon === 'function' 
     ? data.icon 
     : getNodeIcon(data.category);
-  const nodeColor = getNodeColor(data.category, data.color);
+  const nodeColor = getNodeColor(data.category, data.color, id === 'root');
   const statusColor = getStatusColor(data.status || NodeStatus.IDLE);
   const statusIcon = getStatusIcon(data.status || NodeStatus.IDLE);
 
   const isSelected = selectedNodes.includes(id);
+  const isRootNode = id === 'root';
 
   // 节点点击处理
   const handleNodeClick = useCallback((event: React.MouseEvent) => {
@@ -151,13 +155,13 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
 
   // 端口配置（根据数据渲染多端口）
   const inputs = useMemo<PortConfig[]>(() => {
-    const arr = data.inputs && data.inputs.length > 0 ? data.inputs : [{ id: 'in', side: 'top' }];
-    return arr.map(p => ({ side: 'top', ...p }));
+    const arr = data.inputs && data.inputs.length > 0 ? data.inputs : [{ id: 'in', side: 'top' as const }];
+    return arr.map(p => ({ ...p, side: p.side || 'top' }));
   }, [data.inputs]);
 
   const outputs = useMemo<PortConfig[]>(() => {
-    const arr = data.outputs && data.outputs.length > 0 ? data.outputs : [{ id: 'out', side: 'bottom' }];
-    return arr.map(p => ({ side: 'bottom', ...p }));
+    const arr = data.outputs && data.outputs.length > 0 ? data.outputs : [{ id: 'out', side: 'bottom' as const }];
+    return arr.map(p => ({ ...p, side: p.side || 'bottom' }));
   }, [data.outputs]);
 
   const modelTitle = (data.modelName || data.name || '').toString();
@@ -166,8 +170,8 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
   return (
     <div
       className={cn(
-        'relative min-w-[120px] max-w-[220px] border-2 rounded-lg shadow-sm transition-all duration-200 text-foreground bg-card',
-        statusColor,
+        'relative min-w-[120px] max-w-[220px] border-2 rounded-lg shadow-sm transition-all duration-200 text-foreground',
+        isRootNode ? 'bg-red-500 border-red-600' : statusColor,
         isSelected && 'ring-2 ring-primary ring-offset-1',
         dragging && 'opacity-50',
         data.isDisabled && 'opacity-60',
@@ -188,9 +192,9 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
           style.left = `${((i + 1) / (count + 1)) * 100}%`;
           style.transform = 'translateX(-50%)';
         } else {
-          const topCount = inputs.filter(p => p.side === port.side).length;
+          const sideCount = inputs.filter(p => p.side === port.side).length;
           const idx = inputs.filter((p, idx) => p.side === port.side && idx <= i).length - 1;
-          style.top = `${((idx + 1) / (topCount + 1)) * 100}%`;
+          style.top = `${((idx + 1) / (sideCount + 1)) * 100}%`;
           style.transform = 'translateY(-50%)';
         }
         return (
@@ -276,4 +280,4 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
 BehaviorTreeNode.displayName = 'BehaviorTreeNode';
 
 // 导出节点数据类型
-export type { BehaviorTreeNodeData, NodeStatus };
+export { BehaviorTreeNodeData };

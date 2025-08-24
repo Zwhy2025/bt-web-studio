@@ -29,6 +29,7 @@ import {
     useSnapToGrid,
     useBehaviorTreeData
 } from '@/core/store/behavior-tree-store';
+import { createNode } from '@/core/store/sessionState';
 import { ComposerTool } from '@/core/store/composerModeState';
 import { Button } from '@/components/ui/button';
 import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info, Undo2, Redo2 } from 'lucide-react';
@@ -241,18 +242,20 @@ function ReactFlowCanvas({
             try {
                 const { type, nodeData } = JSON.parse(data);
                 if (type === 'node') {
-                    const newNode: Node = {
-                        id: `node-${Date.now()}`,
-                        type: nodeData.type || 'behaviorTreeNode',
-                        position: snapToGrid ? {
-                            x: Math.round(position.x / 20) * 20,
-                            y: Math.round(position.y / 20) * 20,
-                        } : position,
-                        data: {
-                            ...nodeData,
-                            label: nodeData.name,
-                        },
-                    };
+                    const isFirstNode = behaviorTreeData.nodes.length === 0;
+                    const newNode = createNode(
+                        position,
+                        nodeData,
+                        isFirstNode,
+                        snapToGrid,
+                        nodeData.type || 'behaviorTreeNode'
+                    );
+
+                    // 对于第一个节点，设置为Sequence类型
+                    if (isFirstNode) {
+                        newNode.data.modelName = 'Sequence';
+                        newNode.data.category = 'control';
+                    }
 
                     setNodes((nds) => nds.concat(newNode));
                     composerActions.saveCurrentState();
@@ -261,7 +264,7 @@ function ReactFlowCanvas({
                 console.error('Failed to parse drop data:', error);
             }
         }
-    }, [reactFlowInstance, snapToGrid, setNodes, composerActions]);
+    }, [reactFlowInstance, snapToGrid, setNodes, composerActions, behaviorTreeData.nodes]);
 
     // 选择变化处理
     const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {

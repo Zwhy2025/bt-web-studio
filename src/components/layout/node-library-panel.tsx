@@ -558,8 +558,8 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
     }
 
     const handleNodeDragStart = (nodeType: NodeType, event: React.DragEvent) => {
-        // 设置拖拽数据 - 只传递可序列化的数据
-        event.dataTransfer.setData('application/reactflow', JSON.stringify({
+        // 设置拖拽数据 - 使用兼容格式，确保画布能正确识别
+        const dragData = {
             type: 'node',
             nodeData: {
                 id: nodeType.id,
@@ -570,7 +570,13 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
                 borderColor: nodeType.borderColor,
                 bgColor: nodeType.bgColor
             }
-        }))
+        };
+        
+        // 为了兼容性，同时设置两种格式的数据
+        event.dataTransfer.setData('application/reactflow', JSON.stringify(dragData));
+        event.dataTransfer.setData('application/json', JSON.stringify(nodeType));
+        event.dataTransfer.setData('text/plain', nodeType.id); // 纯文本作为后备
+        
         event.dataTransfer.effectAllowed = 'move'
 
         // 创建拖拽预览
@@ -591,7 +597,7 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
     }
 
     return (
-        <div className={cn("h-full flex flex-col bg-gray-800", className)}>
+        <div className={cn("h-full flex flex-col bg-gray-800 node-library-panel", className)}>
             {/* 标题栏 */}
             <div className="p-4 border-b border-gray-700">
                 <h2 className="text-lg font-semibold text-white mb-3">{t('layout:nodeLibrary')}</h2>
@@ -609,7 +615,7 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
             </div>
 
             {/* 节点列表 */}
-            <ScrollArea className="flex-1">
+            <ScrollArea className="flex-1 node-library-content">
                 <div className="p-2">
                     {filteredCategories.map((category) => (
                         <Collapsible
@@ -624,9 +630,6 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
                                         <div className="text-left">
                                             <div className="font-medium text-white group-hover:text-blue-400 transition-colors">
                                                 {getCategoryName(category.id)}
-                                            </div>
-                                            <div className="text-xs text-gray-400">
-                                                {getCategoryDescription(category.id)}
                                             </div>
                                         </div>
                                     </div>
@@ -664,11 +667,8 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
                                                 <node.icon className={cn("w-4 h-4", node.color)} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="font-medium text-white text-sm">
+                                                <div className="font-medium text-white text-sm whitespace-nowrap overflow-hidden text-ellipsis">
                                                     {node.name}
-                                                </div>
-                                                <div className="text-xs text-gray-400 break-words">
-                                                    {node.description}
                                                 </div>
                                             </div>
                                         </div>

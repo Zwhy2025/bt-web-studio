@@ -40,8 +40,21 @@ import {
   Type,
   ToggleLeft,
   List,
-  Link
+  Link,
+  Crown
 } from 'lucide-react';
+
+// 导入新创建的组件
+import PortsConfigPanel from './ports-config-panel';
+import BlackboardKeySelector from './blackboard-key-selector';
+import ModelDrivenConfigPanel from './model-driven-config-panel';
+import { ExtendedBehaviorTreeNodeData, ExtendedPortConfig } from '@/core/types/extended-node-types';
+
+// 导入校验hook
+import { useNodeValidation } from '@/hooks/use-node-validation';
+
+// 导入键盘快捷键hook
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 
 // 属性类型定义
 interface NodeProperty {
@@ -61,118 +74,35 @@ interface NodeProperty {
   };
 }
 
-// 模拟节点数据
-interface MockNode {
+// 扩展的节点数据类型（用于类型转换）
+interface ExtendedNodeData {
   id: string;
   name: string;
-  type: string;
-  description: string;
-  properties: NodeProperty[];
-  ports: {
-    input: Array<{ id: string; name: string; type: string }>;
-    output: Array<{ id: string; name: string; type: string }>;
-  };
+  modelName?: string;
+  instanceName?: string;
+  category: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  status?: string;
+  isBreakpoint?: boolean;
+  isDisabled?: boolean;
+  hasError?: boolean;
+  errorMessage?: string;
+  executionCount?: number;
+  lastExecutionTime?: number;
+  properties?: Record<string, any>;
+  inputs?: ExtendedPortConfig[];
+  outputs?: ExtendedPortConfig[];
   documentation?: string;
-  warnings?: string[];
-  errors?: string[];
+  advancedConfig?: {
+    memory?: boolean;
+    successPolicy?: string;
+    failurePolicy?: string;
+    priority?: number;
+  };
 }
 
-// 获取模拟节点数据
-const getMockNodeData = (nodeId: string): MockNode | null => {
-  // 这里模拟从实际的节点数据中获取信息
-  return {
-    id: nodeId,
-    name: 'Sequence Node',
-    type: 'control-sequence',
-    description: '顺序执行所有子节点，直到一个失败或全部成功',
-    properties: [
-      {
-        key: 'name',
-        label: '节点名称',
-        type: 'string',
-        value: 'Sequence Node',
-        required: true,
-        description: '节点在行为树中的显示名称'
-      },
-      {
-        key: 'description',
-        label: '描述',
-        type: 'string',
-        value: '顺序执行所有子节点',
-        description: '节点的详细描述'
-      },
-      {
-        key: 'enabled',
-        label: '启用状态',
-        type: 'boolean',
-        value: true,
-        defaultValue: true,
-        description: '是否启用此节点'
-      },
-      {
-        key: 'maxChildren',
-        label: '最大子节点数',
-        type: 'number',
-        value: 10,
-        defaultValue: -1,
-        validation: {
-          min: -1,
-          message: '最大子节点数必须大于等于-1（-1表示无限制）'
-        },
-        description: '允许的最大子节点数量，-1表示无限制'
-      },
-      {
-        key: 'executeMode',
-        label: '执行模式',
-        type: 'select',
-        value: 'sequential',
-        defaultValue: 'sequential',
-        options: [
-          { label: '顺序执行', value: 'sequential' },
-          { label: '并行执行', value: 'parallel' },
-          { label: '随机执行', value: 'random' }
-        ],
-        description: '子节点的执行方式'
-      },
-      {
-        key: 'parameters',
-        label: '自定义参数',
-        type: 'array',
-        value: [
-          { name: 'timeout', value: '5000', type: 'number' },
-          { name: 'retryCount', value: '3', type: 'number' }
-        ],
-        description: '节点的自定义参数列表'
-      }
-    ],
-    ports: {
-      input: [
-        { id: 'input1', name: '输入', type: 'control' }
-      ],
-      output: [
-        { id: 'output1', name: '输出', type: 'control' }
-      ]
-    },
-    documentation: `# Sequence Node
-
-Sequence 节点按顺序执行其所有子节点。当一个子节点返回失败时，整个序列立即停止并返回失败。只有当所有子节点都成功执行时，序列才会返回成功。
-
-## 使用场景
-- 需要按特定顺序执行的任务序列
-- 依赖关系明确的操作链
-- 条件检查后的动作执行
-
-## 注意事项
-- 子节点的执行顺序很重要
-- 任何一个子节点失败都会导致整个序列失败
-- 适合用于必须完整执行的任务序列`,
-    warnings: [
-      '该节点有10个子节点，可能影响性能',
-      '建议为节点添加更详细的描述'
-    ],
-    errors: []
-  };
-};
 
 // 属性编辑器组件
 function PropertyEditor({ 
@@ -301,9 +231,6 @@ function PropertyEditor({
     }
   };
 
-  const selErrors: string[] = useMemo(() => (selectedNode as any)?.errors || [], [selectedNode]);
-  const selWarnings: string[] = useMemo(() => (selectedNode as any)?.warnings || [], [selectedNode]);
-
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -336,7 +263,7 @@ export default function ComposerPropertyPanel() {
   const { t } = useI18n();
   const selectedNodeIds = useComposerSelectedNodes();
   const composerActions = useComposerActions();
-  const validationErrors = useValidationErrors();
+  const storeValidationErrors = useValidationErrors();
   const nodes = useBehaviorTreeStore((s) => s.nodes);
   const edges = useBehaviorTreeStore((s) => s.edges);
   const actions = useBehaviorTreeStore((s) => s.actions);
@@ -349,6 +276,18 @@ export default function ComposerPropertyPanel() {
     return nodes.find((n) => n.id === selectedNodeIds[0]) || null;
   }, [selectedNodeIds, nodes]);
 
+  // 检查是否为Root节点
+  const isRootNode = useMemo(() => {
+    if (!selectedNode) return false;
+    return (selectedNode.data as any)?.instanceName === 'root';
+  }, [selectedNode]);
+
+  // 节点校验
+  const { validationErrors: hookValidationErrors, validationWarnings: hookValidationWarnings, hasErrors, hasWarnings } = useNodeValidation(selectedNode?.id || '');
+  
+  // 键盘快捷键
+  useKeyboardShortcuts(selectedNodeIds);
+
   // 更新节点 data 的便捷方法
   const updateNodeData = useCallback((patch: any) => {
     if (!selectedNode) return;
@@ -358,8 +297,12 @@ export default function ComposerPropertyPanel() {
   // 节点相关的错误和警告
   const nodeValidationErrors = useMemo(() => {
     if (!selectedNode) return [] as any[];
-    return validationErrors.filter(error => error.nodeId === selectedNode.id);
-  }, [selectedNode, validationErrors]);
+    return storeValidationErrors.filter(error => error.nodeId === selectedNode.id);
+  }, [selectedNode, storeValidationErrors]);
+  
+  // 节点错误和警告
+  const selErrors: string[] = useMemo(() => (selectedNode as any)?.errors || [], [selectedNode]);
+  const selWarnings: string[] = useMemo(() => (selectedNode as any)?.warnings || [], [selectedNode]);
 
   if (selectedNodeIds.length === 0) {
     return (
@@ -415,9 +358,17 @@ export default function ComposerPropertyPanel() {
             <div className="text-[11px] text-muted-foreground truncate">
               {String((selectedNode.data as any)?.modelName || (selectedNode.data as any)?.name || selectedNode.type || '')}
             </div>
-            <div className="font-medium text-sm truncate">
+            <div className="font-medium text-sm truncate flex items-center">
               {String((selectedNode.data as any)?.instanceName || '') || '—'}
+              {isRootNode && (
+                <Crown className="h-3 w-3 ml-1 text-yellow-500" />
+              )}
             </div>
+            {isRootNode && (
+              <div className="text-[10px] text-yellow-600 mt-1">
+                Root节点：无输入端口，仅允许一个输出端口
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 ml-2">
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -433,7 +384,8 @@ export default function ComposerPropertyPanel() {
       </div>
 
       {/* 错误和警告 */}
-      {(selErrors.length > 0 || selWarnings.length > 0 || nodeValidationErrors.length > 0) && (
+      {(selErrors.length > 0 || selWarnings.length > 0 || nodeValidationErrors.length > 0 || 
+        hookValidationErrors.length > 0 || hookValidationWarnings.length > 0) && (
         <div className="p-3 border-b space-y-2">
           {/* 验证错误 */}
           {nodeValidationErrors.map((error, index) => (
@@ -453,11 +405,27 @@ export default function ComposerPropertyPanel() {
             </Alert>
           ))}
           
+          {/* 校验错误 */}
+          {hookValidationErrors.map((error, index) => (
+            <Alert key={index} variant="destructive">
+              <XCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{error.message}</AlertDescription>
+            </Alert>
+          ))}
+          
           {/* 节点警告 */}
           {selWarnings.map((warning, index) => (
             <Alert key={index}>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">{warning}</AlertDescription>
+            </Alert>
+          ))}
+          
+          {/* 校验警告 */}
+          {hookValidationWarnings.map((warning, index) => (
+            <Alert key={index}>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription className="text-xs">{warning.message}</AlertDescription>
             </Alert>
           ))}
         </div>
@@ -466,7 +434,7 @@ export default function ComposerPropertyPanel() {
       {/* 属性标签页 */}
       <div className="flex-1 min-h-0">
         <Tabs defaultValue="properties" className="h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-3 mx-3 mt-2">
+          <TabsList className="grid w-full grid-cols-4 mx-3 mt-2">
             <TabsTrigger value="properties" className="text-xs">
               <Settings className="w-3 h-3 mr-1" />
               {t('composer:propertyPanel.tabs.properties')}
@@ -475,39 +443,49 @@ export default function ComposerPropertyPanel() {
               <Link className="w-3 h-3 mr-1" />
               {t('composer:propertyPanel.tabs.ports')}
             </TabsTrigger>
-            <TabsTrigger value="docs" className="text-xs">
+            <TabsTrigger value="documentation" className="text-xs">
               <FileText className="w-3 h-3 mr-1" />
               {t('composer:propertyPanel.tabs.description')}
+            </TabsTrigger>
+            <TabsTrigger value="advanced" className="text-xs">
+              <Settings className="w-3 h-3 mr-1" />
+              高级
             </TabsTrigger>
           </TabsList>
 
           {/* 属性编辑 */}
           <TabsContent value="properties" className="flex-1 mt-2">
             <ScrollArea className="h-full">
-              <div className="p-3 space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">模型名</Label>
-                  <Input readOnly value={String((selectedNode.data as any)?.modelName || (selectedNode.data as any)?.name || selectedNode.type || '')} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">实例名</Label>
-                  <Input value={String((selectedNode.data as any)?.instanceName || '')}
-                         onChange={(e) => {
-                           const v = e.target.value; const trimmed = v.trim();
-                           if (trimmed === 'root') {
-                             // 统一处理 root 唯一与无输入
-                             nodes.forEach((n) => {
-                               if (n.id !== selectedNode.id && (n.data as any)?.instanceName === 'root') {
-                                 actions.updateNode(n.id, { data: { ...n.data, instanceName: '' } } as any)
-                               }
-                             });
-                             actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, instanceName: 'root', modelName: 'Sequence', inputs: [] } } as any)
-                           } else {
-                             actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, instanceName: v } } as any)
-                           }
-                         }}
-                         placeholder="请输入实例名（如：root）" />
-                </div>
+              <div className="p-3">
+                <ModelDrivenConfigPanel
+                  nodeData={selectedNode.data as ExtendedBehaviorTreeNodeData}
+                  onChange={(patch) => {
+                    // 特殊处理Root节点实例名
+                    if (patch.instanceName === 'root') {
+                      // 统一处理 root 唯一与无输入
+                      nodes.forEach((n) => {
+                        if (n.id !== selectedNode.id && (n.data as any)?.instanceName === 'root') {
+                          actions.updateNode(n.id, { data: { ...n.data, instanceName: '' } } as any)
+                        }
+                      });
+                      actions.updateNode(selectedNode.id, { 
+                        data: { 
+                          ...selectedNode.data, 
+                          ...patch, 
+                          instanceName: 'root', 
+                          modelName: 'Sequence', 
+                          category: 'control',
+                          inputs: [] 
+                        } 
+                      } as any)
+                    } else {
+                      actions.updateNode(selectedNode.id, { 
+                        data: { ...selectedNode.data, ...patch } 
+                      } as any)
+                    }
+                  }}
+                  disabled={false}
+                />
               </div>
             </ScrollArea>
           </TabsContent>
@@ -515,14 +493,26 @@ export default function ComposerPropertyPanel() {
           {/* 描述编辑 */}
           <TabsContent value="docs" className="flex-1 mt-2">
             <ScrollArea className="h-full">
-              <div className="p-3 space-y-2">
-                <Label className="text-xs">{t('composer:propertyPanel.fields.description')}</Label>
-                <Textarea
-                  value={String((selectedNode.data as any)?.description || '')}
-                  onChange={(e) => actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, description: e.target.value } } as any)}
-                  placeholder={t('composer:propertyPanel.fields.description')}
-                  className="min-h-[120px]"
-                />
+              <div className="p-3 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs">{t('composer:propertyPanel.fields.description')}</Label>
+                  <Textarea
+                    value={String((selectedNode.data as any)?.description || '')}
+                    onChange={(e) => actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, description: e.target.value } } as any)}
+                    placeholder={t('composer:propertyPanel.fields.description')}
+                    className="min-h-[120px]"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs">文档</Label>
+                  <Textarea
+                    value={String((selectedNode.data as any)?.documentation || '')}
+                    onChange={(e) => actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, documentation: e.target.value } } as any)}
+                    placeholder="在此输入节点的详细文档信息，支持Markdown格式"
+                    className="min-h-[150px]"
+                  />
+                </div>
               </div>
             </ScrollArea>
           </TabsContent>
@@ -530,130 +520,29 @@ export default function ComposerPropertyPanel() {
           {/* 端口配置 */}
           <TabsContent value="ports" className="flex-1 mt-2">
             <ScrollArea className="h-full">
-              <div className="p-3 space-y-4">
-                <Accordion type="multiple" defaultValue={["input", "output"]}>
-                  <AccordionItem value="input">
-                    <AccordionTrigger className="text-sm">
-                      输入端口 ({(((selectedNode.data as any)?.inputs) || []).length})
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-2">
-                        {(((selectedNode.data as any)?.inputs) || []).map((port: any, idx: number) => (
-                          <div key={`in-${idx}`} className="flex items-center gap-2 p-2 border rounded">
-                  <Input className="h-8 text-xs" value={port.id || ''} onChange={(e) => {
-                    const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
-                    arr[idx] = { ...arr[idx], id: e.target.value };
-                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
-                  }} />
-                  <Select value={String(port.side || 'top')} onValueChange={(v) => {
-                    const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
-                    arr[idx] = { ...arr[idx], side: v };
-                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
-                  }}>
-                    <SelectTrigger className="h-8 w-28 text-xs" />
-                    <SelectContent>
-                      <SelectItem value="top">top</SelectItem>
-                      <SelectItem value="bottom">bottom</SelectItem>
-                      <SelectItem value="left">left</SelectItem>
-                      <SelectItem value="right">right</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={String(port.blackboardKey || '')} onValueChange={(v) => {
-                    const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
-                    arr[idx] = { ...arr[idx], blackboardKey: v };
-                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
-                  }}>
-                    <SelectTrigger className="h-8 w-40 text-xs">{String(port.blackboardKey || '从黑板读取')}</SelectTrigger>
-                    <SelectContent>
-                      {blackboardKeys.map((k) => (
-                        <SelectItem key={k} value={k}>{k}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                              const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
-                              arr.splice(idx, 1);
-                              actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
-                            }}>
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button variant="outline" size="sm" onClick={() => {
-                          const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
-                          const id = `in${arr.length + 1}`;
-                          actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: [...arr, { id, side: 'top' }] } } as any)
-                        }}>
-                          <Plus className="h-3 w-3 mr-1" /> 添加输入端口
-                        </Button>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  <AccordionItem value="output">
-                    <AccordionTrigger className="text-sm">
-                      输出端口 ({(((selectedNode.data as any)?.outputs) || []).length})
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="space-y-2">
-                        {(((selectedNode.data as any)?.outputs) || []).map((port: any, idx: number) => (
-                          <div key={`out-${idx}`} className="flex items-center gap-2 p-2 border rounded">
-                  <Input className="h-8 text-xs" value={port.id || ''} onChange={(e) => {
-                    const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
-                    arr[idx] = { ...arr[idx], id: e.target.value };
-                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
-                  }} />
-                  <Select value={String(port.side || 'bottom')} onValueChange={(v) => {
-                    const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
-                    arr[idx] = { ...arr[idx], side: v };
-                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
-                  }}>
-                    <SelectTrigger className="h-8 w-28 text-xs" />
-                    <SelectContent>
-                      <SelectItem value="top">top</SelectItem>
-                      <SelectItem value="bottom">bottom</SelectItem>
-                      <SelectItem value="left">left</SelectItem>
-                      <SelectItem value="right">right</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={String(port.blackboardKey || '')} onValueChange={(v) => {
-                    const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
-                    arr[idx] = { ...arr[idx], blackboardKey: v };
-                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
-                  }}>
-                    <SelectTrigger className="h-8 w-40 text-xs">{String(port.blackboardKey || '从黑板读取')}</SelectTrigger>
-                    <SelectContent>
-                      {blackboardKeys.map((k) => (
-                        <SelectItem key={k} value={k}>{k}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
-                              const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
-                              arr.splice(idx, 1);
-                              actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
-                            }}>
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button variant="outline" size="sm" onClick={() => {
-                          const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
-                          const id = `out${arr.length + 1}`;
-                          actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: [...arr, { id, side: 'bottom' }] } } as any)
-                        }}>
-                          <Plus className="h-3 w-3 mr-1" /> 添加输出端口
-                        </Button>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
+              <div className="p-3">
+                <PortsConfigPanel
+                  inputs={((selectedNode.data as any)?.inputs) || []}
+                  outputs={((selectedNode.data as any)?.outputs) || []}
+                  onInputsChange={(inputs) => {
+                    actions.updateNode(selectedNode.id, { 
+                      data: { ...selectedNode.data, inputs } 
+                    } as any);
+                  }}
+                  onOutputsChange={(outputs) => {
+                    actions.updateNode(selectedNode.id, { 
+                      data: { ...selectedNode.data, outputs } 
+                    } as any);
+                  }}
+                  isRoot={isRootNode}
+                  disabled={false}
+                />
               </div>
             </ScrollArea>
           </TabsContent>
 
           {/* 文档说明 */}
-          <TabsContent value="docs" className="flex-1 mt-2">
+          <TabsContent value="documentation" className="flex-1 mt-2">
             <ScrollArea className="h-full">
               <div className="p-3">
                 {selectedNode.documentation ? (
@@ -674,17 +563,113 @@ export default function ComposerPropertyPanel() {
               </div>
             </ScrollArea>
           </TabsContent>
+          
+          {/* 高级设置 */}
+          <TabsContent value="advanced" className="flex-1 mt-2">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-4">
+                <div className="space-y-3">
+                  <h3 className="font-medium text-sm">节点统计</h3>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 border rounded">
+                      <div className="text-muted-foreground">执行次数</div>
+                      <div className="font-medium">{selectedNode.data.executionCount || 0}</div>
+                    </div>
+                    <div className="p-2 border rounded">
+                      <div className="text-muted-foreground">最后执行</div>
+                      <div className="font-medium">
+                        {selectedNode.data.lastExecutionTime 
+                          ? new Date(selectedNode.data.lastExecutionTime).toLocaleTimeString()
+                          : '从未执行'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {isRootNode && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded text-xs">
+                    <div className="font-medium text-yellow-800 flex items-center">
+                      <Crown className="h-3 w-3 mr-1" />
+                      Root节点约束
+                    </div>
+                    <ul className="list-disc list-inside mt-1 space-y-1 text-yellow-700">
+                      <li>整个行为树只能有一个Root节点</li>
+                      <li>Root节点不允许有输入端口</li>
+                      <li>Root节点模型名强制为"Sequence"</li>
+                      <li>不允许任何边连接到Root节点</li>
+                    </ul>
+                  </div>
+                )}
+                
+                <div className="space-y-3">
+                  <h3 className="font-medium text-sm">调试信息</h3>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">节点ID:</span>
+                      <span className="font-mono">{selectedNode.id}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">节点类型:</span>
+                      <span>{selectedNode.type}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">模型名:</span>
+                      <span>{(selectedNode.data as any)?.modelName || (selectedNode.data as any)?.name || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
         </Tabs>
       </div>
 
       {/* 底部操作按钮 */}
       <div className="p-3 border-t bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="flex-1 text-xs">
+        <div className="grid grid-cols-4 gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+            onClick={() => composerActions.undo()}
+            disabled={!composerActions.canUndo()}
+          >
             <RefreshCw className="w-3 h-3 mr-1" />
-            {t('composer:propertyPanel.actions.reset')}
+            撤销
           </Button>
-          <Button variant="outline" size="sm" className="flex-1 text-xs">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+            onClick={() => composerActions.redo()}
+            disabled={!composerActions.canRedo()}
+          >
+            <RefreshCw className="w-3 h-3 mr-1 transform rotate-180" />
+            重做
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+            onClick={() => {
+              // 复制节点
+              console.log('复制节点:', selectedNode?.id);
+            }}
+          >
+            <Copy className="w-3 h-3 mr-1" />
+            复制
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs"
+            onClick={() => {
+              // 删除节点
+              if (selectedNode) {
+                actions.deleteNodes([selectedNode.id]);
+              }
+            }}
+          >
             <Trash2 className="w-3 h-3 mr-1" />
             {t('composer:propertyPanel.actions.delete')}
           </Button>

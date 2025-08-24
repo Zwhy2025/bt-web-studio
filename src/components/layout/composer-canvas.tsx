@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { createNode } from '@/core/store/sessionState';
 import ReactFlow, {
   type Node,
   type Edge,
@@ -27,7 +28,8 @@ import {
   useActiveTool,
   useSelectedNodes,
   useSnapToGrid,
-  useBehaviorTreeData
+  useBehaviorTreeData,
+  useActions
 } from '@/core/store/behavior-tree-store';
 import { ComposerTool } from '@/core/store/composerModeState';
 import { Button } from '@/components/ui/button';
@@ -184,6 +186,7 @@ function ReactFlowCanvas({
 }: ComposerCanvasProps) {
   const { t } = useI18n();
   const composerActions = useComposerActions();
+  const actions = useActions();
   const activeTool = useActiveTool();
   const selectedNodes = useSelectedNodes();
   const snapToGrid = useSnapToGrid();
@@ -240,46 +243,83 @@ function ReactFlowCanvas({
       y: event.clientY - reactFlowBounds.top,
     }) || { x: 0, y: 0 };
 
-    const data = event.dataTransfer.getData('application/reactflow');
+    // 获取拖拽数据 - 支持多种格式
+    let nodeData = null;
     
-    if (data) {
+    // 尝试从application/reactflow获取数据
+    const reactflowData = event.dataTransfer.getData('application/reactflow');
+    if (reactflowData) {
       try {
-        const { type, nodeData } = JSON.parse(data);
-        if (type === 'node') {
-          const modelName = nodeData.id || nodeData.name || 'Node'
-          const isFirstNode = nodes.length === 0;
-          const newNode: Node = {
-            id: `node-${Date.now()}`,
-            type: 'behaviorTreeNode',
-            position: snapToGrid ? {
-              x: Math.round(position.x / 20) * 20,
-              y: Math.round(position.y / 20) * 20,
-            } : position,
-            data: {
-              ...nodeData,
-              name: modelName,
-              modelName: isFirstNode ? 'Sequence' : modelName,
-              category: nodeData.category || 'action',
-              status: 'idle',
-              // 默认一个输入/一个输出端口，可在属性面板中扩展
-              inputs: isFirstNode ? [] : [{ id: 'in', side: 'top' }],
-              outputs: [{ id: 'out', side: 'bottom' }],
-              ...(isFirstNode ? { instanceName: 'root' } : {}),
-            },
-          };
-
-          setNodes((nds) => nds.concat(newNode));
-          composerActions.addNode(nodeData.id, position); // 调用store中的添加节点方法
+        const parsed = JSON.parse(reactflowData);
+        if (parsed.type === 'node' && parsed.nodeData) {
+          nodeData = parsed.nodeData;
         }
       } catch (error) {
-        console.error('Failed to parse drop data:', error);
+        console.error('Failed to parse reactflow data:', error);
       }
     }
-  }, [reactFlowInstance, snapToGrid, setNodes, composerActions]);
+
+    // 如果没有获取到，尝试application/json
+    if (!nodeData) {
+      const jsonData = event.dataTransfer.getData('application/json');
+      if (jsonData) {
+        try {
+          nodeData = JSON.parse(jsonData);
+        } catch (error) {
+          console.error('Failed to parse json data:', error);
+        }
+      }
+    }
+
+    // 如果仍然没有获取到，尝试text/plain
+    if (!nodeData) {
+      const plainData = event.dataTransfer.getData('text/plain');
+      if (plainData) {
+        nodeData = { id: plainData, name: plainData, category: 'action' };
+      }
+    }
+
+    if (nodeData) {
+        try {
+          const isFirstNode = behaviorTreeData.nodes.length === 0;
+          
+          // 使用共享函数创建节点
+          const newNode = createNode(
+            position,
+            nodeData,
+            isFirstNode,
+            snapToGrid,
+            'behaviorTreeNode'
+          );
+
+          // 对于第一个节点，设置为Sequence类型
+          if (isFirstNode) {
+            newNode.data.modelName = 'Sequence';
+            newNode.data.category = 'control';
+          }
+
+          // 先将节点添加到store中
+          actions.addNode(newNode);
+          
+          // 然后更新ReactFlow的节点状态
+          setNodes((nds) => nds.concat(newNode));
+          
+          // 确保节点被正确注册到全局状态
+          composerActions.saveCurrentState();
+          
+          // 立即选择新创建的节点
+          composerActions.selectNode(newNode.id);
+          
+        } catch (error) {
+          console.error('Failed to create node:', error);
+        }
+      }
+  }, [reactFlowInstance, snapToGrid, setNodes, actions, composerActions, behaviorTreeData.nodes]);
 
   // 选择变化处理
   const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
-    composerActions.setSelectedNodes(selectedNodes.map(node => node.id));
+    const selectedIds = selectedNodes.map(node => node.id);
+    composerActions.setSelectedNodes(selectedIds);
   }, [composerActions]);
 
   // 键盘事件处理
