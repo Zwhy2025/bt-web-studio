@@ -2,13 +2,13 @@ import React, { useState, useCallback } from 'react';
 import { cn } from '@/core/utils/utils';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
-import { 
+import {
   useComposerActions,
   useNodeLibraryConfig,
   usePropertyPanelConfig
 } from '@/core/store/behavior-tree-store';
 import { useI18n } from '@/hooks/use-i18n';
-import { 
+import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -17,7 +17,6 @@ import {
 const ComposerNodeLibrary = React.lazy(() => import('./composer-node-library'));
 const ComposerPropertyPanel = React.lazy(() => import('./composer-property-panel'));
 const ComposerCanvas = React.lazy(() => import('./composer-canvas'));
-const ComposerToolbar = React.lazy(() => import('./composer-toolbar'));
 
 interface ComposerLayoutProps {
   children?: React.ReactNode;
@@ -25,16 +24,16 @@ interface ComposerLayoutProps {
 }
 
 // 面板折叠控制器
-function PanelToggle({ 
-  isExpanded, 
-  onToggle, 
-  position 
-}: { 
-  isExpanded: boolean; 
-  onToggle: () => void; 
-  position: 'left' | 'right' 
+function PanelToggle({
+  isExpanded,
+  onToggle,
+  position
+}: {
+  isExpanded: boolean;
+  onToggle: () => void;
+  position: 'left' | 'right'
 }) {
-  const Icon = position === 'left' 
+  const Icon = position === 'left'
     ? (isExpanded ? ChevronLeft : ChevronRight)
     : (isExpanded ? ChevronRight : ChevronLeft);
 
@@ -71,20 +70,13 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* 编排工具栏 */}
-      <React.Suspense fallback={
-        <div className="h-12 border-b bg-muted/50 animate-pulse" />
-      }>
-        <ComposerToolbar />
-      </React.Suspense>
-      
       {/* 主要内容区域 */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* 左侧节点库面板 */}
           {nodeLibraryConfig.isExpanded && (
             <>
-              <ResizablePanel 
+              <ResizablePanel
                 defaultSize={leftPanelSize}
                 minSize={15}
                 maxSize={40}
@@ -95,7 +87,7 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
                   <div className="flex items-center justify-between p-2 border-b bg-muted/50">
                     <h3 className="font-medium text-sm">{t('composer:nodeLibrary.title')}</h3>
 
-                    <PanelToggle 
+                    <PanelToggle
                       isExpanded={true}
                       onToggle={handleToggleNodeLibrary}
                       position="left"
@@ -120,7 +112,7 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
               {/* 左侧面板折叠按钮 */}
               {!nodeLibraryConfig.isExpanded && (
                 <div className="absolute top-2 left-2 z-10">
-                  <PanelToggle 
+                  <PanelToggle
                     isExpanded={false}
                     onToggle={handleToggleNodeLibrary}
                     position="left"
@@ -131,7 +123,7 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
               {/* 右侧面板折叠按钮 */}
               {!propertyPanelConfig.isExpanded && (
                 <div className="absolute top-2 right-2 z-10">
-                  <PanelToggle 
+                  <PanelToggle
                     isExpanded={false}
                     onToggle={handleTogglePropertyPanel}
                     position="right"
@@ -159,7 +151,7 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
           {propertyPanelConfig.isExpanded && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel 
+              <ResizablePanel
                 defaultSize={rightPanelSize}
                 minSize={15}
                 maxSize={40}
@@ -169,7 +161,7 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
                 <div className="h-full flex flex-col">
                   <div className="flex items-center justify-between p-2 border-b bg-muted/50">
                     <h3 className="font-medium text-sm">{t('composer:propertyPanel.title')}</h3>
-                    <PanelToggle 
+                    <PanelToggle
                       isExpanded={true}
                       onToggle={handleTogglePropertyPanel}
                       position="right"

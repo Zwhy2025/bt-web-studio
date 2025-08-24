@@ -1,24 +1,24 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
-  Node,
-  Edge,
+  type Node,
+  type Edge,
   addEdge,
   useNodesState,
   useEdgesState,
-  Connection,
+  type Connection,
   ConnectionMode,
   Controls,
   Background,
   BackgroundVariant,
   MiniMap,
   ReactFlowProvider,
-  ReactFlowInstance,
-  OnConnect,
-  OnNodesChange,
-  OnEdgesChange,
-  OnDrop,
-  OnDragOver,
+  type ReactFlowInstance,
+  type OnConnect,
+  type OnNodesChange,
+  type OnEdgesChange,
   Panel,
+  MarkerType,
+  type XYPosition,
 } from 'reactflow';
 import { cn } from '@/core/utils/utils';
 import { useI18n } from '@/hooks/use-i18n';
@@ -31,7 +31,7 @@ import {
 } from '@/core/store/behavior-tree-store';
 import { ComposerTool } from '@/core/store/composerModeState';
 import { Button } from '@/components/ui/button';
-import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info } from 'lucide-react';
+import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info, Undo2, Redo2 } from 'lucide-react';
 
 // 引入ReactFlow样式
 import 'reactflow/dist/style.css';
@@ -51,7 +51,7 @@ const nodeTypes = {
 const defaultEdgeOptions = {
   animated: false,
   type: 'smoothstep',
-  // markerEnd: { type: MarkerType.ArrowClosed },
+  markerEnd: { type: MarkerType.ArrowClosed },
   style: { stroke: '#64748b', strokeWidth: 2 },
 };
 
@@ -70,6 +70,7 @@ function CanvasControls({
   onToggleMiniMap: () => void;
 }) {
   const { t } = useI18n();
+  const composerActions = useComposerActions();
 
   const handleFitView = useCallback(() => {
     reactFlowInstance?.fitView({ padding: 0.1 });
@@ -89,6 +90,31 @@ function CanvasControls({
 
   return (
     <Panel position="top-right" className="flex flex-col gap-2">
+      {/* 撤销/重做按钮 */}
+      <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border rounded-md p-1">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={composerActions.undo}
+          disabled={!composerActions.canUndo()}
+          className="h-8 w-8 p-0" 
+          title={t('composer:actions.undo')}
+        >
+          <Undo2 className="h-4 w-4" />
+        </Button>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={composerActions.redo}
+          disabled={!composerActions.canRedo()}
+          className="h-8 w-8 p-0" 
+          title={t('composer:actions.redo')}
+        >
+          <Redo2 className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* 视图控制按钮 */}
       <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm border rounded-md p-1">
         <Button variant="ghost" size="sm" onClick={handleZoomIn} className="h-8 w-8 p-0" title={t('composer:canvas.zoomIn')}>
           <ZoomIn className="h-4 w-4" />
@@ -146,14 +172,16 @@ function CanvasInfo({
   );
 }
 
+interface ComposerCanvasProps {
+  children?: React.ReactNode;
+  className?: string;
+}
+
 // ReactFlow画布组件
 function ReactFlowCanvas({
   className,
   children
-}: {
-  className?: string;
-  children?: React.ReactNode;
-}) {
+}: ComposerCanvasProps) {
   const { t } = useI18n();
   const composerActions = useComposerActions();
   const activeTool = useActiveTool();
@@ -182,65 +210,69 @@ function ReactFlowCanvas({
     }
   }, [behaviorTreeData?.edges, setEdges]);
 
+  // 连接处理
   const onConnect: OnConnect = useCallback((connection: Connection) => {
     const edge = {
       ...connection,
       ...defaultEdgeOptions,
-      id: `edge-${Date.now()}`,
     };
     setEdges((eds) => addEdge(edge, eds));
-    composerActions.addConnection(connection);
+    composerActions.saveCurrentState();
   }, [setEdges, composerActions]);
 
-  const onDragOver: OnDragOver = useCallback((event) => {
+  // 拖拽处理
+  const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'move';
   }, []);
 
-  const onDrop: OnDrop = useCallback((event) => {
+  const onDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
 
     const reactFlowBounds = event.currentTarget.getBoundingClientRect();
-    const position = reactFlowInstance?.project({
+    const position: XYPosition = reactFlowInstance?.screenToFlowPosition({
       x: event.clientX - reactFlowBounds.left,
       y: event.clientY - reactFlowBounds.top,
-    });
+    }) || { x: 0, y: 0 };
 
-    const data = event.dataTransfer.getData('application/json');
-    if (!data || !position) return;
+    const data = event.dataTransfer.getData('application/reactflow');
+    
+    if (data) {
+      try {
+        const { type, nodeData } = JSON.parse(data);
+        if (type === 'node') {
+          const newNode: Node = {
+            id: `node-${Date.now()}`,
+            type: nodeData.type || 'behaviorTreeNode',
+            position: snapToGrid ? {
+              x: Math.round(position.x / 20) * 20,
+              y: Math.round(position.y / 20) * 20,
+            } : position,
+            data: {
+              ...nodeData,
+              label: nodeData.name,
+            },
+          };
 
-    try {
-      const { type, nodeData } = JSON.parse(data);
-      if (type === 'node') {
-        const newNode: Node = {
-          id: `node-${Date.now()}`,
-          type: 'behaviorTreeNode',
-          position: snapToGrid ? {
-            x: Math.round(position.x / 20) * 20,
-            y: Math.round(position.y / 20) * 20,
-          } : position,
-          data: {
-            ...nodeData,
-            label: nodeData.name,
-          },
-        };
-
-        setNodes((nds) => nds.concat(newNode));
-        composerActions.addNode(newNode);
+          setNodes((nds) => nds.concat(newNode));
+          composerActions.saveCurrentState();
+        }
+      } catch (error) {
+        console.error('Failed to parse drop data:', error);
       }
-    } catch (error) {
-      console.error('Failed to parse drop data:', error);
     }
   }, [reactFlowInstance, snapToGrid, setNodes, composerActions]);
 
+  // 选择变化处理
   const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
     composerActions.setSelectedNodes(selectedNodes.map(node => node.id));
   }, [composerActions]);
 
+  // 键盘事件处理
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement) {
+          event.target instanceof HTMLTextAreaElement) {
         return;
       }
 
@@ -251,13 +283,14 @@ function ReactFlowCanvas({
             composerActions.deleteSelectedNodes();
           }
           break;
-        case 'Escape':
-          composerActions.clearSelection();
-          break;
-        case 'a':
+        case 'z':
           if (event.ctrlKey || event.metaKey) {
+            if (event.shiftKey) {
+              composerActions.redo();
+            } else {
+              composerActions.undo();
+            }
             event.preventDefault();
-            composerActions.selectAll();
           }
           break;
       }
@@ -267,6 +300,7 @@ function ReactFlowCanvas({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedNodes, composerActions]);
 
+  // 移动和缩放处理
   const onMove = useCallback((_: React.MouseEvent, viewport: { x: number; y: number; zoom: number }) => {
     setZoomLevel(viewport.zoom);
   }, []);
@@ -289,49 +323,37 @@ function ReactFlowCanvas({
         connectionMode={ConnectionMode.Loose}
         snapToGrid={snapToGrid}
         snapGrid={[20, 20]}
-        deleteKeyCode={null}
-        multiSelectionKeyCode={['Meta', 'Control']}
+        fitView
+        attributionPosition="bottom-right"
         panOnDrag={activeTool === ComposerTool.PAN}
         selectionOnDrag={activeTool === ComposerTool.SELECT}
-        panOnScroll
-        zoomOnScroll
-        zoomOnPinch
-        zoomOnDoubleClick={false}
-        fitView
-        fitViewOptions={{ padding: 0.1 }}
-        attributionPosition="bottom-right"
+        className="bg-background"
       >
         {/* 背景网格 */}
         {showGrid && (
-          <Background variant={BackgroundVariant.Dots} gap={20} size={1} color="#e2e8f0" />
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={20}
+            size={1}
+            color="hsl(var(--muted-foreground) / 0.15)"
+          />
         )}
-
-        {/* 控制器 */}
-        <Controls showZoom={false} showFitView={false} showInteractive={false} position="bottom-right" />
 
         {/* 小地图 */}
         {showMiniMap && (
           <MiniMap
-            nodeColor={(node) => {
-              switch (node.data?.category) {
-                case 'control': return '#3b82f6';
-                case 'decorator': return '#8b5cf6';
-                case 'action': return '#10b981';
-                case 'condition': return '#f59e0b';
-                case 'subtree': return '#14b8a6';
-                default: return '#64748b';
-              }
-            }}
-            position="bottom-left"
+            nodeStrokeColor="hsl(var(--border))"
+            nodeColor="hsl(var(--muted))"
+            nodeBorderRadius={4}
+            pannable
+            zoomable
             style={{
-              backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              border: '1px solid #e2e8f0',
-              borderRadius: '4px',
+              backgroundColor: 'hsl(var(--background))',
             }}
           />
         )}
 
-        {/* 画布控制面板 */}
+        {/* 控制面板 */}
         <CanvasControls
           reactFlowInstance={reactFlowInstance}
           showGrid={showGrid}
@@ -340,18 +362,17 @@ function ReactFlowCanvas({
           onToggleMiniMap={() => setShowMiniMap(!showMiniMap)}
         />
 
-        {/* 画布信息面板 */}
+        {/* 画布信息 */}
         <CanvasInfo nodeCount={nodes.length} selectedNodeCount={selectedNodes.length} zoomLevel={zoomLevel} />
 
         {/* 空状态提示 */}
         {nodes.length === 0 && (
-          <Panel position="center" className="pointer-events-none">
-            <div className="text-center p-8 bg-background/80 backdrop-blur-sm border rounded-lg">
-              <div className="text-muted-foreground mb-2">
-                <Grid3X3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              </div>
+          <Panel position="top-center" className="pointer-events-none">
+            <div className="text-center p-8 bg-background/80 backdrop-blur-sm border rounded-lg shadow-sm">
               <h3 className="text-lg font-medium mb-2">{t('composer:canvas.emptyTitle')}</h3>
-              <p className="text-sm text-muted-foreground max-w-xs">{t('composer:canvas.emptyDescription')}</p>
+              <p className="text-sm text-muted-foreground max-w-md">
+                {t('composer:canvas.emptyDescription')}
+              </p>
             </div>
           </Panel>
         )}
@@ -361,8 +382,8 @@ function ReactFlowCanvas({
   );
 }
 
-// 主画布组件
-export default function ComposerCanvas({ children, className }: { children?: React.ReactNode; className?: string }) {
+// 默认导出组件
+export default function ComposerCanvas({ children, className }: ComposerCanvasProps) {
   return (
     <ReactFlowProvider>
       <ReactFlowCanvas className={className}>{children}</ReactFlowCanvas>

@@ -61,8 +61,6 @@ function AppContent() {
         <div className="h-screen w-screen bg-background text-foreground flex flex-col overflow-hidden">
             {/* 顶部栏 */}
             <TopBar
-                onImportClick={() => setIsImportDialogOpen(true)}
-                onExportClick={() => setIsExportDialogOpen(true)}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
             />

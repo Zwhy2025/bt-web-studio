@@ -7,20 +7,16 @@ import { TabModeSelector } from "@/components/mode-selector"
 import { FunctionTabs } from "@/components/layout/function-tabs"
 
 interface TopBarProps {
-  onImportClick: () => void;
-  onExportClick: () => void;
   onUndo?: () => void;
   onRedo?: () => void;
 }
 
-export function TopBar({ 
-  onImportClick, 
-  onExportClick, 
+export function TopBar({
   onUndo,
-  onRedo 
+  onRedo
 }: TopBarProps) {
   const { t } = useI18n()
-  
+
   return (
     <header className="w-full border-b bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-3 px-3 py-2">
@@ -29,20 +25,17 @@ export function TopBar({
           <Brain className="h-5 w-5 text-primary" aria-hidden />
           <div className="font-semibold tracking-tight">BT Web Studio</div>
         </div>
-        
+
         <Separator orientation="vertical" className="h-5" />
-        
+
         {/* 左侧：模式切换区域（保持不变） */}
         <div className="flex items-center">
           <TabModeSelector />
         </div>
-        
-        {/* 右侧：功能特化区域（File / Connection / Load / Help） */}
+
+        {/* 右侧：功能特化区域（只保留Help） */}
         <div className="ml-auto flex items-center gap-2">
-          <FunctionTabs
-            onImportClick={onImportClick}
-            onExportClick={onExportClick}
-          />
+          <FunctionTabs />
           <Separator orientation="vertical" className="h-5" />
           <LanguageSwitcher position="settings" variant="toggle" />
         </div>
