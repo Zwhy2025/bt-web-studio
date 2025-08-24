@@ -7,6 +7,7 @@ dist/
 QWEN.md
 GEMINI.md
 CLAUDE.md
+AGENTS.md
 
 # Logs
 *.log
