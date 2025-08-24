@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/core/utils/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -74,14 +74,60 @@ export function ModeSelector({
   const actions = useBehaviorTreeStore((state) => state.actions);
   const [animatingMode, setAnimatingMode] = useState<WorkflowMode | null>(null);
   const prevModeRef = useRef(currentMode);
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const itemRefs = useRef<Record<WorkflowMode, HTMLDivElement | null>>({
+    [WorkflowMode.COMPOSER]: null,
+    [WorkflowMode.DEBUG]: null,
+    [WorkflowMode.REPLAY]: null,
+  })
+
+  // 波浪与推挤/弹入状态
+  const [wave, setWave] = useState<{
+    from: WorkflowMode
+    to: WorkflowMode
+    key: number
+  } | null>(null)
+  const [hitMode, setHitMode] = useState<WorkflowMode | null>(null)
   useEffect(() => {
     if (prevModeRef.current !== currentMode) {
-      setAnimatingMode(currentMode);
-      const t = setTimeout(() => setAnimatingMode(null), 700);
-      prevModeRef.current = currentMode;
-      return () => clearTimeout(t);
+      const from = prevModeRef.current
+      const to = currentMode
+      setWave({ from, to, key: Date.now() })
+      setAnimatingMode(currentMode)
+      // 计算中间按钮“被波经过”的时间点（仅 tabs 横向）
+      if (containerRef.current && orientation === 'horizontal') {
+        const order = [WorkflowMode.COMPOSER, WorkflowMode.DEBUG, WorkflowMode.REPLAY]
+        const aIdx = order.indexOf(from)
+        const bIdx = order.indexOf(to)
+        if (Math.abs(aIdx - bIdx) === 2) {
+          const mid = order[1]
+          const c = containerRef.current.getBoundingClientRect()
+          const ax = itemRefs.current[from]?.getBoundingClientRect().left ?? 0
+          const bx = itemRefs.current[to]?.getBoundingClientRect().left ?? 0
+          const mx = itemRefs.current[mid]?.getBoundingClientRect().left ?? 0
+          const fromX = ax + (itemRefs.current[from]?.getBoundingClientRect().width ?? 0) / 2
+          const toX = bx + (itemRefs.current[to]?.getBoundingClientRect().width ?? 0) / 2
+          const midX = mx + (itemRefs.current[mid]?.getBoundingClientRect().width ?? 0) / 2
+          const total = Math.abs(toX - fromX) || 1
+          const frac = Math.min(1, Math.max(0, Math.abs(midX - fromX) / total))
+          const arriveMs = 650 * frac
+          const hold = 180
+          const t1 = window.setTimeout(() => setHitMode(mid), arriveMs)
+          const t2 = window.setTimeout(() => setHitMode(null), arriveMs + hold)
+          return () => { window.clearTimeout(t1); window.clearTimeout(t2) }
+        } else {
+          setHitMode(null)
+        }
+      }
+      const t = setTimeout(() => {
+        setAnimatingMode(null)
+        setWave(null)
+        setHitMode(null)
+      }, 300)
+      prevModeRef.current = currentMode
+      return () => clearTimeout(t)
     }
-  }, [currentMode]);
+  }, [currentMode])
 
   // 处理模式切换
   const handleModeSwitch = async (targetMode: WorkflowMode) => {
@@ -115,7 +161,7 @@ export function ModeSelector({
     const statusIndicator = null;
 
     const baseClasses = cn(
-      'relative flex items-center gap-2 transition-all duration-200 overflow-hidden',
+      'relative flex items-center gap-2 transition-all duration-500 overflow-hidden',
       orientation === 'vertical' && 'w-full justify-start',
       !canSwitch && 'opacity-50 cursor-not-allowed'
     );
@@ -148,8 +194,23 @@ export function ModeSelector({
       ),
     };
 
+    const isOutgoing = wave?.from === mode
+    const isIncoming = wave?.to === mode
+    const isHit = hitMode === mode
+
     const content = (
-      <div className={cn(baseClasses, sizeClasses[size], variantClasses[variant])}>
+      <div
+        ref={(el) => (itemRefs.current[mode] = el)}
+        className={cn(
+          baseClasses,
+          sizeClasses[size],
+          variantClasses[variant],
+          (isOutgoing || isIncoming || isHit) && 'mode-contrast-boost',
+          isHit && 'bg-accent/30',
+          isOutgoing && 'mode-outgoing',
+          isIncoming && 'mode-incoming'
+        )}
+      >
         {isActive && animatingMode === mode && (
           <span
             className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-24 h-24 rounded-full opacity-30 mode-droplet animate-droplet"
@@ -214,8 +275,9 @@ export function ModeSelector({
 
   return (
     <div
+      ref={containerRef}
       className={cn(
-        'flex',
+        'relative flex',
         orientation === 'vertical' ? 'flex-col space-y-1' : 'flex-row space-x-1',
         variant === 'tabs' && orientation === 'horizontal' && 'border-b border-gray-200',
         className
@@ -223,6 +285,15 @@ export function ModeSelector({
       role="tablist"
       aria-orientation={orientation}
     >
+      {variant === 'tabs' && orientation === 'horizontal' && wave && containerRef.current && (
+        <RippleOverlay
+          key={`ripple-${wave.key}`}
+          container={containerRef.current}
+          fromEl={itemRefs.current[wave.from]}
+          toEl={itemRefs.current[wave.to]}
+          toMode={wave.to}
+        />
+      )}
       {modeConfigs.map(renderModeItem)}
       
       {/* 顶部不再展示全局过渡状态提示 */}
@@ -269,4 +340,69 @@ export function TabModeSelector({ className }: { className?: string }) {
       className={className}
     />
   );
+}
+
+
+// 扩散涟漪覆盖层（径向渐变扩大）
+function RippleOverlay({
+  container,
+  fromEl,
+  toEl,
+  toMode,
+}: {
+  container: HTMLElement
+  fromEl: HTMLElement | null
+  toEl: HTMLElement | null
+  toMode: WorkflowMode
+}) {
+  const [geom, setGeom] = useState<{
+    cx: number
+    cy: number
+    scale: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!fromEl || !toEl) return
+    const c = container.getBoundingClientRect()
+    const a = fromEl.getBoundingClientRect()
+    const b = toEl.getBoundingClientRect()
+    const fromX = a.left + a.width / 2 - c.left
+    const fromY = a.top + a.height / 2 - c.top
+    const toX = b.left + b.width / 2 - c.left
+    const toY = b.top + b.height / 2 - c.top
+    const dx = toX - fromX
+    const dy = toY - fromY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const base = 48
+    const scale = Math.max(1.4, (dist + 40) / (base / 2))
+    setGeom({ cx: fromX, cy: fromY, scale })
+  }, [container, fromEl, toEl])
+
+  const colorClass = useMemo(() => {
+    switch (toMode) {
+      case WorkflowMode.COMPOSER:
+        return 'text-blue-400'
+      case WorkflowMode.DEBUG:
+        return 'text-orange-400'
+      case WorkflowMode.REPLAY:
+        return 'text-green-400'
+      default:
+        return 'text-primary'
+    }
+  }, [toMode])
+
+  if (!geom) return null
+
+  const style: React.CSSProperties = {
+    left: geom.cx,
+    top: geom.cy,
+    ['--ripple-scale' as any]: geom.scale,
+    ['--ripple-size' as any]: '48px',
+  }
+
+  return (
+    <div className={cn('absolute pointer-events-none z-0', colorClass)} style={{ left: 0, top: 0, right: 0, bottom: 0 }} aria-hidden>
+      <div className="mode-wave-ripple" style={style} />
+    </div>
+  )
 }

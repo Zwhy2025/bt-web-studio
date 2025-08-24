@@ -22,6 +22,10 @@ function AppContent() {
     const [exportNodes, setExportNodes] = useState<Node[]>([])
     const [exportEdges, setExportEdges] = useState<Edge[]>([])
 
+    // 预览功能状态
+    const [treeDirection, setTreeDirection] = useState<'vertical' | 'horizontal'>('vertical')
+    const [isCompactMode, setIsCompactMode] = useState(false)
+
     // 新项目：暂不提供多项目，保持单项目工作流（仅编排模式可用时再开启）
 
     // 保存项目
@@ -37,6 +41,24 @@ function AppContent() {
     const handleRedo = () => {
         // TODO: 实现重做逻辑
         console.log('Redo operation')
+    }
+
+    // 切换树方向
+    const handleToggleTreeDirection = () => {
+        setTreeDirection(prev => prev === 'vertical' ? 'horizontal' : 'vertical')
+        toast({
+            title: '布局已切换',
+            description: `已切换到${treeDirection === 'vertical' ? '水平' : '垂直'}布局`
+        })
+    }
+
+    // 切换紧凑模式
+    const handleToggleCompactMode = () => {
+        setIsCompactMode(prev => !prev)
+        toast({
+            title: '显示模式已切换',
+            description: `已切换到${isCompactMode ? '宽松' : '紧凑'}模式`
+        })
     }
 
     // 导入数据
@@ -63,6 +85,10 @@ function AppContent() {
             <TopBar
                 onUndo={handleUndo}
                 onRedo={handleRedo}
+                onToggleTreeDirection={handleToggleTreeDirection}
+                onToggleCompactMode={handleToggleCompactMode}
+                treeDirection={treeDirection}
+                isCompactMode={isCompactMode}
             />
             
             {/* 标签栏：暂不启用多项目标签，保持界面简洁 */}

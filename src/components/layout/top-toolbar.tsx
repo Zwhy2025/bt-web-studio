@@ -15,12 +15,23 @@ import {
     Settings,
     Bug,
     Wifi,
-    WifiOff
+    WifiOff,
+    Eye,
+    ArrowDown,
+    ArrowRight,
+    Minimize2,
+    Maximize2
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
 import { SimpleThemeToggle } from '@/components/theme-toggle'
 import { useI18n } from '@/hooks/use-i18n'
-import { TopBarLanguageSwitcher } from '@/components/language-switcher'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 
 interface TopToolbarProps {
     // 执行控制
@@ -35,6 +46,12 @@ interface TopToolbarProps {
     onZoomOut?: () => void
     onFitView?: () => void
     onToggleGrid?: () => void
+
+    // 预览控制
+    onToggleTreeDirection?: () => void
+    onToggleCompactMode?: () => void
+    treeDirection?: 'vertical' | 'horizontal'
+    isCompactMode?: boolean
 
     // 状态
     isPlaying?: boolean
@@ -55,6 +72,10 @@ export function TopToolbar({
     onZoomOut,
     onFitView,
     onToggleGrid,
+    onToggleTreeDirection,
+    onToggleCompactMode,
+    treeDirection = 'vertical',
+    isCompactMode = false,
     isPlaying = false,
     isPaused = false,
     isConnected = false,
@@ -215,7 +236,48 @@ export function TopToolbar({
                     {t('menu:debug')}
                 </Button>
 
-                <TopBarLanguageSwitcher />
+                {/* 预览功能 */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-300 hover:text-white hover:bg-gray-700"
+                        >
+                            <Eye className="w-4 h-4 mr-1" />
+                            预览
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[160px]">
+                        <DropdownMenuItem
+                            onClick={onToggleTreeDirection}
+                            className="gap-2 cursor-pointer"
+                        >
+                            {treeDirection === 'vertical' ? (
+                                <ArrowRight className="w-4 h-4" />
+                            ) : (
+                                <ArrowDown className="w-4 h-4" />
+                            )}
+                            <span>
+                                {treeDirection === 'vertical' ? '水平布局' : '垂直布局'}
+                            </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={onToggleCompactMode}
+                            className="gap-2 cursor-pointer"
+                        >
+                            {isCompactMode ? (
+                                <Maximize2 className="w-4 h-4" />
+                            ) : (
+                                <Minimize2 className="w-4 h-4" />
+                            )}
+                            <span>
+                                {isCompactMode ? '宽松模式' : '紧凑模式'}
+                            </span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
 
                 <SimpleThemeToggle />
 
@@ -230,3 +292,4 @@ export function TopToolbar({
         </div>
     )
 }
+
