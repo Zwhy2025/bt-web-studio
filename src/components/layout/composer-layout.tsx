@@ -12,9 +12,9 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { NodeLibraryPanel } from './node-library-panel';
 
 // 延迟加载子组件
-const ComposerNodeLibrary = React.lazy(() => import('./composer-node-library'));
 const ComposerPropertyPanel = React.lazy(() => import('./composer-property-panel'));
 const ComposerCanvas = React.lazy(() => import('./composer-canvas'));
 
@@ -93,13 +93,9 @@ export default function ComposerLayout({ children, className }: ComposerLayoutPr
                       position="left"
                     />
                   </div>
-                  <React.Suspense fallback={
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-sm text-muted-foreground">{t('common:loading')}</div>
-                    </div>
-                  }>
-                    <ComposerNodeLibrary />
-                  </React.Suspense>
+                  <div className="flex-1 overflow-hidden">
+                    <NodeLibraryPanel />
+                  </div>
                 </div>
               </ResizablePanel>
               <ResizableHandle withHandle />

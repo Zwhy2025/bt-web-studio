@@ -54,6 +54,11 @@
     "advancedSettings": "Advanced Settings",
     "validation": "Validation",
     "documentation": "Documentation",
+    "tabs": {
+      "properties": "Properties",
+      "ports": "Ports",
+      "description": "Description"
+    },
     "fields": {
       "name": "Name",
       "description": "Description",
@@ -71,7 +76,11 @@
       "required": "This field is required",
       "invalid": "Invalid value",
       "duplicate": "Duplicate name"
-    }
+    },
+    "noSelection": "No node selected",
+    "noSelectionDesc": "Select a node to view its properties",
+    "nodeNotFound": "Node not found",
+    "nodeNotFoundDesc": "The selected node was removed or is unavailable"
   },
   "canvas": {
     "title": "Behavior Tree Canvas",

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
     Search,
     ChevronDown,
@@ -46,7 +47,8 @@ import {
     ArrowRightLeft,
     Info,
     Code,
-    AlertTriangle
+    AlertTriangle,
+    Languages
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
 
@@ -556,9 +558,20 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
     }
 
     const handleNodeDragStart = (nodeType: NodeType, event: React.DragEvent) => {
-        // 设置拖拽数据
-        event.dataTransfer.setData('application/json', JSON.stringify(nodeType))
-        event.dataTransfer.effectAllowed = 'copy'
+        // 设置拖拽数据 - 只传递可序列化的数据
+        event.dataTransfer.setData('application/reactflow', JSON.stringify({
+            type: 'node',
+            nodeData: {
+                id: nodeType.id,
+                name: nodeType.name,
+                category: nodeType.category,
+                description: nodeType.description,
+                color: nodeType.color,
+                borderColor: nodeType.borderColor,
+                bgColor: nodeType.bgColor
+            }
+        }))
+        event.dataTransfer.effectAllowed = 'move'
 
         // 创建拖拽预览
         const dragImage = document.createElement('div')
@@ -638,14 +651,14 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
                                             draggable
                                             onDragStart={(e) => handleNodeDragStart(node, e)}
                                             className={cn(
-                                                "flex items-center space-x-3 p-3 rounded-lg cursor-grab active:cursor-grabbing",
+                                                "flex items-start space-x-3 p-3 rounded-lg cursor-grab active:cursor-grabbing",
                                                 "hover:bg-gray-700 transition-all duration-200",
                                                 "border border-transparent hover:border-gray-600",
                                                 node.bgColor
                                             )}
                                         >
                                             <div className={cn(
-                                                "w-8 h-8 rounded-lg flex items-center justify-center",
+                                                "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
                                                 "border", node.borderColor, node.bgColor
                                             )}>
                                                 <node.icon className={cn("w-4 h-4", node.color)} />
@@ -654,7 +667,7 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
                                                 <div className="font-medium text-white text-sm">
                                                     {node.name}
                                                 </div>
-                                                <div className="text-xs text-gray-400 truncate">
+                                                <div className="text-xs text-gray-400 break-words">
                                                     {node.description}
                                                 </div>
                                             </div>
@@ -677,3 +690,5 @@ export function NodeLibraryPanel({ onNodeDragStart, className }: NodeLibraryPane
         </div>
     )
 }
+
+export default NodeLibraryPanel;

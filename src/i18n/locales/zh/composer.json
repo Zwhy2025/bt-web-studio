@@ -73,6 +73,11 @@
     "advancedSettings": "高级设置",
     "validation": "验证",
     "documentation": "文档",
+    "tabs": {
+      "properties": "属性",
+      "ports": "端口",
+      "description": "描述"
+    },
     "fields": {
       "name": "名称",
       "description": "描述",
@@ -92,7 +97,9 @@
       "duplicate": "名称重复"
     },
     "noSelection": "未选中任何节点",
-    "noSelectionDesc": "选中一个节点来查看其属性"
+    "noSelectionDesc": "选中一个节点来查看其属性",
+    "nodeNotFound": "未找到该节点",
+    "nodeNotFoundDesc": "所选节点已被删除或不可用"
   },
   "canvas": {
     "title": "行为树画布",

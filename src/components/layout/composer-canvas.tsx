@@ -212,13 +212,18 @@ function ReactFlowCanvas({
 
   // 连接处理
   const onConnect: OnConnect = useCallback((connection: Connection) => {
+    // 禁止把边连到 root（root 只能向下连接）
+    const targetNode = nodes.find((n) => n.id === connection.target);
+    if (targetNode && (targetNode.data as any)?.instanceName === 'root') {
+      return; // 忽略
+    }
     const edge = {
       ...connection,
       ...defaultEdgeOptions,
     };
     setEdges((eds) => addEdge(edge, eds));
     composerActions.saveCurrentState();
-  }, [setEdges, composerActions]);
+  }, [setEdges, composerActions, nodes]);
 
   // 拖拽处理
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -241,21 +246,30 @@ function ReactFlowCanvas({
       try {
         const { type, nodeData } = JSON.parse(data);
         if (type === 'node') {
+          const modelName = nodeData.id || nodeData.name || 'Node'
+          const isFirstNode = nodes.length === 0;
           const newNode: Node = {
             id: `node-${Date.now()}`,
-            type: nodeData.type || 'behaviorTreeNode',
+            type: 'behaviorTreeNode',
             position: snapToGrid ? {
               x: Math.round(position.x / 20) * 20,
               y: Math.round(position.y / 20) * 20,
             } : position,
             data: {
               ...nodeData,
-              label: nodeData.name,
+              name: modelName,
+              modelName: isFirstNode ? 'Sequence' : modelName,
+              category: nodeData.category || 'action',
+              status: 'idle',
+              // 默认一个输入/一个输出端口，可在属性面板中扩展
+              inputs: isFirstNode ? [] : [{ id: 'in', side: 'top' }],
+              outputs: [{ id: 'out', side: 'bottom' }],
+              ...(isFirstNode ? { instanceName: 'root' } : {}),
             },
           };
 
           setNodes((nds) => nds.concat(newNode));
-          composerActions.saveCurrentState();
+          composerActions.addNode(nodeData.id, position); // 调用store中的添加节点方法
         }
       } catch (error) {
         console.error('Failed to parse drop data:', error);

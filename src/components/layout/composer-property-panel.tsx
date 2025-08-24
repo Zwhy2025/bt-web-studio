@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { cn } from '@/core/utils/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +16,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   useComposerSelectedNodes,
   useComposerActions,
-  useValidationErrors 
+  useValidationErrors,
+  useBehaviorTreeStore,
+  useBlackboard
 } from '@/core/store/behavior-tree-store';
 import { useI18n } from '@/hooks/use-i18n';
 import { 
@@ -299,6 +301,9 @@ function PropertyEditor({
     }
   };
 
+  const selErrors: string[] = useMemo(() => (selectedNode as any)?.errors || [], [selectedNode]);
+  const selWarnings: string[] = useMemo(() => (selectedNode as any)?.warnings || [], [selectedNode]);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -332,25 +337,27 @@ export default function ComposerPropertyPanel() {
   const selectedNodeIds = useComposerSelectedNodes();
   const composerActions = useComposerActions();
   const validationErrors = useValidationErrors();
+  const nodes = useBehaviorTreeStore((s) => s.nodes);
+  const edges = useBehaviorTreeStore((s) => s.edges);
+  const actions = useBehaviorTreeStore((s) => s.actions);
+  const blackboard = useBlackboard();
+  const blackboardKeys = useMemo(() => Object.keys(blackboard || {}), [blackboard]);
 
-  // 获取当前选中的节点数据
+  // 获取当前选中的真实节点
   const selectedNode = useMemo(() => {
     if (selectedNodeIds.length !== 1) return null;
-    return getMockNodeData(selectedNodeIds[0]);
-  }, [selectedNodeIds]);
+    return nodes.find((n) => n.id === selectedNodeIds[0]) || null;
+  }, [selectedNodeIds, nodes]);
 
-  // 属性变更处理
-  const handlePropertyChange = useCallback((key: string, value: any) => {
+  // 更新节点 data 的便捷方法
+  const updateNodeData = useCallback((patch: any) => {
     if (!selectedNode) return;
-    
-    console.log(`更新节点 ${selectedNode.id} 的属性 ${key}:`, value);
-    // TODO: 集成到实际的状态管理中
-    // composerActions.updateNodeProperty(selectedNode.id, key, value);
-  }, [selectedNode]);
+    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, ...patch } } as any);
+  }, [actions, selectedNode]);
 
   // 节点相关的错误和警告
   const nodeValidationErrors = useMemo(() => {
-    if (!selectedNode) return [];
+    if (!selectedNode) return [] as any[];
     return validationErrors.filter(error => error.nodeId === selectedNode.id);
   }, [selectedNode, validationErrors]);
 
@@ -405,8 +412,12 @@ export default function ComposerPropertyPanel() {
       <div className="p-3 border-b">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-sm truncate">{selectedNode.name}</div>
-            <div className="text-xs text-muted-foreground">{selectedNode.type}</div>
+            <div className="text-[11px] text-muted-foreground truncate">
+              {String((selectedNode.data as any)?.modelName || (selectedNode.data as any)?.name || selectedNode.type || '')}
+            </div>
+            <div className="font-medium text-sm truncate">
+              {String((selectedNode.data as any)?.instanceName || '') || '—'}
+            </div>
           </div>
           <div className="flex items-center gap-1 ml-2">
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
@@ -418,15 +429,11 @@ export default function ComposerPropertyPanel() {
           </div>
         </div>
         
-        {selectedNode.description && (
-          <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-            {selectedNode.description}
-          </p>
-        )}
+        {/* 编排模式下不展示描述 */}
       </div>
 
       {/* 错误和警告 */}
-      {(selectedNode.errors.length > 0 || selectedNode.warnings.length > 0 || nodeValidationErrors.length > 0) && (
+      {(selErrors.length > 0 || selWarnings.length > 0 || nodeValidationErrors.length > 0) && (
         <div className="p-3 border-b space-y-2">
           {/* 验证错误 */}
           {nodeValidationErrors.map((error, index) => (
@@ -439,7 +446,7 @@ export default function ComposerPropertyPanel() {
           ))}
           
           {/* 节点错误 */}
-          {selectedNode.errors.map((error, index) => (
+          {selErrors.map((error, index) => (
             <Alert key={index} variant="destructive">
               <XCircle className="h-4 w-4" />
               <AlertDescription className="text-xs">{error}</AlertDescription>
@@ -447,7 +454,7 @@ export default function ComposerPropertyPanel() {
           ))}
           
           {/* 节点警告 */}
-          {selectedNode.warnings.map((warning, index) => (
+          {selWarnings.map((warning, index) => (
             <Alert key={index}>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">{warning}</AlertDescription>
@@ -470,21 +477,52 @@ export default function ComposerPropertyPanel() {
             </TabsTrigger>
             <TabsTrigger value="docs" className="text-xs">
               <FileText className="w-3 h-3 mr-1" />
-              {t('composer:propertyPanel.tabs.documentation')}
+              {t('composer:propertyPanel.tabs.description')}
             </TabsTrigger>
           </TabsList>
 
           {/* 属性编辑 */}
           <TabsContent value="properties" className="flex-1 mt-2">
             <ScrollArea className="h-full">
-              <div className="p-3 space-y-4">
-                {selectedNode.properties.map((property) => (
-                  <PropertyEditor
-                    key={property.key}
-                    property={property}
-                    onChange={handlePropertyChange}
-                  />
-                ))}
+              <div className="p-3 space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">模型名</Label>
+                  <Input readOnly value={String((selectedNode.data as any)?.modelName || (selectedNode.data as any)?.name || selectedNode.type || '')} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">实例名</Label>
+                  <Input value={String((selectedNode.data as any)?.instanceName || '')}
+                         onChange={(e) => {
+                           const v = e.target.value; const trimmed = v.trim();
+                           if (trimmed === 'root') {
+                             // 统一处理 root 唯一与无输入
+                             nodes.forEach((n) => {
+                               if (n.id !== selectedNode.id && (n.data as any)?.instanceName === 'root') {
+                                 actions.updateNode(n.id, { data: { ...n.data, instanceName: '' } } as any)
+                               }
+                             });
+                             actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, instanceName: 'root', modelName: 'Sequence', inputs: [] } } as any)
+                           } else {
+                             actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, instanceName: v } } as any)
+                           }
+                         }}
+                         placeholder="请输入实例名（如：root）" />
+                </div>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* 描述编辑 */}
+          <TabsContent value="docs" className="flex-1 mt-2">
+            <ScrollArea className="h-full">
+              <div className="p-3 space-y-2">
+                <Label className="text-xs">{t('composer:propertyPanel.fields.description')}</Label>
+                <Textarea
+                  value={String((selectedNode.data as any)?.description || '')}
+                  onChange={(e) => actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, description: e.target.value } } as any)}
+                  placeholder={t('composer:propertyPanel.fields.description')}
+                  className="min-h-[120px]"
+                />
               </div>
             </ScrollArea>
           </TabsContent>
@@ -496,42 +534,116 @@ export default function ComposerPropertyPanel() {
                 <Accordion type="multiple" defaultValue={["input", "output"]}>
                   <AccordionItem value="input">
                     <AccordionTrigger className="text-sm">
-                      {t('composer:propertyPanel.ports.input')} ({selectedNode.ports.input.length})
+                      输入端口 ({(((selectedNode.data as any)?.inputs) || []).length})
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-2">
-                        {selectedNode.ports.input.map((port) => (
-                          <div key={port.id} className="flex items-center justify-between p-2 border rounded">
-                            <div className="flex-1">
-                              <div className="font-medium text-xs">{port.name}</div>
-                              <div className="text-xs text-muted-foreground">{port.type}</div>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {port.type}
-                            </Badge>
+                        {(((selectedNode.data as any)?.inputs) || []).map((port: any, idx: number) => (
+                          <div key={`in-${idx}`} className="flex items-center gap-2 p-2 border rounded">
+                  <Input className="h-8 text-xs" value={port.id || ''} onChange={(e) => {
+                    const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
+                    arr[idx] = { ...arr[idx], id: e.target.value };
+                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
+                  }} />
+                  <Select value={String(port.side || 'top')} onValueChange={(v) => {
+                    const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
+                    arr[idx] = { ...arr[idx], side: v };
+                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
+                  }}>
+                    <SelectTrigger className="h-8 w-28 text-xs" />
+                    <SelectContent>
+                      <SelectItem value="top">top</SelectItem>
+                      <SelectItem value="bottom">bottom</SelectItem>
+                      <SelectItem value="left">left</SelectItem>
+                      <SelectItem value="right">right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={String(port.blackboardKey || '')} onValueChange={(v) => {
+                    const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
+                    arr[idx] = { ...arr[idx], blackboardKey: v };
+                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
+                  }}>
+                    <SelectTrigger className="h-8 w-40 text-xs">{String(port.blackboardKey || '从黑板读取')}</SelectTrigger>
+                    <SelectContent>
+                      {blackboardKeys.map((k) => (
+                        <SelectItem key={k} value={k}>{k}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                              const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
+                              arr.splice(idx, 1);
+                              actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: arr } } as any)
+                            }}>
+                              <Minus className="h-3 w-3" />
+                            </Button>
                           </div>
                         ))}
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const arr = Array.isArray((selectedNode.data as any).inputs) ? [...(selectedNode.data as any).inputs] : [];
+                          const id = `in${arr.length + 1}`;
+                          actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, inputs: [...arr, { id, side: 'top' }] } } as any)
+                        }}>
+                          <Plus className="h-3 w-3 mr-1" /> 添加输入端口
+                        </Button>
                       </div>
                     </AccordionContent>
                   </AccordionItem>
-                  
+
                   <AccordionItem value="output">
                     <AccordionTrigger className="text-sm">
-                      {t('composer:propertyPanel.ports.output')} ({selectedNode.ports.output.length})
+                      输出端口 ({(((selectedNode.data as any)?.outputs) || []).length})
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="space-y-2">
-                        {selectedNode.ports.output.map((port) => (
-                          <div key={port.id} className="flex items-center justify-between p-2 border rounded">
-                            <div className="flex-1">
-                              <div className="font-medium text-xs">{port.name}</div>
-                              <div className="text-xs text-muted-foreground">{port.type}</div>
-                            </div>
-                            <Badge variant="outline" className="text-xs">
-                              {port.type}
-                            </Badge>
+                        {(((selectedNode.data as any)?.outputs) || []).map((port: any, idx: number) => (
+                          <div key={`out-${idx}`} className="flex items-center gap-2 p-2 border rounded">
+                  <Input className="h-8 text-xs" value={port.id || ''} onChange={(e) => {
+                    const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
+                    arr[idx] = { ...arr[idx], id: e.target.value };
+                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
+                  }} />
+                  <Select value={String(port.side || 'bottom')} onValueChange={(v) => {
+                    const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
+                    arr[idx] = { ...arr[idx], side: v };
+                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
+                  }}>
+                    <SelectTrigger className="h-8 w-28 text-xs" />
+                    <SelectContent>
+                      <SelectItem value="top">top</SelectItem>
+                      <SelectItem value="bottom">bottom</SelectItem>
+                      <SelectItem value="left">left</SelectItem>
+                      <SelectItem value="right">right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={String(port.blackboardKey || '')} onValueChange={(v) => {
+                    const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
+                    arr[idx] = { ...arr[idx], blackboardKey: v };
+                    actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
+                  }}>
+                    <SelectTrigger className="h-8 w-40 text-xs">{String(port.blackboardKey || '从黑板读取')}</SelectTrigger>
+                    <SelectContent>
+                      {blackboardKeys.map((k) => (
+                        <SelectItem key={k} value={k}>{k}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                              const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
+                              arr.splice(idx, 1);
+                              actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: arr } } as any)
+                            }}>
+                              <Minus className="h-3 w-3" />
+                            </Button>
                           </div>
                         ))}
+                        <Button variant="outline" size="sm" onClick={() => {
+                          const arr = Array.isArray((selectedNode.data as any).outputs) ? [...(selectedNode.data as any).outputs] : [];
+                          const id = `out${arr.length + 1}`;
+                          actions.updateNode(selectedNode.id, { data: { ...selectedNode.data, outputs: [...arr, { id, side: 'bottom' }] } } as any)
+                        }}>
+                          <Plus className="h-3 w-3 mr-1" /> 添加输出端口
+                        </Button>
                       </div>
                     </AccordionContent>
                   </AccordionItem>

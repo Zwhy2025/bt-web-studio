@@ -73,6 +73,7 @@ export function BehaviorTreeEditor() {
     // 节点拖拽处理
     const handleNodeDragStart = (nodeType: any, event: React.DragEvent) => {
         console.log('开始拖拽节点:', nodeType.name)
+        // 可以在这里添加更多的拖拽处理逻辑
     }
 
     // 属性面板事件处理
