@@ -1,30 +1,54 @@
 
 import { StateCreator } from 'zustand';
-import { BehaviorTreeState, ProjectSession, NodeStatus, DebugState } from './behavior-tree-store';
+import { BehaviorTreeState, ProjectSession, NodeStatus, DebugState, Node, DebugSession, ReplaySession } from './behavior-tree-store';
 
-const createDefaultSession = (): ProjectSession => ({
+/**
+ * 创建一个新节点
+ * @param position 节点位置
+ * @param data 节点数据
+ * @param isFirstNode 是否为第一个节点
+ * @param snapToGrid 是否吸附到网格
+ * @param nodeType 节点类型
+ * @returns 创建的节点
+ */
+export const createNode = (position: { x: number; y: number }, data: Record<string, any> = {}, isFirstNode: boolean = false, snapToGrid: boolean = true, nodeType: string = 'behaviorTreeNode'): Node => ({
+  id: isFirstNode ? 'root' : `node-${Date.now()}`,
+  type: nodeType,
+  position: snapToGrid ? {
+    x: Math.round(position.x / 20) * 20,
+    y: Math.round(position.y / 20) * 20,
+  } : position,
+  data: {
+    label: data.label || data.name || 'Unnamed Node',
+    status: NodeStatus.IDLE,
+    parameters: {},
+    executionCount: 0,
+    inputs: isFirstNode ? [] : [{ id: 'in', side: 'top' }],
+    outputs: [{ id: 'out', side: 'bottom' }],
+    ...(isFirstNode ? { instanceName: 'root' } : {}),
+    originalId: data.id,
+    nodeType: nodeType,
+    createdAt: Date.now(),
+    ...data,
+  },
+});
+
+const createDefaultSession = (): ProjectSession & Partial<DebugSession> & Partial<ReplaySession> => ({
   id: `session-${Date.now()}`,
   name: '新项目',
-  nodes: [{
-    id: 'root',
-    position: { x: 100, y: 80 },
-    data: {
-      label: 'Root (Sequence)',
-      status: NodeStatus.IDLE,
-      parameters: {},
-      executionCount: 0,
-    },
-    type: 'control-sequence',
-  }],
+  nodes: [createNode({ x: 100, y: 80 }, { label: 'Root (Sequence)' }, true, true, 'control-sequence')],
   edges: [],
   blackboard: {},
   createdAt: Date.now(),
   modifiedAt: Date.now(),
+  host: '',
+  port: 0,
+  status: DebugState.STOPPED,
 });
 
 export interface SessionSlice {
-  currentSession: ProjectSession | null;
-  sessions: ProjectSession[];
+  currentSession: (ProjectSession & Partial<DebugSession> & Partial<ReplaySession>) | null;
+  sessions: (ProjectSession & Partial<DebugSession> & Partial<ReplaySession>)[];
   activeSessionId: string;
   actions: {
     createSession: (name: string) => string;

@@ -19,26 +19,7 @@ export function BehaviorTreeEditor() {
     // 示例节点数据
     const selectedNode = selectedNodeId ? createSampleNodeInfo(selectedNodeId) : null
 
-    // 工具栏事件处理
-    const handleNew = () => {
-        console.log('新建行为树')
-    }
-
-    const handleOpen = () => {
-        console.log('打开行为树')
-    }
-
-    const handleSave = () => {
-        console.log('保存行为树')
-    }
-
-    const handleImport = () => {
-        console.log('导入行为树')
-    }
-
-    const handleExport = () => {
-        console.log('导出行为树')
-    }
+    // 执行控制事件处理
 
     const handlePlay = () => {
         setIsPlaying(true)
@@ -92,6 +73,7 @@ export function BehaviorTreeEditor() {
     // 节点拖拽处理
     const handleNodeDragStart = (nodeType: any, event: React.DragEvent) => {
         console.log('开始拖拽节点:', nodeType.name)
+        // 可以在这里添加更多的拖拽处理逻辑
     }
 
     // 属性面板事件处理
@@ -188,11 +170,6 @@ export function BehaviorTreeEditor() {
         <ResizableLayout
             topToolbar={
                 <TopToolbar
-                    onNew={handleNew}
-                    onOpen={handleOpen}
-                    onSave={handleSave}
-                    onImport={handleImport}
-                    onExport={handleExport}
                     onPlay={handlePlay}
                     onPause={handlePause}
                     onStop={handleStop}

@@ -1,0 +1,45 @@
+@layer utilities {
+  /* 旧模式被轻推感 */
+  @keyframes mode-outgoing {
+    0% { transform: scale(1); opacity: 1 }
+    45% { transform: scale(.965); opacity: .65 }
+    100% { transform: scale(1); opacity: 1 }
+  }
+
+  /* 新模式轻微弹入 */
+  @keyframes mode-incoming {
+    0% { transform: scale(.98); opacity: .75 }
+    55% { transform: scale(1.06); opacity: 1 }
+    100% { transform: scale(1); opacity: 1 }
+  }
+
+  .mode-outgoing { animation: mode-outgoing 300ms cubic-bezier(.2,.7,.2,1) both }
+  .mode-incoming { animation: mode-incoming 300ms cubic-bezier(.2,.7,.2,1.1) both }
+
+  .mode-contrast-boost { filter: brightness(1.08) saturate(1.08) }
+
+  /* 扩散型径向涟漪 */
+  @keyframes mode-ripple-expand {
+    0% { transform: translate(-50%, -50%) scale(.35); opacity: .35 }
+    60% { transform: translate(-50%, -50%) scale(1.05); opacity: .18 }
+    100% { transform: translate(-50%, -50%) scale(var(--ripple-scale, 1.4)); opacity: 0 }
+  }
+
+  .mode-wave-ripple {
+    position: absolute;
+    left: 0; top: 0; /* 实际位置通过 style 传入偏移 */
+    width: var(--ripple-size, 48px);
+    height: var(--ripple-size, 48px);
+    pointer-events: none;
+    border-radius: 9999px;
+    background: radial-gradient(
+      circle,
+      currentColor 0%,
+      rgba(0,0,0,0) 60%
+    );
+    opacity: .3;
+    will-change: transform, opacity;
+    animation: mode-ripple-expand 300ms cubic-bezier(.25,.8,.25,1) forwards;
+    mix-blend-mode: lighten;
+  }
+}

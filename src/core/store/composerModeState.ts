@@ -720,8 +720,11 @@ export const createComposerModeSlice: StateCreator<
       },
       
       openNodeEditor: (nodeId: string) => {
-        console.log('Opening node editor for:', nodeId);
-        // TODO: 实现节点编辑器打开逻辑
+        set(state => ({
+          ...state,
+          selectedNodeIds: [nodeId],
+          propertyPanel: { ...state.propertyPanel, isExpanded: true },
+        }));
       },
       
       toggleBreakpoint: (nodeId: string) => {
@@ -735,8 +738,11 @@ export const createComposerModeSlice: StateCreator<
       },
       
       openNodeSettings: (nodeId: string) => {
-        console.log('Opening node settings for:', nodeId);
-        // TODO: 实现节点设置对话框
+        set(state => ({
+          ...state,
+          selectedNodeIds: [nodeId],
+          propertyPanel: { ...state.propertyPanel, isExpanded: true },
+        }));
       },
       
       setSelectedNodes: (nodeIds: string[]) => {

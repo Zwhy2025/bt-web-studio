@@ -1,9 +1,8 @@
-import React, { memo, useState, useCallback } from 'react';
+import React, { memo, useState, useCallback, useMemo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { cn } from '@/core/utils/utils';
 import { useComposerActions, useSelectedNodes } from '@/core/store/behavior-tree-store';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { 
   GitBranch,
   Repeat,
@@ -11,14 +10,10 @@ import {
   Shield,
   Package,
   Activity,
-  Settings,
-  Eye,
-  EyeOff,
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock,
-  MoreHorizontal
+  Clock
 } from 'lucide-react';
 
 // 节点状态枚举
@@ -31,21 +26,31 @@ export enum NodeStatus {
 }
 
 // 节点数据接口
+export interface PortConfig {
+  id: string;
+  label?: string;
+  side?: 'top' | 'bottom' | 'left' | 'right';
+}
+
 export interface BehaviorTreeNodeData {
   id: string;
   name: string;
+  modelName?: string;     // 模型名（类型/模板）
+  instanceName?: string;  // 实例名（显示用）
   category: string;
   description?: string;
   icon?: React.ComponentType<{ className?: string }>;
   color?: string;
   status?: NodeStatus;
-  isBreakpoint?: boolean;
-  isDisabled?: boolean;
+  isBreakpoint?: boolean; // 调试用（编排不显示控件）
+  isDisabled?: boolean;   // 调试用（编排不显示控件）
   hasError?: boolean;
   errorMessage?: string;
   executionCount?: number;
   lastExecutionTime?: number;
   properties?: Record<string, any>;
+  inputs?: PortConfig[];
+  outputs?: PortConfig[];
 }
 
 // 获取节点图标
@@ -64,7 +69,10 @@ function getNodeIcon(category: string, customIcon?: React.ComponentType<{ classN
 }
 
 // 获取节点颜色
-function getNodeColor(category: string, customColor?: string) {
+function getNodeColor(category: string, customColor?: string, isRootNode: boolean = false) {
+  // Root节点使用特殊颜色(红色)
+  if (isRootNode) return 'bg-red-500';
+  
   if (customColor) return customColor;
   
   switch (category) {
@@ -82,15 +90,16 @@ function getNodeColor(category: string, customColor?: string) {
 function getStatusColor(status: NodeStatus) {
   switch (status) {
     case NodeStatus.RUNNING:
-      return 'border-blue-400 bg-blue-50';
+      return 'border-blue-400 bg-blue-50 dark:border-blue-500/50 dark:bg-blue-500/10';
     case NodeStatus.SUCCESS:
-      return 'border-green-400 bg-green-50';
+      return 'border-green-400 bg-green-50 dark:border-green-500/50 dark:bg-green-500/10';
     case NodeStatus.FAILURE:
-      return 'border-red-400 bg-red-50';
+      return 'border-red-400 bg-red-50 dark:border-red-500/50 dark:bg-red-500/10';
     case NodeStatus.ERROR:
-      return 'border-orange-400 bg-orange-50';
+      return 'border-orange-400 bg-orange-50 dark:border-orange-500/50 dark:bg-orange-500/10';
     default:
-      return 'border-gray-200 bg-white';
+      // 默认在明暗两种主题下都可读
+      return 'border-border bg-card';
   }
 }
 
@@ -121,12 +130,16 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
   const selectedNodes = useSelectedNodes();
   const [isHovered, setIsHovered] = useState(false);
 
-  const Icon = getNodeIcon(data.category, data.icon);
-  const nodeColor = getNodeColor(data.category, data.color);
+  // 确保data.icon存在且是有效的组件，否则使用category获取图标
+  const Icon = data.icon && typeof data.icon === 'function' 
+    ? data.icon 
+    : getNodeIcon(data.category);
+  const nodeColor = getNodeColor(data.category, data.color, id === 'root');
   const statusColor = getStatusColor(data.status || NodeStatus.IDLE);
   const statusIcon = getStatusIcon(data.status || NodeStatus.IDLE);
 
   const isSelected = selectedNodes.includes(id);
+  const isRootNode = id === 'root';
 
   // 节点点击处理
   const handleNodeClick = useCallback((event: React.MouseEvent) => {
@@ -140,23 +153,25 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
     composerActions.openNodeEditor(id);
   }, [id, composerActions]);
 
-  // 断点切换
-  const handleToggleBreakpoint = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    composerActions.toggleBreakpoint(id);
-  }, [id, composerActions]);
+  // 端口配置（根据数据渲染多端口）
+  const inputs = useMemo<PortConfig[]>(() => {
+    const arr = data.inputs && data.inputs.length > 0 ? data.inputs : [{ id: 'in', side: 'top' as const }];
+    return arr.map(p => ({ ...p, side: p.side || 'top' }));
+  }, [data.inputs]);
 
-  // 节点禁用切换
-  const handleToggleDisabled = useCallback((event: React.MouseEvent) => {
-    event.stopPropagation();
-    composerActions.toggleNodeDisabled(id);
-  }, [id, composerActions]);
+  const outputs = useMemo<PortConfig[]>(() => {
+    const arr = data.outputs && data.outputs.length > 0 ? data.outputs : [{ id: 'out', side: 'bottom' as const }];
+    return arr.map(p => ({ ...p, side: p.side || 'bottom' }));
+  }, [data.outputs]);
+
+  const modelTitle = (data.modelName || data.name || '').toString();
+  const instanceTitle = (data.instanceName || '').toString().trim();
 
   return (
     <div
       className={cn(
-        'relative min-w-[120px] max-w-[200px] border-2 rounded-lg shadow-sm transition-all duration-200',
-        statusColor,
+        'relative min-w-[120px] max-w-[220px] border-2 rounded-lg shadow-sm transition-all duration-200 text-foreground',
+        isRootNode ? 'bg-red-500 border-red-600' : statusColor,
         isSelected && 'ring-2 ring-primary ring-offset-1',
         dragging && 'opacity-50',
         data.isDisabled && 'opacity-60',
@@ -168,23 +183,46 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* 输入连接点 */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="w-3 h-3 border-2 border-gray-400 bg-white"
-        isConnectable={!data.isDisabled}
-      />
+      {/* 输入连接点（支持多端口） */}
+      {inputs.map((port, i) => {
+        const count = inputs.length;
+        const pos = port.side === 'left' ? Position.Left : port.side === 'right' ? Position.Right : Position.Top;
+        const style: React.CSSProperties = {};
+        if (pos === Position.Top || pos === Position.Bottom) {
+          style.left = `${((i + 1) / (count + 1)) * 100}%`;
+          style.transform = 'translateX(-50%)';
+        } else {
+          const sideCount = inputs.filter(p => p.side === port.side).length;
+          const idx = inputs.filter((p, idx) => p.side === port.side && idx <= i).length - 1;
+          style.top = `${((idx + 1) / (sideCount + 1)) * 100}%`;
+          style.transform = 'translateY(-50%)';
+        }
+        return (
+          <Handle
+            key={`in-${port.id}-${i}`}
+            id={port.id}
+            type="target"
+            position={pos}
+            className="w-3 h-3 border-2 border-border bg-background"
+            isConnectable={!data.isDisabled}
+            style={style}
+          />
+        );
+      })}
 
       {/* 节点头部 */}
-      <div className="flex items-center gap-2 p-2 border-b border-gray-200">
-        <div className={cn('w-6 h-6 rounded-md flex items-center justify-center', nodeColor)}>
+      <div className="flex items-center gap-2 p-2 border-b border-border/70 bg-accent/10">
+        <div className={cn('w-6 h-6 rounded-md flex items-center justify-center shadow-sm', nodeColor)}>
           <Icon className="w-3 h-3 text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm truncate">{data.name}</div>
+          {/* 模型名：优先显示且字号更大 */}
+          <div className="font-semibold text-sm truncate">{modelTitle}</div>
+          {/* 实例名：仅在设置后显示，置于模型名下方且更小 */}
+          {instanceTitle && (
+            <div className="text-[11px] text-muted-foreground leading-4 truncate">{instanceTitle}</div>
+          )}
         </div>
-        
         {/* 状态和标志 */}
         <div className="flex items-center gap-1">
           {statusIcon}
@@ -197,88 +235,37 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
         </div>
       </div>
 
-      {/* 节点内容 */}
-      <div className="p-2 space-y-1">
-        {data.description && (
-          <div className="text-xs text-muted-foreground line-clamp-2">
-            {data.description}
-          </div>
-        )}
-        
-        {/* 属性预览 */}
-        {data.properties && Object.keys(data.properties).length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(data.properties).slice(0, 2).map(([key, value]) => (
-              <Badge key={key} variant="secondary" className="text-xs">
-                {key}: {String(value).slice(0, 10)}
-              </Badge>
-            ))}
-            {Object.keys(data.properties).length > 2 && (
-              <Badge variant="secondary" className="text-xs">
-                +{Object.keys(data.properties).length - 2}
-              </Badge>
-            )}
-          </div>
-        )}
+      {/* 节点内容（编排模式简洁显示，不展示描述与属性预览） */}
+      <div className="p-2" />
 
-        {/* 执行统计 */}
-        {data.executionCount && data.executionCount > 0 && (
-          <div className="text-xs text-muted-foreground">
-            执行次数: {data.executionCount}
-          </div>
-        )}
-      </div>
+      {/* 编排模式不显示调试类悬浮工具栏（断点/禁用/设置） */}
 
-      {/* 悬停工具栏 */}
-      {isHovered && (
-        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-background border rounded-md shadow-lg p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleToggleBreakpoint}
-            className="h-6 w-6 p-0"
-            title="切换断点"
-          >
-            <div className={cn(
-              'w-2 h-2 rounded-full',
-              data.isBreakpoint ? 'bg-red-500' : 'bg-gray-300'
-            )} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleToggleDisabled}
-            className="h-6 w-6 p-0"
-            title={data.isDisabled ? '启用节点' : '禁用节点'}
-          >
-            {data.isDisabled ? (
-              <Eye className="h-3 w-3" />
-            ) : (
-              <EyeOff className="h-3 w-3" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              composerActions.openNodeSettings(id);
-            }}
-            className="h-6 w-6 p-0"
-            title="节点设置"
-          >
-            <Settings className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
-
-      {/* 输出连接点 */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="w-3 h-3 border-2 border-gray-400 bg-white"
-        isConnectable={!data.isDisabled}
-      />
+      {/* 输出连接点（支持多端口） */}
+      {outputs.map((port, i) => {
+        const count = outputs.length;
+        const pos = port.side === 'left' ? Position.Left : port.side === 'right' ? Position.Right : Position.Bottom;
+        const style: React.CSSProperties = {};
+        if (pos === Position.Top || pos === Position.Bottom) {
+          style.left = `${((i + 1) / (count + 1)) * 100}%`;
+          style.transform = 'translateX(-50%)';
+        } else {
+          const sideCount = outputs.filter(p => p.side === port.side).length;
+          const idx = outputs.filter((p, idx) => p.side === port.side && idx <= i).length - 1;
+          style.top = `${((idx + 1) / (sideCount + 1)) * 100}%`;
+          style.transform = 'translateY(-50%)';
+        }
+        return (
+          <Handle
+            key={`out-${port.id}-${i}`}
+            id={port.id}
+            type="source"
+            position={pos}
+            className="w-3 h-3 border-2 border-border bg-background"
+            isConnectable={!data.isDisabled}
+            style={style}
+          />
+        );
+      })}
 
       {/* 错误消息提示 */}
       {data.hasError && data.errorMessage && isHovered && (
@@ -293,4 +280,4 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
 BehaviorTreeNode.displayName = 'BehaviorTreeNode';
 
 // 导出节点数据类型
-export type { BehaviorTreeNodeData, NodeStatus };
+export { BehaviorTreeNodeData };
