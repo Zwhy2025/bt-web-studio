@@ -77,48 +77,11 @@
     "edit": "编辑"
   },
   "panels": {
-    "events": "事件面板",
-    "analysis": "分析面板"
+    "events": "事件面板"
   },
   "tabs": {
     "events": "事件",
-    "timeline": "时间轴",
-    "analysis": "分析",
-    "statistics": "统计"
-  },
-  "analysis": {
-    "title": "数据分析",
-    "refresh": "刷新分析",
-    "tabs": {
-      "analysis": "分析",
-      "statistics": "统计"
-    },
-    "performance": {
-      "title": "性能分析",
-      "overall": "整体性能",
-      "totalTime": "总耗时",
-      "avgTime": "平均耗时",
-      "successRate": "成功率",
-      "failureRate": "失败率",
-      "nodeAnalysis": "节点分析",
-      "mostActive": "最活跃节点",
-      "slowest": "最慢节点",
-      "executions": "次执行"
-    },
-    "heatmap": {
-      "title": "执行热力图",
-      "noData": "无数据"
-    },
-    "statistics": {
-      "overview": "统计概览",
-      "totalEvents": "事件总数",
-      "eventsPerSecond": "事件/秒",
-      "byType": "按事件类型",
-      "byLevel": "按事件级别"
-    },
-    "export": {
-      "title": "导出分析数据"
-    }
+    "timeline": "时间轴"
   },
   "canvas": {
     "title": "回放画布",

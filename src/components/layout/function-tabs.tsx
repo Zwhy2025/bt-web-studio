@@ -7,7 +7,7 @@ import { useI18n } from '@/hooks/use-i18n';
 import { useBehaviorTreeStore, useCurrentMode, useDebugActions } from '@/core/store/behavior-tree-store';
 import { DebugSessionStatus } from '@/core/store/debugModeState';
 import { WorkflowMode } from '@/core/store/workflowModeState';
-import { 
+import {
   FileText, Upload, Download,
   Link2, Link2Off, Wifi, WifiOff,
   ClipboardList, HelpCircle
@@ -212,7 +212,6 @@ export function FunctionTabs({ className, onImportClick, onExportClick }: Functi
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onSelect={() => window.open('/docs/user-guide.md', '_blank')}>{t('menu:docs') || 'User Guide'}</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => window.open('/docs/groot2_protocol.md', '_blank')}>Groot Protocol</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => window.open('/AGENTS.md', '_blank')}>Repository Guidelines</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

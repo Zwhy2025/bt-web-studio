@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { useMemo } from 'react';
-import { create } from 'zustand';
 import { shallow } from 'zustand/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Node, Edge } from 'reactflow';
@@ -207,7 +206,6 @@ export const useReplayStatus = () => useBehaviorTreeStore((state) => state.repla
 export const useCurrentTime = () => useBehaviorTreeStore((state) => state.currentTime);
 export const useVisibleEvents = () => useBehaviorTreeStore((state) => state.visibleEvents);
 export const useTimelineMarkers = () => useBehaviorTreeStore((state) => state.timelineMarkers);
-export const useAnalysisResult = () => useBehaviorTreeStore((state) => state.analysisResult);
 export const useReplayActions = () => useBehaviorTreeStore((state) => state.replayActions);
 export const useReplayEvents = () => useBehaviorTreeStore((state) => state.executionEvents || []);
 export const useEventFilters = () => useBehaviorTreeStore((state) => state.eventFilter);
