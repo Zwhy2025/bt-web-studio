@@ -4,6 +4,9 @@
 
 /* 导入模式化主题样式 */
 @import './styles/mode-themes.css';
+/* 模式切换水滴/波浪动画样式 */
+@import './styles/mode-droplet.css';
+@import './styles/mode-wave.css';
 
 @tailwind base;
 @tailwind components;

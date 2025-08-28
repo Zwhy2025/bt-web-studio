@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from 'react';
 import { cn } from '@/core/utils/utils';
 import { useCurrentMode, useIsTransitioning, useTransitionProgress } from '@/core/store/behavior-tree-store';
 import { WorkflowMode } from '@/core/store/workflowModeState';
@@ -40,7 +40,7 @@ function LoadingIndicator({ mode, progress }: { mode: WorkflowMode; progress?: n
             正在加载{getModeLabel(mode)}...
           </span>
         </div>
-        
+
         {typeof progress === 'number' && (
           <div className="w-64 space-y-2">
             <Progress value={progress} className="h-2" />
@@ -49,7 +49,7 @@ function LoadingIndicator({ mode, progress }: { mode: WorkflowMode; progress?: n
             </p>
           </div>
         )}
-        
+
         <div className="space-y-2">
           <Skeleton className="h-4 w-48 mx-auto" />
           <Skeleton className="h-4 w-32 mx-auto" />
@@ -65,26 +65,44 @@ function ModeTransition({ children, isTransitioning, progress }: {
   isTransitioning: boolean;
   progress: number;
 }) {
-  if (!isTransitioning) {
-    return <>{children}</>;
-  }
+  const [showOverlay, setShowOverlay] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (isTransitioning) {
+      // 延迟 0.8s 才显示全局覆盖层，避免闪烁
+      timerRef.current = window.setTimeout(() => setShowOverlay(true), 800);
+    } else {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+      setShowOverlay(false);
+    }
+    return () => {
+      if (timerRef.current) window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [isTransitioning]);
+
+  if (!isTransitioning && !showOverlay) return <>{children}</>;
 
   return (
     <div className="relative">
-      {/* 过渡覆盖层 */}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-          <div className="space-y-2">
-            <p className="text-sm font-medium">正在切换模式...</p>
-            <div className="w-48 space-y-1">
-              <Progress value={progress} className="h-1" />
-              <p className="text-xs text-muted-foreground">{progress}%</p>
+      {/* 过渡覆盖层（延时显示） */}
+      {showOverlay && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+            <div className="space-y-2">
+              <p className="text-sm font-medium">正在切换模式...</p>
+              <div className="w-48 space-y-1">
+                <Progress value={progress} className="h-1" />
+                <p className="text-xs text-muted-foreground">{progress}%</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      
+      )}
+
       {/* 原内容（模糊处理） */}
       <div className={cn('transition-all duration-300', isTransitioning && 'blur-sm')}>
         {children}
@@ -125,15 +143,34 @@ class ModeLayoutErrorBoundary extends React.Component<
             <p className="text-muted-foreground">
               {this.props.mode} 模式无法正常加载。
             </p>
-            <button
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-              onClick={() => {
-                this.setState({ hasError: false, error: undefined });
-                // 可以添加重试逻辑
-              }}
-            >
-              重试
-            </button>
+            {this.state.error && (
+              <div className="text-sm text-muted-foreground bg-muted p-3 rounded text-left">
+                <strong>错误详情:</strong>
+                <br />
+                {this.state.error.message}
+              </div>
+            )}
+            <div className="flex gap-2 justify-center">
+              <button
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                onClick={() => {
+                  this.setState({ hasError: false, error: undefined });
+                  // 强制重新渲染
+                  window.location.reload();
+                }}
+              >
+                重试
+              </button>
+              <button
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
+                onClick={() => {
+                  // 尝试切换到编排模式
+                  window.location.href = '/?mode=composer';
+                }}
+              >
+                返回编排模式
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -205,8 +242,8 @@ export function ModeAwareLayout({ children, className }: ModeAwareLayoutProps) {
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      <ModeTransition 
-        isTransitioning={isTransitioning} 
+      <ModeTransition
+        isTransitioning={isTransitioning}
         progress={transitionProgress}
       >
         {renderModeLayout()}

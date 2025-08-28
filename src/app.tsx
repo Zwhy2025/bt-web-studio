@@ -6,7 +6,6 @@ import { useToast } from "@/hooks/use-toast"
 import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
 import { useI18n } from "@/hooks/use-i18n"
 import { TopBar } from "@/components/layout/top-bar"
-import { TabBar } from "@/components/tab-bar"
 import { ModeAwareLayout } from "@/components/layout/mode-aware-layout"
 import { PanelStatusIndicator } from '@/components/layout/collapsible-layout'
 
@@ -23,24 +22,14 @@ function AppContent() {
     const [exportNodes, setExportNodes] = useState<Node[]>([])
     const [exportEdges, setExportEdges] = useState<Edge[]>([])
 
-    // 创建新项目
-    const handleNewProject = () => {
-        const projectName = `${t('menu:newProject')} ${new Date().toLocaleTimeString()}`
-        actions.createSession(projectName)
-        toast({
-            title: t('messages:projectCreated'),
-            description: `${t('messages:projectCreatedDesc')}：${projectName}`
-        })
-    }
+    // 预览功能状态
+    const [treeDirection, setTreeDirection] = useState<'vertical' | 'horizontal'>('vertical')
+    const [isCompactMode, setIsCompactMode] = useState(false)
+
+    // 新项目：暂不提供多项目，保持单项目工作流（仅编排模式可用时再开启）
 
     // 保存项目
-    const handleSave = () => {
-        // TODO: 实现保存逻辑
-        toast({
-            title: t('messages:projectSaved'),
-            description: t('messages:projectSavedDesc')
-        })
-    }
+    // 不提供显式保存按钮，保持单项目自动状态管理
 
     // 撤销操作
     const handleUndo = () => {
@@ -52,6 +41,24 @@ function AppContent() {
     const handleRedo = () => {
         // TODO: 实现重做逻辑
         console.log('Redo operation')
+    }
+
+    // 切换树方向
+    const handleToggleTreeDirection = () => {
+        setTreeDirection(prev => prev === 'vertical' ? 'horizontal' : 'vertical')
+        toast({
+            title: '布局已切换',
+            description: `已切换到${treeDirection === 'vertical' ? '水平' : '垂直'}布局`
+        })
+    }
+
+    // 切换紧凑模式
+    const handleToggleCompactMode = () => {
+        setIsCompactMode(prev => !prev)
+        toast({
+            title: '显示模式已切换',
+            description: `已切换到${isCompactMode ? '宽松' : '紧凑'}模式`
+        })
     }
 
     // 导入数据
@@ -76,16 +83,15 @@ function AppContent() {
         <div className="h-screen w-screen bg-background text-foreground flex flex-col overflow-hidden">
             {/* 顶部栏 */}
             <TopBar
-                onImportClick={() => setIsImportDialogOpen(true)}
-                onExportClick={() => setIsExportDialogOpen(true)}
-                onNewProject={handleNewProject}
-                onSave={handleSave}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
+                onToggleTreeDirection={handleToggleTreeDirection}
+                onToggleCompactMode={handleToggleCompactMode}
+                treeDirection={treeDirection}
+                isCompactMode={isCompactMode}
             />
             
-            {/* 标签栏 */}
-            <TabBar />
+            {/* 标签栏：暂不启用多项目标签，保持界面简洁 */}
             
             {/* 主内容区域 - 使用模式感知布局 */}
             <main className="flex-1 min-h-0">

@@ -4,7 +4,7 @@
   "toolbar": {
     "title": "Replay Toolbar",
     "load": "Load",
-    "save": "Save", 
+    "save": "Save",
     "export": "Export",
     "loadSession": "Load Session File",
     "saveSession": "Save Current Session",
@@ -23,7 +23,7 @@
   },
   "controls": {
     "play": "Play",
-    "pause": "Pause", 
+    "pause": "Pause",
     "stop": "Stop",
     "stepBack": "Step Backward",
     "stepForward": "Step Forward",
@@ -33,7 +33,7 @@
   },
   "timeline": {
     "currentTime": "Current Time",
-    "totalTime": "Total Time", 
+    "totalTime": "Total Time",
     "position": "Position",
     "duration": "Duration",
     "markers": "Timeline Markers",
@@ -54,7 +54,7 @@
     "noMatches": "No Matching Events",
     "types": {
       "node_enter": "Node Enter",
-      "node_exit": "Node Exit", 
+      "node_exit": "Node Exit",
       "node_success": "Node Success",
       "node_failure": "Node Failure",
       "blackboard_update": "Blackboard Update",
@@ -77,48 +77,11 @@
     "edit": "Edit"
   },
   "panels": {
-    "events": "Events",
-    "analysis": "Analysis"
+    "events": "Events"
   },
   "tabs": {
     "events": "Events",
-    "timeline": "Timeline",
-    "analysis": "Analysis", 
-    "statistics": "Statistics"
-  },
-  "analysis": {
-    "title": "Data Analysis",
-    "refresh": "Refresh Analysis",
-    "tabs": {
-      "analysis": "Analysis",
-      "statistics": "Statistics"
-    },
-    "performance": {
-      "title": "Performance Analysis",
-      "overall": "Overall Performance",
-      "totalTime": "Total Time",
-      "avgTime": "Average Time", 
-      "successRate": "Success Rate",
-      "failureRate": "Failure Rate",
-      "nodeAnalysis": "Node Analysis",
-      "mostActive": "Most Active Node",
-      "slowest": "Slowest Node",
-      "executions": "executions"
-    },
-    "heatmap": {
-      "title": "Execution Heatmap", 
-      "noData": "No data available"
-    },
-    "statistics": {
-      "overview": "Statistics Overview",
-      "totalEvents": "Total Events",
-      "eventsPerSecond": "Events/sec",
-      "byType": "By Event Type",
-      "byLevel": "By Event Level"
-    },
-    "export": {
-      "title": "Export Analysis Data"
-    }
+    "timeline": "Timeline"
   },
   "canvas": {
     "title": "Replay Canvas",

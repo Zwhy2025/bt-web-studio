@@ -3,17 +3,14 @@ import { cn } from '@/core/utils/utils';
 import { ResizablePanel, ResizablePanelGroup, ResizableHandle } from '@/components/ui/resizable';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  useDebugActions,
+import {
   useDebugSession,
   useExecutionStatus,
   useBreakpoints,
-  useCallStack,
-  useWatchVariables,
   useDebugLogs
 } from '@/core/store/behavior-tree-store';
 import { useI18n } from '@/hooks/use-i18n';
-import { 
+import {
   ChevronLeft,
   ChevronRight,
   Activity,
@@ -25,10 +22,6 @@ import {
 // 延迟加载子组件
 const DebugCanvas = React.lazy(() => import('./debug-canvas'));
 const DebugToolbar = React.lazy(() => import('./debug-toolbar'));
-const StateMonitorPanel = React.lazy(() => import('./state-monitor-panel'));
-const BreakpointPanel = React.lazy(() => import('./breakpoint-panel'));
-const CallStackPanel = React.lazy(() => import('./call-stack-panel'));
-const WatchVariablesPanel = React.lazy(() => import('./watch-variables-panel'));
 const DebugLogsPanel = React.lazy(() => import('./debug-logs-panel'));
 
 interface DebugLayoutProps {
@@ -37,16 +30,16 @@ interface DebugLayoutProps {
 }
 
 // 面板折叠控制器
-function PanelToggle({ 
-  isExpanded, 
-  onToggle, 
-  position 
-}: { 
-  isExpanded: boolean; 
-  onToggle: () => void; 
-  position: 'left' | 'right' 
+function PanelToggle({
+  isExpanded,
+  onToggle,
+  position
+}: {
+  isExpanded: boolean;
+  onToggle: () => void;
+  position: 'left' | 'right'
 }) {
-  const Icon = position === 'left' 
+  const Icon = position === 'left'
     ? (isExpanded ? ChevronLeft : ChevronRight)
     : (isExpanded ? ChevronRight : ChevronLeft);
 
@@ -96,7 +89,7 @@ function DebugStatusIndicator() {
         <div className={cn('w-2 h-2 rounded-full', getStatusColor())} />
         <span className="text-sm font-medium">{getStatusText()}</span>
       </div>
-      
+
       <div className="flex items-center gap-3 ml-auto">
         <div className="flex items-center gap-1">
           <Bug className="h-4 w-4 text-muted-foreground" />
@@ -104,7 +97,7 @@ function DebugStatusIndicator() {
             {Object.keys(breakpoints).length}
           </Badge>
         </div>
-        
+
         <div className="flex items-center gap-1">
           <AlertCircle className="h-4 w-4 text-muted-foreground" />
           <Badge variant="secondary" className="text-xs">
@@ -117,15 +110,14 @@ function DebugStatusIndicator() {
 }
 
 // 左侧调试面板
-function LeftDebugPanel({ 
-  isExpanded, 
-  onToggle 
-}: { 
-  isExpanded: boolean; 
-  onToggle: () => void 
+function LeftDebugPanel({
+  isExpanded,
+  onToggle
+}: {
+  isExpanded: boolean;
+  onToggle: () => void
 }) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'breakpoints' | 'callstack' | 'variables'>('breakpoints');
 
   if (!isExpanded) return null;
 
@@ -136,76 +128,33 @@ function LeftDebugPanel({
           <Bug className="h-4 w-4" />
           <h3 className="font-medium text-sm">{t('debug:panels.debugger')}</h3>
         </div>
-        <PanelToggle 
+        <PanelToggle
           isExpanded={true}
           onToggle={onToggle}
           position="left"
         />
       </div>
 
-      {/* 标签页切换 */}
-      <div className="flex border-b">
-        <button
-          className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium transition-colors',
-            activeTab === 'breakpoints' 
-              ? 'bg-background border-b-2 border-primary text-primary' 
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('breakpoints')}
-        >
-          {t('debug:tabs.breakpoints')}
-        </button>
-        <button
-          className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium transition-colors',
-            activeTab === 'callstack' 
-              ? 'bg-background border-b-2 border-primary text-primary' 
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('callstack')}
-        >
-          {t('debug:tabs.callStack')}
-        </button>
-        <button
-          className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium transition-colors',
-            activeTab === 'variables' 
-              ? 'bg-background border-b-2 border-primary text-primary' 
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('variables')}
-        >
-          {t('debug:tabs.variables')}
-        </button>
-      </div>
-
       {/* 面板内容 */}
-      <div className="flex-1 min-h-0">
-        <React.Suspense fallback={
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-sm text-muted-foreground">{t('common:loading')}</div>
-          </div>
-        }>
-          {activeTab === 'breakpoints' && <BreakpointPanel />}
-          {activeTab === 'callstack' && <CallStackPanel />}
-          {activeTab === 'variables' && <WatchVariablesPanel />}
-        </React.Suspense>
+      <div className="flex-1 min-h-0 p-4">
+        <div className="text-center text-muted-foreground">
+          <Bug className="h-8 w-8 mx-auto mb-2" />
+          <p className="text-sm">{t('debug:debugger.placeholder')}</p>
+        </div>
       </div>
     </div>
   );
 }
 
 // 右侧状态监控面板
-function RightMonitorPanel({ 
-  isExpanded, 
-  onToggle 
-}: { 
-  isExpanded: boolean; 
-  onToggle: () => void 
+function RightMonitorPanel({
+  isExpanded,
+  onToggle
+}: {
+  isExpanded: boolean;
+  onToggle: () => void
 }) {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'monitor' | 'logs'>('monitor');
 
   if (!isExpanded) return null;
 
@@ -216,37 +165,11 @@ function RightMonitorPanel({
           <Monitor className="h-4 w-4" />
           <h3 className="font-medium text-sm">{t('debug:panels.monitor')}</h3>
         </div>
-        <PanelToggle 
+        <PanelToggle
           isExpanded={true}
           onToggle={onToggle}
           position="right"
         />
-      </div>
-
-      {/* 标签页切换 */}
-      <div className="flex border-b">
-        <button
-          className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium transition-colors',
-            activeTab === 'monitor' 
-              ? 'bg-background border-b-2 border-primary text-primary' 
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('monitor')}
-        >
-          {t('debug:tabs.monitor')}
-        </button>
-        <button
-          className={cn(
-            'flex-1 px-3 py-2 text-xs font-medium transition-colors',
-            activeTab === 'logs' 
-              ? 'bg-background border-b-2 border-primary text-primary' 
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          onClick={() => setActiveTab('logs')}
-        >
-          {t('debug:tabs.logs')}
-        </button>
       </div>
 
       {/* 面板内容 */}
@@ -256,8 +179,7 @@ function RightMonitorPanel({
             <div className="text-sm text-muted-foreground">{t('common:loading')}</div>
           </div>
         }>
-          {activeTab === 'monitor' && <StateMonitorPanel />}
-          {activeTab === 'logs' && <DebugLogsPanel />}
+          <DebugLogsPanel />
         </React.Suspense>
       </div>
     </div>
@@ -267,7 +189,7 @@ function RightMonitorPanel({
 // 主调试布局组件
 export default function DebugLayout({ children, className }: DebugLayoutProps) {
   const { t } = useI18n();
-  
+
   // 面板状态
   const [leftPanelExpanded, setLeftPanelExpanded] = useState(true);
   const [rightPanelExpanded, setRightPanelExpanded] = useState(true);
@@ -293,21 +215,21 @@ export default function DebugLayout({ children, className }: DebugLayoutProps) {
 
       {/* 调试状态指示器 */}
       <DebugStatusIndicator />
-      
+
       {/* 主要内容区域 */}
       <div className="flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* 左侧调试面板 */}
           {leftPanelExpanded && (
             <>
-              <ResizablePanel 
+              <ResizablePanel
                 defaultSize={leftPanelSize}
                 minSize={15}
                 maxSize={40}
                 onResize={setLeftPanelSize}
                 className="border-r"
               >
-                <LeftDebugPanel 
+                <LeftDebugPanel
                   isExpanded={leftPanelExpanded}
                   onToggle={handleToggleLeftPanel}
                 />
@@ -322,7 +244,7 @@ export default function DebugLayout({ children, className }: DebugLayoutProps) {
               {/* 左侧面板折叠按钮 */}
               {!leftPanelExpanded && (
                 <div className="absolute top-2 left-2 z-10">
-                  <PanelToggle 
+                  <PanelToggle
                     isExpanded={false}
                     onToggle={handleToggleLeftPanel}
                     position="left"
@@ -333,7 +255,7 @@ export default function DebugLayout({ children, className }: DebugLayoutProps) {
               {/* 右侧面板折叠按钮 */}
               {!rightPanelExpanded && (
                 <div className="absolute top-2 right-2 z-10">
-                  <PanelToggle 
+                  <PanelToggle
                     isExpanded={false}
                     onToggle={handleToggleRightPanel}
                     position="right"
@@ -362,14 +284,14 @@ export default function DebugLayout({ children, className }: DebugLayoutProps) {
           {rightPanelExpanded && (
             <>
               <ResizableHandle withHandle />
-              <ResizablePanel 
+              <ResizablePanel
                 defaultSize={rightPanelSize}
                 minSize={15}
                 maxSize={40}
                 onResize={setRightPanelSize}
                 className="border-l"
               >
-                <RightMonitorPanel 
+                <RightMonitorPanel
                   isExpanded={rightPanelExpanded}
                   onToggle={handleToggleRightPanel}
                 />

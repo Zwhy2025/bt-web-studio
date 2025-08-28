@@ -8,11 +8,6 @@ import {
     Square,
     StepForward,
     RotateCcw,
-    Save,
-    FolderOpen,
-    FileText,
-    Download,
-    Upload,
     ZoomIn,
     ZoomOut,
     Maximize,
@@ -20,21 +15,25 @@ import {
     Settings,
     Bug,
     Wifi,
-    WifiOff
+    WifiOff,
+    Eye,
+    ArrowDown,
+    ArrowRight,
+    Minimize2,
+    Maximize2
 } from 'lucide-react'
 import { cn } from '@/core/utils/utils'
 import { SimpleThemeToggle } from '@/components/theme-toggle'
 import { useI18n } from '@/hooks/use-i18n'
-import { TopBarLanguageSwitcher } from '@/components/language-switcher'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu'
 
 interface TopToolbarProps {
-    // 文件操作
-    onNew?: () => void
-    onOpen?: () => void
-    onSave?: () => void
-    onImport?: () => void
-    onExport?: () => void
-
     // 执行控制
     onPlay?: () => void
     onPause?: () => void
@@ -48,6 +47,12 @@ interface TopToolbarProps {
     onFitView?: () => void
     onToggleGrid?: () => void
 
+    // 预览控制
+    onToggleTreeDirection?: () => void
+    onToggleCompactMode?: () => void
+    treeDirection?: 'vertical' | 'horizontal'
+    isCompactMode?: boolean
+
     // 状态
     isPlaying?: boolean
     isPaused?: boolean
@@ -58,11 +63,6 @@ interface TopToolbarProps {
 }
 
 export function TopToolbar({
-    onNew,
-    onOpen,
-    onSave,
-    onImport,
-    onExport,
     onPlay,
     onPause,
     onStop,
@@ -72,6 +72,10 @@ export function TopToolbar({
     onZoomOut,
     onFitView,
     onToggleGrid,
+    onToggleTreeDirection,
+    onToggleCompactMode,
+    treeDirection = 'vertical',
+    isCompactMode = false,
     isPlaying = false,
     isPaused = false,
     isConnected = false,
@@ -113,112 +117,59 @@ export function TopToolbar({
             "border-b border-gray-700",
             className
         )}>
-            {/* 左侧：文件操作 */}
-            <div className="flex items-center space-x-2">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onNew}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700"
-                >
-                    <FileText className="w-4 h-4 mr-1" />
-                    {t('menu:new')}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onOpen}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700"
-                >
-                    <FolderOpen className="w-4 h-4 mr-1" />
-                    {t('menu:open')}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onSave}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700"
-                >
-                    <Save className="w-4 h-4 mr-1" />
-                    {t('menu:save')}
-                </Button>
-
-                <Separator orientation="vertical" className="h-6 bg-gray-600" />
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onImport}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700"
-                >
-                    <Upload className="w-4 h-4 mr-1" />
-                    {t('menu:import')}
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onExport}
-                    className="text-gray-300 hover:text-white hover:bg-gray-700"
-                >
-                    <Download className="w-4 h-4 mr-1" />
-                    {t('menu:export')}
-                </Button>
-            </div>
-
             {/* 中间：执行控制 */}
-            <div className="flex items-center space-x-3">
-                <div className="flex items-center space-x-2 bg-gray-700 rounded-lg p-2">
-                    <Button
-                        variant={isPlaying ? "default" : "secondary"}
-                        size="sm"
-                        onClick={isPlaying ? onPause : onPlay}
-                        className={cn(
-                            "w-10 h-10 rounded-full",
-                            isPlaying
-                                ? "bg-blue-600 hover:bg-blue-700 text-white"
-                                : "bg-green-600 hover:bg-green-700 text-white"
-                        )}
-                    >
-                        {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                    </Button>
+            <div className="flex-1 flex items-center justify-center">
+                <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 bg-gray-700 rounded-lg p-2">
+                        <Button
+                            variant={isPlaying ? "default" : "secondary"}
+                            size="sm"
+                            onClick={isPlaying ? onPause : onPlay}
+                            className={cn(
+                                "w-10 h-10 rounded-full",
+                                isPlaying
+                                    ? "bg-blue-600 hover:bg-blue-700 text-white"
+                                    : "bg-green-600 hover:bg-green-700 text-white"
+                            )}
+                        >
+                            {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                        </Button>
 
-                    <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={onStop}
-                        className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-700 text-white"
-                    >
-                        <Square className="w-5 h-5" />
-                    </Button>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={onStop}
+                            className="w-10 h-10 rounded-full bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            <Square className="w-5 h-5" />
+                        </Button>
 
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onStep}
-                        className="w-10 h-10 rounded-full text-gray-300 hover:text-white hover:bg-gray-600"
-                    >
-                        <StepForward className="w-5 h-5" />
-                    </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onStep}
+                            className="w-10 h-10 rounded-full text-gray-300 hover:text-white hover:bg-gray-600"
+                        >
+                            <StepForward className="w-5 h-5" />
+                        </Button>
 
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={onReset}
-                        className="w-10 h-10 rounded-full text-gray-300 hover:text-white hover:bg-gray-600"
-                    >
-                        <RotateCcw className="w-5 h-5" />
-                    </Button>
-                </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onReset}
+                            className="w-10 h-10 rounded-full text-gray-300 hover:text-white hover:bg-gray-600"
+                        >
+                            <RotateCcw className="w-5 h-5" />
+                        </Button>
+                    </div>
 
-                {/* 执行状态指示 */}
-                <div className="flex items-center space-x-2">
-                    <div className={cn("w-3 h-3 rounded-full", getExecutionStateColor())} />
-                    <Badge variant="secondary" className="bg-gray-700 text-gray-300">
-                        {getExecutionStateText()}
-                    </Badge>
+                    {/* 执行状态指示 */}
+                    <div className="flex items-center space-x-2">
+                        <div className={cn("w-3 h-3 rounded-full", getExecutionStateColor())} />
+                        <Badge variant="secondary" className="bg-gray-700 text-gray-300">
+                            {getExecutionStateText()}
+                        </Badge>
+                    </div>
                 </div>
             </div>
 
@@ -285,8 +236,49 @@ export function TopToolbar({
                     {t('menu:debug')}
                 </Button>
 
-                <TopBarLanguageSwitcher />
-                
+                {/* 预览功能 */}
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-300 hover:text-white hover:bg-gray-700"
+                        >
+                            <Eye className="w-4 h-4 mr-1" />
+                            预览
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="min-w-[160px]">
+                        <DropdownMenuItem
+                            onClick={onToggleTreeDirection}
+                            className="gap-2 cursor-pointer"
+                        >
+                            {treeDirection === 'vertical' ? (
+                                <ArrowRight className="w-4 h-4" />
+                            ) : (
+                                <ArrowDown className="w-4 h-4" />
+                            )}
+                            <span>
+                                {treeDirection === 'vertical' ? '水平布局' : '垂直布局'}
+                            </span>
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                            onClick={onToggleCompactMode}
+                            className="gap-2 cursor-pointer"
+                        >
+                            {isCompactMode ? (
+                                <Maximize2 className="w-4 h-4" />
+                            ) : (
+                                <Minimize2 className="w-4 h-4" />
+                            )}
+                            <span>
+                                {isCompactMode ? '宽松模式' : '紧凑模式'}
+                            </span>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
                 <SimpleThemeToggle />
 
                 <Button
@@ -300,3 +292,4 @@ export function TopToolbar({
         </div>
     )
 }
+

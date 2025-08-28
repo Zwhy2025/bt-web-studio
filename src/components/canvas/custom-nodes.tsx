@@ -141,6 +141,16 @@ export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & 
     const { t } = useI18n()
     // 根据节点类型确定图标和样式
     const getNodeConfig = () => {
+        // 优先检查根节点ID（编排模式中根节点ID固定为'root'）
+        if (id === 'root') {
+            return {
+                icon: <Target className="h-4 w-4 text-foreground/80" />, 
+                title: data?.label ?? t('nodes:rootNode'),
+                tint: "bg-rose-100/60 dark:bg-rose-900/40",
+                borderTint: "border-rose-300/60 dark:border-rose-700/60"
+            };
+        }
+        
         // 动作节点
         if (type === 'action') {
             return {
@@ -205,6 +215,16 @@ export function UnifiedNode({ data, selected, type, id }: NodeProps<NodeData> & 
                 title: data?.subtreeId ?? data?.label ?? type ?? "SubTree",
                 tint: "bg-slate-100 dark:bg-slate-800",
                 borderTint: "border-slate-300/60 dark:border-slate-600/60"
+            };
+        }
+        
+        // 优先检查根节点ID（确保在类型检查前）
+        if (id === 'root') {
+            return {
+                icon: <Target className="h-4 w-4 text-foreground/80" />, 
+                title: data?.label ?? t('nodes:rootNode'),
+                tint: "bg-rose-100/60 dark:bg-rose-900/40",
+                borderTint: "border-rose-300/60 dark:border-rose-700/60"
             };
         }
         

@@ -61,23 +61,6 @@ export interface TimelineMarker {
   description?: string;
 }
 
-// 数据分析结果
-export interface AnalysisResult {
-  totalExecutions: number;
-  nodeExecutionCounts: Record<string, number>;
-  averageExecutionTime: number;
-  maxExecutionTime: number;
-  minExecutionTime: number;
-  errorCount: number;
-  successRate: number;
-  hotspots: Array<{
-    nodeId: string;
-    executionCount: number;
-    totalTime: number;
-    averageTime: number;
-  }>;
-}
-
 // 回放过滤器
 export interface ReplayFilter {
   eventTypes: ReplayEventType[];
@@ -94,33 +77,28 @@ export interface ReplayModeState {
   availableSessions: ReplaySession[];
   isLoadingSession: boolean;
   sessionError: string | null;
-  
+
   // 时间轴控制
   currentTime: number;
   playbackSpeed: number;
   isPlaying: boolean;
   isLooping: boolean;
   replayStatus: ReplayStatus;
-  
+
   // 时间轴标记
   timelineMarkers: TimelineMarker[];
   selectedMarker: string | null;
-  
+
   // 事件管理
   visibleEvents: ReplayEvent[];
   selectedEvent: string | null;
   eventFilter: ReplayFilter;
-  
-  // 数据分析
-  analysisResult: AnalysisResult | null;
-  showAnalysisPanel: boolean;
-  
+
   // 可视化设置
   showEventFlow: boolean;
   showNodeTraces: boolean;
   animationEnabled: boolean;
-  showPerformanceHeatmap: boolean;
-  
+
   // 导出设置
   exportFormat: 'json' | 'csv' | 'video';
   exportOptions: {
@@ -138,7 +116,7 @@ export interface ReplayModeActions {
   saveSession: (session: ReplaySession) => Promise<boolean>;
   deleteSession: (sessionId: string) => void;
   clearCurrentSession: () => void;
-  
+
   // 时间轴控制
   play: () => void;
   pause: () => void;
@@ -149,40 +127,34 @@ export interface ReplayModeActions {
   toggleLoop: () => void;
   stepForward: () => void;
   stepBackward: () => void;
-  
+
   // 标记管理
   addMarker: (timestamp: number, label: string, type?: TimelineMarker['type']) => void;
   removeMarker: (markerId: string) => void;
   updateMarker: (markerId: string, updates: Partial<TimelineMarker>) => void;
   selectMarker: (markerId: string) => void;
   clearMarkers: () => void;
-  
+
   // 事件管理
   selectEvent: (eventId: string) => void;
   filterEvents: (filter: Partial<ReplayFilter>) => void;
   clearEventFilter: () => void;
   searchEvents: (query: string) => void;
-  
-  // 数据分析
-  analyzeSession: () => void;
-  exportAnalysis: (format: 'json' | 'csv' | 'pdf') => void;
-  toggleAnalysisPanel: () => void;
-  
+
   // 可视化控制
   toggleEventFlow: () => void;
   toggleNodeTraces: () => void;
   toggleAnimation: () => void;
-  togglePerformanceHeatmap: () => void;
-  
+
   // 导出功能
   exportSession: (format: 'json' | 'csv' | 'video') => void;
   exportTimeRange: (start: number, end: number, format: string) => void;
   setExportOptions: (options: Partial<ReplayModeState['exportOptions']>) => void;
-  
+
   // 数据处理
   preprocessEvents: (events: ReplayEvent[]) => ReplayEvent[];
   validateSession: (session: ReplaySession) => boolean;
-  
+
   // 状态管理
   saveReplayState: () => any;
   restoreReplayState: (state: any) => void;
@@ -217,144 +189,86 @@ export const createReplayModeSlice: StateCreator<
   [],
   ReplayModeSlice
 > = (set, get) => {
-  
+
   const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   // 应用事件过滤器
   const applyEventFilter = () => {
     const { currentSession, eventFilter } = get();
     if (!currentSession) return;
-    
+
     let filtered = currentSession.events;
-    
+
     // 事件类型过滤
     if (eventFilter.eventTypes.length > 0) {
       filtered = filtered.filter(event => eventFilter.eventTypes.includes(event.type));
     }
-    
+
     // 节点ID过滤
     if (eventFilter.nodeIds.length > 0) {
       filtered = filtered.filter(event => eventFilter.nodeIds.includes(event.nodeId));
     }
-    
+
     // 时间范围过滤
     if (eventFilter.timeRange) {
-      filtered = filtered.filter(event => 
-        event.timestamp >= eventFilter.timeRange!.start && 
+      filtered = filtered.filter(event =>
+        event.timestamp >= eventFilter.timeRange!.start &&
         event.timestamp <= eventFilter.timeRange!.end
       );
     }
-    
+
     // 文本搜索
     if (eventFilter.searchText) {
       const query = eventFilter.searchText.toLowerCase();
-      filtered = filtered.filter(event => 
+      filtered = filtered.filter(event =>
         event.nodeId.toLowerCase().includes(query) ||
         (event.data && JSON.stringify(event.data).toLowerCase().includes(query))
       );
     }
-    
+
     // 只显示错误
     if (eventFilter.showOnlyErrors) {
-      filtered = filtered.filter(event => 
+      filtered = filtered.filter(event =>
         event.status === 'error' || event.status === 'failure'
       );
     }
-    
+
     set(state => ({ ...state, visibleEvents: filtered }));
   };
-  
-  // 分析会话数据
-  const analyzeSessionData = (session: ReplaySession): AnalysisResult => {
-    const nodeExecutionCounts: Record<string, number> = {};
-    const executionTimes: number[] = [];
-    let errorCount = 0;
-    
-    session.events.forEach(event => {
-      nodeExecutionCounts[event.nodeId] = (nodeExecutionCounts[event.nodeId] || 0) + 1;
-      
-      if (event.duration) {
-        executionTimes.push(event.duration);
-      }
-      
-      if (event.status === 'error' || event.status === 'failure') {
-        errorCount++;
-      }
-    });
-    
-    const totalExecutions = session.events.length;
-    const averageExecutionTime = executionTimes.reduce((a, b) => a + b, 0) / executionTimes.length || 0;
-    const maxExecutionTime = Math.max(...executionTimes, 0);
-    const minExecutionTime = Math.min(...executionTimes, 0);
-    const successRate = ((totalExecutions - errorCount) / totalExecutions) * 100;
-    
-    // 计算热点
-    const hotspots = Object.entries(nodeExecutionCounts)
-      .map(([nodeId, count]) => {
-        const nodeTimes = session.events
-          .filter(e => e.nodeId === nodeId && e.duration)
-          .map(e => e.duration!);
-        const totalTime = nodeTimes.reduce((a, b) => a + b, 0);
-        const averageTime = totalTime / nodeTimes.length || 0;
-        
-        return {
-          nodeId,
-          executionCount: count,
-          totalTime,
-          averageTime,
-        };
-      })
-      .sort((a, b) => b.executionCount - a.executionCount)
-      .slice(0, 10);
-    
-    return {
-      totalExecutions,
-      nodeExecutionCounts,
-      averageExecutionTime,
-      maxExecutionTime,
-      minExecutionTime,
-      errorCount,
-      successRate,
-      hotspots,
-    };
-  };
-  
+
+
   return {
     // 初始状态
     currentSession: null,
     availableSessions: [],
     isLoadingSession: false,
     sessionError: null,
-    
+
     currentTime: 0,
     playbackSpeed: 1,
     isPlaying: false,
     isLooping: false,
     replayStatus: ReplayStatus.IDLE,
-    
+
     timelineMarkers: [],
     selectedMarker: null,
-    
+
     visibleEvents: [],
     selectedEvent: null,
     eventFilter: defaultFilter,
-    
-    analysisResult: null,
-    showAnalysisPanel: false,
-    
+
     showEventFlow: true,
     showNodeTraces: true,
     animationEnabled: true,
-    showPerformanceHeatmap: false,
-    
+
     exportFormat: 'json',
     exportOptions: defaultExportOptions,
-    
+
     // 动作
     replayActions: {
       loadSession: async (filePath: string) => {
         set(state => ({ ...state, isLoadingSession: true, sessionError: null }));
-        
+
         try {
           // TODO: 实际的文件加载逻辑
           const mockSession: ReplaySession = {
@@ -373,7 +287,7 @@ export const createReplayModeSlice: StateCreator<
               source: filePath,
             },
           };
-          
+
           set(state => ({
             ...state,
             currentSession: mockSession,
@@ -381,11 +295,7 @@ export const createReplayModeSlice: StateCreator<
             replayStatus: ReplayStatus.READY,
             availableSessions: [...state.availableSessions, mockSession],
           }));
-          
-          // 分析会话
-          const analysis = analyzeSessionData(mockSession);
-          set(state => ({ ...state, analysisResult: analysis }));
-          
+
           return true;
         } catch (error) {
           set(state => ({
@@ -397,12 +307,12 @@ export const createReplayModeSlice: StateCreator<
           return false;
         }
       },
-      
+
       createSessionFromEvents: async (events: ReplayEvent[], metadata = {}) => {
         const sortedEvents = events.sort((a, b) => a.timestamp - b.timestamp);
         const nodeIds = [...new Set(events.map(e => e.nodeId))];
         const eventTypes = [...new Set(events.map(e => e.type))];
-        
+
         const session: ReplaySession = {
           id: generateId(),
           name: `Session ${Date.now()}`,
@@ -419,7 +329,7 @@ export const createReplayModeSlice: StateCreator<
             ...metadata,
           },
         };
-        
+
         set(state => ({
           ...state,
           currentSession: session,
@@ -427,20 +337,16 @@ export const createReplayModeSlice: StateCreator<
           availableSessions: [...state.availableSessions, session],
           visibleEvents: sortedEvents,
         }));
-        
-        // 分析会话
-        const analysis = analyzeSessionData(session);
-        set(state => ({ ...state, analysisResult: analysis }));
-        
+
         return true;
       },
-      
+
       saveSession: async (session: ReplaySession) => {
         // TODO: 实际的保存逻辑
         console.log('Saving session:', session.name);
         return true;
       },
-      
+
       deleteSession: (sessionId: string) => {
         set(state => ({
           ...state,
@@ -448,7 +354,7 @@ export const createReplayModeSlice: StateCreator<
           currentSession: state.currentSession?.id === sessionId ? null : state.currentSession,
         }));
       },
-      
+
       clearCurrentSession: () => {
         set(state => ({
           ...state,
@@ -457,20 +363,19 @@ export const createReplayModeSlice: StateCreator<
           currentTime: 0,
           visibleEvents: [],
           selectedEvent: null,
-          analysisResult: null,
         }));
       },
-      
+
       play: () => {
         set(state => ({
           ...state,
           isPlaying: true,
           replayStatus: ReplayStatus.PLAYING,
         }));
-        
+
         // TODO: 启动播放定时器
       },
-      
+
       pause: () => {
         set(state => ({
           ...state,
@@ -478,7 +383,7 @@ export const createReplayModeSlice: StateCreator<
           replayStatus: ReplayStatus.PAUSED,
         }));
       },
-      
+
       stop: () => {
         set(state => ({
           ...state,
@@ -487,7 +392,7 @@ export const createReplayModeSlice: StateCreator<
           replayStatus: ReplayStatus.READY,
         }));
       },
-      
+
       seekToTime: (timestamp: number) => {
         set(state => ({
           ...state,
@@ -495,11 +400,11 @@ export const createReplayModeSlice: StateCreator<
           replayStatus: ReplayStatus.READY,
         }));
       },
-      
+
       seekToEvent: (eventId: string) => {
         const { currentSession } = get();
         if (!currentSession) return;
-        
+
         const event = currentSession.events.find(e => e.id === eventId);
         if (event) {
           set(state => ({
@@ -509,32 +414,32 @@ export const createReplayModeSlice: StateCreator<
           }));
         }
       },
-      
+
       setPlaybackSpeed: (speed: number) => {
         set(state => ({
           ...state,
           playbackSpeed: Math.max(0.1, Math.min(5, speed)),
         }));
       },
-      
+
       toggleLoop: () => {
         set(state => ({ ...state, isLooping: !state.isLooping }));
       },
-      
+
       stepForward: () => {
         const { currentSession, currentTime } = get();
         if (!currentSession) return;
-        
+
         const nextEvent = currentSession.events.find(e => e.timestamp > currentTime);
         if (nextEvent) {
           set(state => ({ ...state, currentTime: nextEvent.timestamp }));
         }
       },
-      
+
       stepBackward: () => {
         const { currentSession, currentTime } = get();
         if (!currentSession) return;
-        
+
         const prevEvent = currentSession.events
           .slice()
           .reverse()
@@ -543,7 +448,7 @@ export const createReplayModeSlice: StateCreator<
           set(state => ({ ...state, currentTime: prevEvent.timestamp }));
         }
       },
-      
+
       addMarker: (timestamp: number, label: string, type = 'bookmark' as const) => {
         const marker: TimelineMarker = {
           id: generateId(),
@@ -551,13 +456,13 @@ export const createReplayModeSlice: StateCreator<
           label,
           type,
         };
-        
+
         set(state => ({
           ...state,
           timelineMarkers: [...state.timelineMarkers, marker],
         }));
       },
-      
+
       removeMarker: (markerId: string) => {
         set(state => ({
           ...state,
@@ -565,7 +470,7 @@ export const createReplayModeSlice: StateCreator<
           selectedMarker: state.selectedMarker === markerId ? null : state.selectedMarker,
         }));
       },
-      
+
       updateMarker: (markerId: string, updates: Partial<TimelineMarker>) => {
         set(state => ({
           ...state,
@@ -574,19 +479,19 @@ export const createReplayModeSlice: StateCreator<
           ),
         }));
       },
-      
+
       selectMarker: (markerId: string) => {
         set(state => ({ ...state, selectedMarker: markerId }));
       },
-      
+
       clearMarkers: () => {
         set(state => ({ ...state, timelineMarkers: [], selectedMarker: null }));
       },
-      
+
       selectEvent: (eventId: string) => {
         set(state => ({ ...state, selectedEvent: eventId }));
       },
-      
+
       filterEvents: (filter: Partial<ReplayFilter>) => {
         set(state => ({
           ...state,
@@ -594,12 +499,12 @@ export const createReplayModeSlice: StateCreator<
         }));
         applyEventFilter();
       },
-      
+
       clearEventFilter: () => {
         set(state => ({ ...state, eventFilter: defaultFilter }));
         applyEventFilter();
       },
-      
+
       searchEvents: (query: string) => {
         set(state => ({
           ...state,
@@ -607,80 +512,56 @@ export const createReplayModeSlice: StateCreator<
         }));
         applyEventFilter();
       },
-      
-      analyzeSession: () => {
-        const { currentSession } = get();
-        if (!currentSession) return;
-        
-        const analysis = analyzeSessionData(currentSession);
-        set(state => ({ ...state, analysisResult: analysis }));
-      },
-      
-      exportAnalysis: (format: 'json' | 'csv' | 'pdf') => {
-        const { analysisResult } = get();
-        if (!analysisResult) return;
-        
-        // TODO: 实现分析导出
-        console.log(`Exporting analysis as ${format}`);
-      },
-      
-      toggleAnalysisPanel: () => {
-        set(state => ({ ...state, showAnalysisPanel: !state.showAnalysisPanel }));
-      },
-      
+
       toggleEventFlow: () => {
         set(state => ({ ...state, showEventFlow: !state.showEventFlow }));
       },
-      
+
       toggleNodeTraces: () => {
         set(state => ({ ...state, showNodeTraces: !state.showNodeTraces }));
       },
-      
+
       toggleAnimation: () => {
         set(state => ({ ...state, animationEnabled: !state.animationEnabled }));
       },
-      
-      togglePerformanceHeatmap: () => {
-        set(state => ({ ...state, showPerformanceHeatmap: !state.showPerformanceHeatmap }));
-      },
-      
+
       exportSession: (format: 'json' | 'csv' | 'video') => {
         const { currentSession } = get();
         if (!currentSession) return;
-        
+
         // TODO: 实现会话导出
         console.log(`Exporting session as ${format}`);
       },
-      
+
       exportTimeRange: (start: number, end: number, format: string) => {
         const { currentSession } = get();
         if (!currentSession) return;
-        
+
         const rangeEvents = currentSession.events.filter(
           e => e.timestamp >= start && e.timestamp <= end
         );
-        
+
         // TODO: 导出时间范围数据
         console.log(`Exporting ${rangeEvents.length} events as ${format}`);
       },
-      
+
       setExportOptions: (options: Partial<ReplayModeState['exportOptions']>) => {
         set(state => ({
           ...state,
           exportOptions: { ...state.exportOptions, ...options },
         }));
       },
-      
+
       preprocessEvents: (events: ReplayEvent[]) => {
         // TODO: 事件预处理逻辑
         return events.sort((a, b) => a.timestamp - b.timestamp);
       },
-      
+
       validateSession: (session: ReplaySession) => {
         // TODO: 会话验证逻辑
         return session.events.length > 0 && session.totalDuration > 0;
       },
-      
+
       saveReplayState: () => {
         const state = get();
         return {
@@ -688,14 +569,13 @@ export const createReplayModeSlice: StateCreator<
           playbackSpeed: state.playbackSpeed,
           eventFilter: state.eventFilter,
           timelineMarkers: state.timelineMarkers,
-          showAnalysisPanel: state.showAnalysisPanel,
         };
       },
-      
+
       restoreReplayState: (state: any) => {
         set(currentState => ({ ...currentState, ...state }));
       },
-      
+
       resetReplayState: () => {
         set({
           currentTime: 0,
@@ -708,8 +588,6 @@ export const createReplayModeSlice: StateCreator<
           visibleEvents: [],
           selectedEvent: null,
           eventFilter: defaultFilter,
-          analysisResult: null,
-          showAnalysisPanel: false,
         });
       },
     }
@@ -722,5 +600,4 @@ export const useReplayStatus = () => (state: any) => state.replayStatus;
 export const useCurrentTime = () => (state: any) => state.currentTime;
 export const useVisibleEvents = () => (state: any) => state.visibleEvents;
 export const useTimelineMarkers = () => (state: any) => state.timelineMarkers;
-export const useAnalysisResult = () => (state: any) => state.analysisResult;
-export const useReplayActions = () => (state: any) => state.replayActions;
+export const useReplayActions = () => (state: any) => state.replayActions; 

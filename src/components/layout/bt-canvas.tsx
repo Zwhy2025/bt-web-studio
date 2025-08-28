@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from "react"
 import { useToast } from "@/hooks/use-toast"
-import { useI18n } from "@/hooks/use-i18n"
 import ReactFlow, {
     Background,
     BackgroundVariant,
@@ -65,27 +64,30 @@ function wouldCreateCycle(sourceId: string, targetId: string, edges: Edge[], nod
         return true;
     }
 
-    // 从新的目标节点开始遍历，检查是否能到达新的源节点
-    const stack: string[] = [targetId];
-    const visited = new Set<string>([targetId]);
+    // 检查是否直接连接到自己的父节点（形成双向连接）
+    const isDirectParent = edges.some(edge => edge.source === targetId && edge.target === sourceId);
+    if (isDirectParent) {
+        return true;
+    }
+
+    // 检查是否会形成间接回路
+    const visited = new Set<string>();
+    const stack: string[] = [sourceId];
 
     while (stack.length > 0) {
-        const currentNode = stack.pop()!;
-        if (currentNode === sourceId) {
-            return true; // 发现回路！
+        const currentId = stack.pop()!;
+        if (currentId === targetId) {
+            return true; // 发现回路
         }
-
-        // 查找当前节点的所有子节点
-        const children = edges
-            .filter(edge => edge.source === currentNode)
-            .map(edge => edge.target);
-
-        for (const childId of children) {
-            if (!visited.has(childId)) {
-                visited.add(childId);
-                stack.push(childId);
-            }
+        if (visited.has(currentId)) {
+            continue;
         }
+        visited.add(currentId);
+
+        // 将当前节点的所有子节点添加到栈中
+        edges
+            .filter(edge => edge.source === currentId)
+            .forEach(edge => stack.push(edge.target));
     }
 
     return false; // 没有发现回路
@@ -100,7 +102,6 @@ function CanvasInner({
     onEdgesExport?: (edges: Edge[]) => void;
     onSelectionChange?: (params: OnSelectionChangeParams) => void;
 }) {
-    const { t } = useI18n()
     // 从状态管理系统获取当前会话的节点和边
     const storeNodes = useBehaviorTreeStore(state => state.nodes)
     const storeEdges = useBehaviorTreeStore(state => state.edges)
@@ -186,8 +187,8 @@ function CanvasInner({
         // 如果选中的节点少于2个，提示用户
         if (selectedNodes.length < 2) {
             toast({
-                title: t("canvas:cannotAlign"),
-                description: t("canvas:selectTwoNodesToAlign"),
+                title: "无法对齐",
+                description: "请至少选择2个节点进行对齐操作",
                 variant: "destructive"
             });
             return;
@@ -207,8 +208,8 @@ function CanvasInner({
 
         // 显示成功消息
         toast({
-            title: t("canvas:alignmentComplete"),
-            description: t("canvas:nodesAligned", { count: selectedNodes.length })
+            title: "对齐完成",
+            description: `已对齐 ${selectedNodes.length} 个节点`
         });
     }, [nodes, edges, selectedNodeIds, setNodes, actions, recordHistory, toast]);
 
@@ -222,8 +223,8 @@ function CanvasInner({
         setSelectedNodeIds(nodes.map(n => n.id));
         // 显示成功消息
         toast({
-            title: t("canvas:selectAllComplete"),
-            description: t("canvas:nodesSelected", { count: nodes.length })
+            title: "全选完成",
+            description: `已选择 ${nodes.length} 个节点`
         });
     }, [nodes, setNodes, toast]);
 
@@ -353,8 +354,8 @@ function CanvasInner({
         // 检查参数有效性
         if (!params.source || !params.target) {
             toast({
-                title: t("canvas:invalidConnection"),
-                description: t("canvas:cannotCreateConnection"),
+                title: "连接无效",
+                description: "无法创建无效的连接",
                 variant: "destructive"
             });
             return;
@@ -363,8 +364,8 @@ function CanvasInner({
         // 检查是否会形成回路
         if (wouldCreateCycle(params.source!, params.target!, edges, nodes)) {
             toast({
-                title: t("canvas:cycleProhibited"),
-                description: t("canvas:connectionWouldCreateCycle"),
+                title: "禁止回路",
+                description: "该连接将产生闭环，请调整结构。",
                 variant: "destructive"
             });
             return;
@@ -381,8 +382,25 @@ function CanvasInner({
     const onDrop = useCallback((event: React.DragEvent) => {
         event.preventDefault();
 
-        // 获取拖拽的节点类型
-        let nodeType = event.dataTransfer.getData("application/reactflow");
+        // 获取拖拽的节点数据
+        let nodeType = null;
+        let nodeInfo = null;
+
+        // 尝试从 application/reactflow 获取数据（新格式）
+        const reactflowData = event.dataTransfer.getData("application/reactflow");
+        if (reactflowData) {
+            try {
+                const parsed = JSON.parse(reactflowData);
+                if (parsed.type === 'node' && parsed.nodeData) {
+                    nodeType = parsed.nodeData.id;
+                    nodeInfo = parsed.nodeData;
+                } else {
+                    nodeType = reactflowData;
+                }
+            } catch (e) {
+                nodeType = reactflowData;
+            }
+        }
 
         // 如果没有从 application/reactflow 获取到数据，尝试从 application/json 获取
         if (!nodeType) {
@@ -391,6 +409,7 @@ function CanvasInner({
                 try {
                     const node = JSON.parse(nodeData);
                     nodeType = node.id;
+                    nodeInfo = node;
                 } catch (e) {
                     console.error("Failed to parse node data:", e);
                     return;
@@ -414,13 +433,25 @@ function CanvasInner({
             status: "idle",
             breakpoint: false
         };
+
+        // 如果nodeInfo存在，使用其数据
+        if (nodeInfo) {
+            nodeData = {
+                ...nodeData,
+                label: nodeInfo.name || nodeInfo.label || nodeType,
+                category: nodeInfo.category,
+                ...nodeInfo
+            };
+            nodeType = nodeInfo.id || nodeType;
+        }
         
         // 动作节点
-        if (['AlwaysFailure', 'AlwaysSuccess', 'Script', 'SetBlackboard', 'Sleep'].includes(nodeType)) {
+        const actionNodes = ['AlwaysFailure', 'AlwaysSuccess', 'Script', 'SetBlackboard', 'Sleep', 'Wait', 'Log', 'RunScript', 'SetVariable', 'GetVariable'];
+        if (actionNodes.includes(nodeType) || nodeInfo?.category === 'action') {
             nodeTypeForReactFlow = 'action';
         }
         // 条件节点
-        else if (nodeType === 'ScriptCondition') {
+        else if (nodeType === 'ScriptCondition' || nodeInfo?.category === 'condition' || nodeType.includes('Condition')) {
             nodeTypeForReactFlow = 'condition';
         }
         // 控制节点
@@ -428,20 +459,20 @@ function CanvasInner({
             'AsyncFallback', 'AsyncSequence', 'Fallback', 'IfThenElse', 'Parallel', 
             'ParallelAll', 'ReactiveFallback', 'ReactiveSequence', 'Sequence', 
             'SequenceWithMemory', 'Switch2', 'Switch3', 'Switch4', 'Switch5', 
-            'Switch6', 'WhileDoElse'
-        ].includes(nodeType)) {
+            'Switch6', 'WhileDoElse', 'Selector', 'Sequence', 'Parallel', 'Fallback'
+        ].includes(nodeType) || nodeInfo?.category === 'control') {
             nodeTypeForReactFlow = nodeType;
         }
         // 装饰器节点
         else if ([
             'Delay', 'ForceFailure', 'ForceSuccess', 'Inverter', 'KeepRunningUntilFailure',
             'LoopDouble', 'LoopString', 'Precondition', 'Repeat', 'RetryUntilSuccessful',
-            'RunOnce', 'Timeout'
-        ].includes(nodeType)) {
+            'RunOnce', 'Timeout', 'Decorator', 'Blackboard', 'ForceStatus', 'Loop', 'Retry'
+        ].includes(nodeType) || nodeInfo?.category === 'decorator') {
             nodeTypeForReactFlow = 'decorator';
         }
         // 子树节点
-        else if (nodeType === 'SubTree' || nodeType === 'subtree') {
+        else if (nodeType === 'SubTree' || nodeType === 'subtree' || nodeType === 'SubTree' || nodeInfo?.category === 'subtree') {
             nodeTypeForReactFlow = 'subtree';
             // 为子树节点添加特殊数据
             nodeData = {
@@ -455,11 +486,16 @@ function CanvasInner({
             nodeTypeForReactFlow = `control-${nodeType}`;
         }
 
-        // 创建新节点
+        // 创建新节点 - 使用唯一ID确保节点可找到
+        const uniqueId = nodeInfo?.id ? `${nodeInfo.id}-${Date.now()}` : `${nodeType}-${Date.now()}`;
         const newNode: Node = {
-            id: `${nodeType}-${Date.now()}`,
+            id: uniqueId,
             position,
-            data: nodeData,
+            data: {
+                ...nodeData,
+                originalId: nodeInfo?.id || nodeType,
+                nodeType: nodeTypeForReactFlow
+            },
             type: nodeTypeForReactFlow,
         };
 
@@ -481,8 +517,8 @@ function CanvasInner({
         // 如果没有选中的节点和边，提示用户
         if (selectedNodeIds.length === 0 && selectedEdgeIds.length === 0) {
             toast({
-                title: t("canvas:noSelection"),
-                description: t("canvas:selectNodesToDelete")
+                title: "无选择",
+                description: "请选择要删除的节点或连线"
             });
             return;
         }
@@ -511,8 +547,8 @@ function CanvasInner({
 
         // 显示成功消息
         toast({
-            title: t("common:deleted"),
-            description: t("canvas:deletedNodesAndEdges", { nodes: selectedNodeIds.length, edges: deletedEdgesCount })
+            title: "已删除",
+            description: `节点 ${selectedNodeIds.length} 个，连线 ${deletedEdgesCount} 条`
         });
     }, [nodes, edges, selectedNodeIds, selectedEdgeIds, setNodes, setEdges, setSelectedNodeIds, setSelectedEdgeIds, actions, recordHistory, toast]);
 
@@ -524,8 +560,8 @@ function CanvasInner({
         // 如果没有选中的节点，提示用户
         if (selectedNodes.length === 0) {
             toast({
-                title: t("canvas:cannotClone"),
-                description: t("canvas:selectNodesToClone"),
+                title: "无法克隆",
+                description: "请先选择要克隆的节点",
                 variant: "destructive"
             });
             return;
@@ -571,7 +607,7 @@ function CanvasInner({
 
         // 更新所有节点和边
         const updatedNodes = [
-            ...nodes.map(node => ({ ...node, selected: false })), // {t("common:cancel")}原节点的选中状态
+            ...nodes.map(node => ({ ...node, selected: false })), // 取消原节点的选中状态
             ...clonedNodes
         ];
         const updatedEdges = [...edges, ...clonedEdges];
@@ -586,8 +622,8 @@ function CanvasInner({
 
         // 显示成功消息
         toast({
-            title: t("canvas:cloned"),
-            description: t("canvas:clonedNodesAndEdges", { nodes: clonedNodes.length, edges: clonedEdges.length })
+            title: "已克隆",
+            description: `节点 ${clonedNodes.length} 个，连线 ${clonedEdges.length} 条`
         });
     }, [nodes, edges, selectedNodeIds, setNodes, setEdges, actions, recordHistory, toast]);
 
@@ -606,8 +642,8 @@ function CanvasInner({
 
         // 显示成功消息
         toast({
-            title: t("canvas:layoutComplete"),
-            description: t("canvas:autoLayoutCompleted")
+            title: "布局完成",
+            description: "已自动布局为树形结构"
         });
     }, [nodes, edges, setNodes, actions, recordHistory, toast]);
 
@@ -626,8 +662,8 @@ function CanvasInner({
 
         // 显示成功消息
         toast({
-            title: t("canvas:distributionComplete"),
-            description: t("canvas:nodesScattered")
+            title: "分布完成",
+            description: "已散乱分布所有节点"
         });
     }, [nodes, edges, setNodes, actions, recordHistory, toast]);
 
@@ -728,7 +764,7 @@ function CanvasInner({
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-48">
                     <ContextMenuItem onSelect={handleSelectAll}>
-                        <span>{t("menu:selectAll")}</span>
+                        <span>全选</span>
                         <ContextMenuShortcut>⌘A</ContextMenuShortcut>
                     </ContextMenuItem>
                     <ContextMenuSeparator />
@@ -737,7 +773,7 @@ function CanvasInner({
                         disabled={selectedNodeIds.length === 0}
                     >
                         <Copy className="mr-2 h-4 w-4" />
-                        <span>{t("menu:clone")}</span>
+                        <span>克隆</span>
                         <ContextMenuShortcut>⌘D</ContextMenuShortcut>
                     </ContextMenuItem>
                     <ContextMenuItem 
@@ -745,56 +781,56 @@ function CanvasInner({
                         disabled={selectedNodeIds.length === 0 && selectedEdgeIds.length === 0}
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        <span>{t("menu:delete")}</span>
+                        <span>删除</span>
                         <ContextMenuShortcut>Del</ContextMenuShortcut>
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuLabel>{t("menu:layout")}</ContextMenuLabel>
+                    <ContextMenuLabel>布局</ContextMenuLabel>
                     <ContextMenuItem onSelect={handleAutoLayout}>
                         <GitBranch className="mr-2 h-4 w-4" />
-                        <span>{t("menu:autoLayoutTree")}</span>
+                        <span>自动布局为树形结构</span>
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={handleScatterNodes}>
                         <RefreshCcw className="mr-2 h-4 w-4" />
-                        <span>{t("menu:scatterNodes")}</span>
+                        <span>散乱分布节点</span>
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                     <ContextMenuItem onSelect={() => setSnapToGridEnabled(!snapToGridEnabled)}>
                         <Grid3X3 className="mr-2 h-4 w-4" />
-                        <span>{snapToGridEnabled ? t("common:disable") : t("common:enable")}{t("menu:gridSnap")}</span>
+                        <span>{snapToGridEnabled ? "禁用" : "启用"}网格吸附</span>
                     </ContextMenuItem>
                     <ContextMenuItem onSelect={() => setShowGrid(!showGrid)}>
-                        <span>{t("menu:showGrid")} {showGrid ? "✓" : ""}</span>
+                        <span>显示网格 {showGrid ? "✓" : ""}</span>
                     </ContextMenuItem>
                     <ContextMenuSeparator />
-                    <ContextMenuLabel>{t("menu:debug")}</ContextMenuLabel>
+                    <ContextMenuLabel>调试</ContextMenuLabel>
                     <ContextMenuItem 
                         onSelect={() => {
                             const selectedNodes = nodes.filter(node => selectedNodeIds.includes(node.id));
                             if (selectedNodes.length === 1) {
-                                // 为选中的单个节点{t("panels:addBreakpoint")}
+                                // 为选中的单个节点添加断点
                                 // 这里可以调用断点管理器
                                 toast({ 
-                                    title: t("panels:addBreakpoint"), 
-                                    description: t("messages:addBreakpointTo").replace("{{node}}", selectedNodes[0].data?.label || selectedNodes[0].id) 
+                                    title: "添加断点", 
+                                    description: `为节点 ${selectedNodes[0].data?.label || selectedNodes[0].id} 添加断点` 
                                 });
                             } else {
                                 toast({ 
-                                    title: t("messages:cannotAddBreakpoint"), 
-                                    description: t("messages:selectOneNodeFirst") 
+                                    title: "无法添加断点", 
+                                    description: "请选择一个节点添加断点" 
                                 });
                             }
                         }}
                         disabled={selectedNodeIds.length !== 1}
                     >
                         <Bug className="mr-2 h-4 w-4" />
-                        <span>{t("panels:addBreakpoint")}</span>
+                        <span>添加断点</span>
                     </ContextMenuItem>
-                    <ContextMenuItem onSelect={() => toast({ title: t("canvas:collapseSubtreeMock") })}>
-                        <span>{t("menu:collapseSubtree")}</span>
+                    <ContextMenuItem onSelect={() => toast({ title: "折叠子树（Mock）" })}>
+                        <span>折叠子树</span>
                     </ContextMenuItem>
-                    <ContextMenuItem onSelect={() => toast({ title: t("canvas:expandSubtreeMock") })}>
-                        <span>{t("menu:expandSubtree")}</span>
+                    <ContextMenuItem onSelect={() => toast({ title: "展开子树（Mock）" })}>
+                        <span>展开子树</span>
                     </ContextMenuItem>
                     <ContextMenuSeparator />
                 </ContextMenuContent>

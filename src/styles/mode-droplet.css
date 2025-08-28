@@ -1,0 +1,28 @@
+@layer utilities {
+  @keyframes mode-droplet-pulse {
+    0% {
+      transform: translate(-50%, -50%) scale(0.6);
+      opacity: 0.35;
+    }
+    60% {
+      transform: translate(-50%, -50%) scale(1.05);
+      opacity: 0.2;
+    }
+    100% {
+      transform: translate(-50%, -50%) scale(1.35);
+      opacity: 0;
+    }
+  }
+
+  .mode-droplet {
+    position: absolute;
+    border-radius: 9999px;
+    background: currentColor; /* 跟随当前文本/模式颜色 */
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+
+  .animate-droplet {
+    animation: mode-droplet-pulse 700ms ease-out forwards;
+  }
+}
