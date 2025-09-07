@@ -226,6 +226,8 @@ export interface ComposerModeActions {
   // 状态管理
   markDirty: () => void;
   markClean: () => void;
+  // 兼容旧接口：部分代码调用了 saveCurrentState
+  saveCurrentState: () => void;
   saveState: () => any;
   restoreState: (state: any) => void;
   resetToDefaults: () => void;
@@ -848,6 +850,11 @@ export const createComposerModeSlice: StateCreator<
       },
       
       markDirty: () => {
+        set(state => ({ ...state, isDirty: true, hasUnsavedChanges: true }));
+      },
+      
+      // 兼容旧接口：作为别名调用 markDirty，防止旧代码报错
+      saveCurrentState: () => {
         set(state => ({ ...state, isDirty: true, hasUnsavedChanges: true }));
       },
       

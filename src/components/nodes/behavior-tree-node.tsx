@@ -69,10 +69,7 @@ function getNodeIcon(category: string, customIcon?: React.ComponentType<{ classN
 }
 
 // 获取节点颜色
-function getNodeColor(category: string, customColor?: string, isRootNode: boolean = false) {
-  // Root节点使用特殊颜色(红色)
-  if (isRootNode) return 'bg-red-500';
-  
+function getNodeColor(category: string, customColor?: string) {
   if (customColor) return customColor;
   
   switch (category) {
@@ -134,17 +131,20 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
   const Icon = data.icon && typeof data.icon === 'function' 
     ? data.icon 
     : getNodeIcon(data.category);
-  const nodeColor = getNodeColor(data.category, data.color, id === 'root');
+  const nodeColor = getNodeColor(data.category, data.color);
   const statusColor = getStatusColor(data.status || NodeStatus.IDLE);
   const statusIcon = getStatusIcon(data.status || NodeStatus.IDLE);
 
   const isSelected = selectedNodes.includes(id);
-  const isRootNode = id === 'root';
 
   // 节点点击处理
   const handleNodeClick = useCallback((event: React.MouseEvent) => {
     event.stopPropagation();
-    composerActions.selectNode(id, event.ctrlKey || event.metaKey);
+    if (event.ctrlKey || event.metaKey) {
+      composerActions.selectNode(id, true);
+    } else {
+      composerActions.openNodeSettings(id);
+    }
   }, [id, composerActions]);
 
   // 节点双击处理
@@ -171,7 +171,7 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
     <div
       className={cn(
         'relative min-w-[120px] max-w-[220px] border-2 rounded-lg shadow-sm transition-all duration-200 text-foreground',
-        isRootNode ? 'bg-red-500 border-red-600' : statusColor,
+        statusColor,
         isSelected && 'ring-2 ring-primary ring-offset-1',
         dragging && 'opacity-50',
         data.isDisabled && 'opacity-60',

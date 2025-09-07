@@ -36,7 +36,15 @@ export const createNode = (position: { x: number; y: number }, data: Record<stri
 const createDefaultSession = (): ProjectSession & Partial<DebugSession> & Partial<ReplaySession> => ({
   id: `session-${Date.now()}`,
   name: '新项目',
-  nodes: [createNode({ x: 100, y: 80 }, { label: 'Root (Sequence)' }, true, true, 'control-sequence')],
+  // 使用与拖拽一致的节点类型与样式：behaviorTreeNode
+  // 并显式设置为控制类 Sequence 模型，保持与后续拖拽节点风格一致
+  nodes: [createNode(
+    { x: 100, y: 80 },
+    { label: 'Root (Sequence)', modelName: 'Sequence', category: 'control' },
+    true,
+    true,
+    'behaviorTreeNode'
+  )],
   edges: [],
   blackboard: {},
   createdAt: Date.now(),

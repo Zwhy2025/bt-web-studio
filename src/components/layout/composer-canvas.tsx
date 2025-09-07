@@ -23,7 +23,7 @@ import ReactFlow, {
 } from 'reactflow';
 import { cn } from '@/core/utils/utils';
 import { useI18n } from '@/hooks/use-i18n';
-import {
+import { 
   useComposerActions,
   useActiveTool,
   useSelectedNodes,
@@ -31,6 +31,7 @@ import {
   useBehaviorTreeData,
   useActions
 } from '@/core/store/behavior-tree-store';
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
 import { ComposerTool } from '@/core/store/composerModeState';
 import { Button } from '@/components/ui/button';
 import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info, Undo2, Redo2 } from 'lucide-react';
@@ -225,7 +226,7 @@ function ReactFlowCanvas({
       ...defaultEdgeOptions,
     };
     setEdges((eds) => addEdge(edge, eds));
-    composerActions.saveCurrentState();
+    composerActions.markDirty();
   }, [setEdges, composerActions, nodes]);
 
   // 拖拽处理
@@ -280,40 +281,54 @@ function ReactFlowCanvas({
     }
 
     if (nodeData) {
-        try {
-          const isFirstNode = behaviorTreeData.nodes.length === 0;
-          
-          // 使用共享函数创建节点
-          const newNode = createNode(
-            position,
-            nodeData,
-            isFirstNode,
-            snapToGrid,
-            'behaviorTreeNode'
-          );
+      try {
+        const isFirstNode = behaviorTreeData.nodes.length === 0;
 
-          // 对于第一个节点，设置为Sequence类型
-          if (isFirstNode) {
-            newNode.data.modelName = 'Sequence';
-            newNode.data.category = 'control';
+        // 使用共享函数创建节点
+        const newNode = createNode(
+          position,
+          nodeData,
+          isFirstNode,
+          snapToGrid,
+          'behaviorTreeNode'
+        );
+
+        // 统一模型/实例名的初始逻辑，确保属性面板可见到默认值
+        if (isFirstNode) {
+          // 第一个节点固定为 Sequence 控制节点
+          newNode.data.modelName = 'Sequence';
+          newNode.data.category = 'control';
+          // root 的实例名在 createNode 中已设为 'root'
+        } else {
+          // 普通节点：若未提供，则用库中名称作为 modelName 与默认实例名
+          newNode.data.modelName = newNode.data.modelName || nodeData.name || newNode.data.label;
+          if (!newNode.data.instanceName) {
+            newNode.data.instanceName = newNode.data.modelName;
           }
-
-          // 先将节点添加到store中
-          actions.addNode(newNode);
-          
-          // 然后更新ReactFlow的节点状态
-          setNodes((nds) => nds.concat(newNode));
-          
-          // 确保节点被正确注册到全局状态
-          composerActions.saveCurrentState();
-          
-          // 立即选择新创建的节点
-          composerActions.selectNode(newNode.id);
-          
-        } catch (error) {
-          console.error('Failed to create node:', error);
         }
+
+        // 同步 ReactFlow 选择状态，避免选择事件覆盖
+        (newNode as any).selected = true;
+
+        // 使用 importData 覆盖式写入，确保会话与 store.nodes 同步
+        const store = useBehaviorTreeStore.getState();
+        const nextNodes = [...store.nodes, newNode as any];
+        const nextEdges = store.edges;
+        store.actions.importData(nextNodes as any, nextEdges as any, { merge: false });
+
+        // 同步更新 ReactFlow 的本地节点状态
+        setNodes((nds) => nds.concat(newNode as any));
+
+        // 标记变更，触发保存提示/状态
+        composerActions.markDirty();
+
+        // 立即选择并打开属性面板，确保可见
+        // 稍作延迟，确保 ReactFlow 与 store 均完成更新
+        setTimeout(() => composerActions.openNodeSettings(newNode.id), 0);
+      } catch (error) {
+        console.error('Failed to create node:', error);
       }
+    }
   }, [reactFlowInstance, snapToGrid, setNodes, actions, composerActions, behaviorTreeData.nodes]);
 
   // 选择变化处理

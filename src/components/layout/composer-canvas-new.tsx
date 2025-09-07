@@ -218,7 +218,7 @@ function ReactFlowCanvas({
             ...defaultEdgeOptions,
         };
         setEdges((eds) => addEdge(edge, eds));
-        composerActions.saveCurrentState();
+        composerActions.markDirty();
     }, [setEdges, composerActions]);
 
     // 拖拽处理
@@ -257,8 +257,9 @@ function ReactFlowCanvas({
                         newNode.data.category = 'control';
                     }
 
+                    (newNode as any).selected = true;
                     setNodes((nds) => nds.concat(newNode));
-                    composerActions.saveCurrentState();
+                    composerActions.markDirty();
                 }
             } catch (error) {
                 console.error('Failed to parse drop data:', error);
