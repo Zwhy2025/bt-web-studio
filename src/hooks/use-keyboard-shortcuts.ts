@@ -6,7 +6,6 @@ import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
  * 提供属性面板相关的键盘快捷键支持
  */
 export const useKeyboardShortcuts = (selectedNodeIds: string[]) => {
-  const actions = useBehaviorTreeStore((state) => state.actions);
   const composerActions = useBehaviorTreeStore((state) => state.composerActions);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -43,7 +42,7 @@ export const useKeyboardShortcuts = (selectedNodeIds: string[]) => {
         case 'c':
           // 复制节点
           event.preventDefault();
-          console.log('复制节点:', selectedNodeIds);
+          composerActions.copySelection();
           break;
           
         case 'v':
@@ -56,7 +55,7 @@ export const useKeyboardShortcuts = (selectedNodeIds: string[]) => {
           // 删除节点
           event.preventDefault();
           if (selectedNodeIds.length > 0) {
-            actions.deleteNodes(selectedNodeIds);
+            composerActions.deleteSelectedNodes();
           }
           break;
           
@@ -72,7 +71,7 @@ export const useKeyboardShortcuts = (selectedNodeIds: string[]) => {
         // 删除选中节点
         event.preventDefault();
         if (selectedNodeIds.length > 0) {
-          actions.deleteNodes(selectedNodeIds);
+          composerActions.deleteSelectedNodes();
         }
         break;
         
@@ -85,7 +84,7 @@ export const useKeyboardShortcuts = (selectedNodeIds: string[]) => {
       default:
         break;
     }
-  }, [selectedNodeIds, actions, composerActions]);
+  }, [selectedNodeIds, composerActions]);
 
   useEffect(() => {
     // 添加键盘事件监听器

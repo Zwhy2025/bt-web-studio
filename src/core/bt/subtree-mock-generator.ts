@@ -1,4 +1,5 @@
-import { BehaviorTreeNode, NodeStatus } from '@/core/store/behavior-tree-store';
+import type { BehaviorTreeNode } from '@/core/store/behavior-tree-store';
+import { NodeStatus } from '@/core/store/behavior-tree-store';
 
 // 模拟的调试事件数据
 // 为导入的子树生成顺序执行的模拟事件

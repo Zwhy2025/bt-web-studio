@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Trash2, Database, Plus, Edit2, Check, X } from 'lucide-react'
-import { useBlackboard, useActions, BlackboardEntry } from '@/core/store/behavior-tree-store'
+import { useBlackboard, useActions } from '@/core/store/behavior-tree-store'
+import type { BlackboardEntry } from '@/core/store/behavior-tree-store'
 import { useToast } from '@/hooks/use-toast'
 import { useI18n } from "@/hooks/use-i18n"
 

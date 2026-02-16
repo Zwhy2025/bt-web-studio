@@ -41,11 +41,16 @@ import 'reactflow/dist/style.css';
 import { BehaviorTreeNode } from '../nodes/behavior-tree-node';
 import ControlSequenceNode from '../nodes/control-sequence-node';
 
-// 自定义节点类型映射
+// 自定义节点类型映射（包含 XML 导入产生的类型，避免 React Flow 回退警告）
 const nodeTypes = {
     behaviorTreeNode: BehaviorTreeNode,
     'control-sequence': ControlSequenceNode,
-    default: BehaviorTreeNode, // 默认回退
+    'control-selector': BehaviorTreeNode,
+    action: BehaviorTreeNode,
+    condition: BehaviorTreeNode,
+    decorator: BehaviorTreeNode,
+    subtree: BehaviorTreeNode,
+    default: BehaviorTreeNode,
 };
 
 // 默认边样式

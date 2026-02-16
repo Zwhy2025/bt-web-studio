@@ -1,7 +1,8 @@
-
 import { StateCreator } from 'zustand';
-import { behaviorTreeManager, toggleSubtreeExpansion } from '@/core/bt/unified-behavior-tree-manager';
-import { BehaviorTreeState, BehaviorTreeNode, BehaviorTreeEdge, NodeStatus } from './behavior-tree-store';
+import { behaviorTreeManager } from '@/core/bt/unified-behavior-tree-manager';
+import { computeSubtreeExpansion } from '@/core/bt/subtree-expansion';
+import type { BehaviorTreeState, BehaviorTreeNode, BehaviorTreeEdge } from './behavior-tree-store';
+import { NodeStatus } from './behavior-tree-store';
 
 export interface TreeSlice {
   nodes: BehaviorTreeNode[];
@@ -102,7 +103,8 @@ export const createTreeSlice: StateCreator<
         }
 
         const subtreeRefNode = state.nodes.find(node =>
-          node.type === 'subtree' && (node.data.subtreeId === subtreeId || node.id === subtreeId || node.data.label?.includes(subtreeId))
+          (node.type === 'subtree' || (node.data as any)?.subtreeId) &&
+          ((node.data as any)?.subtreeId === subtreeId || node.id === subtreeId || (node.data as any)?.label?.includes?.(subtreeId))
         );
 
         if (!subtreeRefNode) {
@@ -110,27 +112,11 @@ export const createTreeSlice: StateCreator<
           return state;
         }
 
-        const parentTreeId = state.currentSession.id;
-        const manager = behaviorTreeManager;
+        const actualSubtreeId = (subtreeRefNode.data as any)?.subtreeId || subtreeId;
+        let subtreeTree = behaviorTreeManager.getTree(actualSubtreeId);
 
-        if (!manager.getTree(parentTreeId)) {
-          const treeData = {
-            id: parentTreeId,
-            name: state.currentSession.name || parentTreeId,
-            sourceType: 'file' as const,
-            sourceHash: Date.now().toString(),
-            xmlContent: '',
-            nodes: state.nodes,
-            edges: state.edges,
-            metadata: { nodeDefinitions: {}, treeDefinitions: {}, layoutApplied: true, lastParsed: new Date() }
-          };
-          manager.registerTree(treeData);
-        }
-
-        const actualSubtreeId = subtreeRefNode.data.subtreeId || subtreeId;
-
-        if (!manager.getTree(actualSubtreeId)) {
-          const tempSubtreeData = {
+        if (!subtreeTree) {
+          subtreeTree = {
             id: actualSubtreeId,
             name: actualSubtreeId,
             sourceType: 'file' as const,
@@ -140,33 +126,36 @@ export const createTreeSlice: StateCreator<
             edges: [],
             metadata: { nodeDefinitions: {}, treeDefinitions: {}, layoutApplied: true, lastParsed: new Date() }
           };
-          manager.registerTree(tempSubtreeData);
+          behaviorTreeManager.registerTree(subtreeTree);
         }
 
         const currentExpanded = (subtreeRefNode.data as any).isExpanded || false;
         const newExpanded = !currentExpanded;
-        const result = toggleSubtreeExpansion(parentTreeId, subtreeRefNode.id, newExpanded);
 
-        if (result) {
-          return {
-            ...state,
+        const result = computeSubtreeExpansion(
+          state.nodes,
+          state.edges,
+          subtreeRefNode as BehaviorTreeNode,
+          { nodes: subtreeTree.nodes as BehaviorTreeNode[], edges: subtreeTree.edges as BehaviorTreeEdge[] },
+          newExpanded
+        );
+
+        return {
+          ...state,
+          nodes: result.nodes,
+          edges: result.edges,
+          sessions: state.sessions.map(s =>
+            s.id === state.currentSession!.id
+              ? { ...s, nodes: result.nodes, edges: result.edges, modifiedAt: Date.now() }
+              : s
+          ),
+          currentSession: {
+            ...state.currentSession,
             nodes: result.nodes,
             edges: result.edges,
-            sessions: state.sessions.map(s =>
-              s.id === state.currentSession!.id
-                ? { ...s, nodes: result.nodes, edges: result.edges, modifiedAt: Date.now() }
-                : s
-            ),
-            currentSession: {
-              ...state.currentSession,
-              nodes: result.nodes,
-              edges: result.edges,
-              modifiedAt: Date.now(),
-            },
-          };
-        } else {
-          return state;
-        }
+            modifiedAt: Date.now(),
+          },
+        };
       });
     },
     setSubTreeExpanded: (nodeId, expanded) => {
@@ -174,49 +163,45 @@ export const createTreeSlice: StateCreator<
       if (!state.currentSession) return;
 
       const node = state.nodes.find(n => n.id === nodeId);
-      if (!node || !node.data.isSubtreeReference) return;
+      if (!node || !(node.data as any).isSubtreeReference) return;
 
-      const subtreeId = node.data.subtreeId;
+      const subtreeId = (node.data as any).subtreeId;
       if (!subtreeId) return;
 
-      const subtree = behaviorTreeManager.getTree(subtreeId);
-      if (!subtree) return;
-
-      const currentTreeId = `session_${state.currentSession.id}`;
-      let currentTree = behaviorTreeManager.getTree(currentTreeId);
-
-      if (!currentTree) {
-        const currentTreeData = {
-          id: currentTreeId,
-          name: state.currentSession.name,
+      let subtreeTree = behaviorTreeManager.getTree(subtreeId);
+      if (!subtreeTree) {
+        subtreeTree = {
+          id: subtreeId,
+          name: subtreeId,
           sourceType: 'file' as const,
           sourceHash: Date.now().toString(),
           xmlContent: '',
-          nodes: state.nodes.map(n => ({ ...n })),
-          edges: state.edges.map(e => ({ ...e })),
+          nodes: [{ id: `${subtreeId}_root`, position: { x: 0, y: 0 }, data: { label: `${subtreeId} Root`, status: NodeStatus.IDLE }, type: 'control-sequence' }],
+          edges: [],
           metadata: { nodeDefinitions: {}, treeDefinitions: {}, layoutApplied: true, lastParsed: new Date() }
         };
-        behaviorTreeManager.registerTree(currentTreeData);
-      } else {
-        currentTree.nodes = state.nodes.map(n => ({ ...n }));
-        currentTree.edges = state.edges.map(e => ({ ...e }));
+        behaviorTreeManager.registerTree(subtreeTree);
       }
 
-      const result = toggleSubtreeExpansion(currentTreeId, nodeId, expanded);
+      const result = computeSubtreeExpansion(
+        state.nodes,
+        state.edges,
+        node as BehaviorTreeNode,
+        { nodes: subtreeTree.nodes as BehaviorTreeNode[], edges: subtreeTree.edges as BehaviorTreeEdge[] },
+        expanded
+      );
 
-      if (result) {
-        const newExpandedSubTrees = new Set(state.expandedSubTrees);
-        if (expanded) {
-          newExpandedSubTrees.add(nodeId);
-        } else {
-          newExpandedSubTrees.delete(nodeId);
-        }
+      const newExpandedSubTrees = new Set(state.expandedSubTrees);
+      if (expanded) {
+        newExpandedSubTrees.add(nodeId);
+      } else {
+        newExpandedSubTrees.delete(nodeId);
+      }
 
-        set({ nodes: result.nodes, edges: result.edges, expandedSubTrees: newExpandedSubTrees });
+      set({ nodes: result.nodes, edges: result.edges, expandedSubTrees: newExpandedSubTrees });
 
-        if (state.currentSession) {
-          get().actions.importData(result.nodes, result.edges);
-        }
+      if (state.currentSession) {
+        get().actions.importData(result.nodes, result.edges);
       }
     },
     importData: (nodes, edges, options = { merge: true }) => {

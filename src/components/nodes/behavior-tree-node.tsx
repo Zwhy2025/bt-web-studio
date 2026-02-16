@@ -1,8 +1,10 @@
 import React, { memo, useState, useCallback, useMemo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { cn } from '@/core/utils/utils';
-import { useComposerActions, useSelectedNodes } from '@/core/store/behavior-tree-store';
+import { useComposerActions, useSelectedNodes, useActions } from '@/core/store/behavior-tree-store';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useI18n } from '@/hooks/use-i18n';
 import { 
   GitBranch,
   Repeat,
@@ -13,7 +15,10 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock
+  Clock,
+  Crown,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 
 // 节点状态枚举
@@ -121,17 +126,22 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
   id, 
   data, 
   selected,
-  dragging 
+  dragging,
+  type: nodeType 
 }) => {
   const composerActions = useComposerActions();
+  const actions = useActions();
   const selectedNodes = useSelectedNodes();
+  const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
 
-  // 确保data.icon存在且是有效的组件，否则使用category获取图标
-  const Icon = data.icon && typeof data.icon === 'function' 
-    ? data.icon 
-    : getNodeIcon(data.category);
-  const nodeColor = getNodeColor(data.category, data.color);
+  const isRoot = id === 'root' || (data.instanceName === 'root');
+  const rawCategory = data.category || nodeType || 'control';
+  const isSubtreeRef = (data as any)?.subtreeId != null || (data as any)?.isSubtreeReference === true;
+  const isExpanded = (data as any)?.isExpanded === true;
+  const category = String(rawCategory).startsWith('control') ? 'control' : rawCategory;
+  const Icon = isRoot ? Crown : (data.icon && typeof data.icon === 'function' ? data.icon : getNodeIcon(category));
+  const nodeColor = isRoot ? 'bg-amber-500' : getNodeColor(category, data.color);
   const statusColor = getStatusColor(data.status || NodeStatus.IDLE);
   const statusIcon = getStatusIcon(data.status || NodeStatus.IDLE);
 
@@ -164,15 +174,19 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
     return arr.map(p => ({ ...p, side: p.side || 'bottom' }));
   }, [data.outputs]);
 
-  const modelTitle = (data.modelName || data.name || '').toString();
+  const modelTitle = isRoot
+    ? 'Root'
+    : (data.modelName || data.name || data.label || '未命名').toString();
   const instanceTitle = (data.instanceName || '').toString().trim();
+  const showInstanceTitle = !isRoot && instanceTitle && instanceTitle !== modelTitle;
 
   return (
     <div
       className={cn(
         'relative min-w-[120px] max-w-[220px] border-2 rounded-lg shadow-sm transition-all duration-200 text-foreground',
-        statusColor,
-        isSelected && 'ring-2 ring-primary ring-offset-1',
+        isRoot && 'border-amber-400/70 bg-amber-50/80 dark:bg-amber-950/40 dark:border-amber-500/50 shadow-amber-200/30',
+        !isRoot && statusColor,
+        isSelected && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
         dragging && 'opacity-50',
         data.isDisabled && 'opacity-60',
         'hover:shadow-md',
@@ -210,21 +224,39 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
         );
       })}
 
-      {/* 节点头部 */}
-      <div className="flex items-center gap-2 p-2 border-b border-border/70 bg-accent/10">
+      {/* 节点头部（编排模式无内容区，不显示分割线） */}
+      <div className="flex items-center gap-2 p-2 bg-accent/10">
         <div className={cn('w-6 h-6 rounded-md flex items-center justify-center shadow-sm', nodeColor)}>
           <Icon className="w-3 h-3 text-white" />
         </div>
         <div className="flex-1 min-w-0">
           {/* 模型名：优先显示且字号更大 */}
           <div className="font-semibold text-sm truncate">{modelTitle}</div>
-          {/* 实例名：仅在设置后显示，置于模型名下方且更小 */}
-          {instanceTitle && (
+          {/* 实例名：仅在与模型名不同时显示，避免重复 */}
+          {showInstanceTitle && (
             <div className="text-[11px] text-muted-foreground leading-4 truncate">{instanceTitle}</div>
           )}
         </div>
         {/* 状态和标志 */}
         <div className="flex items-center gap-1">
+          {isSubtreeRef && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 hover:bg-slate-200 dark:hover:bg-slate-700"
+              onClick={(e) => {
+                e.stopPropagation();
+                actions.toggleSubTreeExpansion?.(id);
+              }}
+              title={isExpanded ? t('nodes:collapseSubtree') : t('nodes:expandSubtree')}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           {statusIcon}
           {data.isBreakpoint && (
             <div className="w-2 h-2 rounded-full bg-red-500"></div>
@@ -234,11 +266,6 @@ export const BehaviorTreeNode = memo<NodeProps<BehaviorTreeNodeData>>(({
           )}
         </div>
       </div>
-
-      {/* 节点内容（编排模式简洁显示，不展示描述与属性预览） */}
-      <div className="p-2" />
-
-      {/* 编排模式不显示调试类悬浮工具栏（断点/禁用/设置） */}
 
       {/* 输出连接点（支持多端口） */}
       {outputs.map((port, i) => {
