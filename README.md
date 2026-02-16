@@ -104,8 +104,9 @@
 
 有关更详细的使用和部署信息，请参阅以下文档：
 
-* [用户使用指南](docs/user-guide.md) - 详细介绍 BT Web Studio 的功能和使用方法
-* [部署指南](docs/deployment-guide.md) - 介绍如何部署 BT Web Studio 到生产环境
+* [文档中心](docs/README.md) - 文档目录与推荐阅读顺序
+* [用户使用指南](docs/用户手册.md) - 详细介绍 BT Web Studio 的功能和使用方法
+* [部署指南](docs/研发/部署指南.md) - 介绍如何部署 BT Web Studio 到生产环境
 
 
 ## 贡献

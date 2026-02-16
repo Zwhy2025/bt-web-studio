@@ -1,5 +1,11 @@
 import { StateCreator } from 'zustand';
 import { Node, Edge } from 'reactflow';
+import {
+  serializeToClipboard,
+  deserializeFromClipboard,
+  cloneWithNewIds,
+} from '@/core/clipboard/tree-clipboard';
+import { alignNodes } from '@/core/layout/alignment-utils';
 
 // 编排工具类型
 export enum ComposerTool {
@@ -226,6 +232,8 @@ export interface ComposerModeActions {
   // 状态管理
   markDirty: () => void;
   markClean: () => void;
+  // 兼容旧接口：部分代码调用了 saveCurrentState
+  saveCurrentState: () => void;
   saveState: () => any;
   restoreState: (state: any) => void;
   resetToDefaults: () => void;
@@ -490,9 +498,36 @@ export const createComposerModeSlice: StateCreator<
       },
       
       deleteSelectedNodes: () => {
-        // TODO: 删除选中的节点
-        console.log('Deleting selected nodes');
-        addToHistory('deleteNodes', 'Deleted selected nodes', null, null);
+        const state = get();
+        const { selectedNodeIds } = state;
+        if (selectedNodeIds.length === 0) return;
+
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(selectedNodeIds);
+
+        const undoData = {
+          nodes: JSON.parse(JSON.stringify(nodes)),
+          edges: JSON.parse(JSON.stringify(edges)),
+        };
+        const remainingNodes = nodes.filter((n) => !ids.has(n.id));
+        const remainingEdges = edges.filter(
+          (e) => !ids.has(e.source) && !ids.has(e.target)
+        );
+        const redoData = {
+          nodes: JSON.parse(JSON.stringify(remainingNodes)),
+          edges: JSON.parse(JSON.stringify(remainingEdges)),
+        };
+
+        addToHistory('deleteNodes', 'Deleted selected nodes', undoData, redoData);
+        get().actions.importData(remainingNodes as any, remainingEdges as any, {
+          merge: false,
+        });
+        set((s) => ({
+          ...s,
+          selectedNodeIds: [],
+          selectedEdgeIds: [],
+        }));
       },
       
       duplicateSelectedNodes: () => {
@@ -522,20 +557,92 @@ export const createComposerModeSlice: StateCreator<
       },
       
       copySelection: () => {
-        // TODO: 复制选中的节点和边到剪贴板
-        console.log('Copying selection');
+        const state = get();
+        const { selectedNodeIds } = state;
+        if (selectedNodeIds.length === 0) return;
+
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(selectedNodeIds);
+        const selectedNodes = nodes.filter((n) => ids.has(n.id));
+        const selectedEdges = edges.filter(
+          (e) => ids.has(e.source) && ids.has(e.target)
+        );
+        const data = serializeToClipboard(selectedNodes, selectedEdges);
+        set((s) => ({ ...s, clipboard: data }));
       },
-      
+
       cutSelection: () => {
-        // TODO: 剪切选中的节点和边
-        console.log('Cutting selection');
-        addToHistory('cutSelection', 'Cut selection', null, null);
+        const state = get();
+        const { selectedNodeIds } = state;
+        if (selectedNodeIds.length === 0) return;
+
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(selectedNodeIds);
+        const selectedNodes = nodes.filter((n) => ids.has(n.id));
+        const selectedEdges = edges.filter(
+          (e) => ids.has(e.source) && ids.has(e.target)
+        );
+        const data = serializeToClipboard(selectedNodes, selectedEdges);
+        set((s) => ({ ...s, clipboard: data }));
+
+        const undoData = {
+          nodes: JSON.parse(JSON.stringify(nodes)),
+          edges: JSON.parse(JSON.stringify(edges)),
+        };
+        const remainingNodes = nodes.filter((n) => !ids.has(n.id));
+        const remainingEdges = edges.filter(
+          (e) => !ids.has(e.source) && !ids.has(e.target)
+        );
+        const redoData = {
+          nodes: JSON.parse(JSON.stringify(remainingNodes)),
+          edges: JSON.parse(JSON.stringify(remainingEdges)),
+        };
+        addToHistory('cutSelection', 'Cut selection', undoData, redoData);
+        get().actions.importData(remainingNodes as any, remainingEdges as any, {
+          merge: false,
+        });
+        set((s) => ({
+          ...s,
+          selectedNodeIds: [],
+          selectedEdgeIds: [],
+        }));
       },
-      
+
       paste: (position?: { x: number; y: number }) => {
-        // TODO: 粘贴剪贴板内容
-        console.log('Pasting at', position);
-        addToHistory('paste', 'Pasted content', null, null);
+        const state = get();
+        if (!state.clipboard) return;
+
+        const { nodes: existingNodes, edges: existingEdges } = state;
+        const { nodes: clipNodes, edges: clipEdges } = deserializeFromClipboard(
+          state.clipboard
+        );
+        const offset = position ?? { x: 20, y: 20 };
+        const { nodes: newNodes, edges: newEdges } = cloneWithNewIds(
+          clipNodes,
+          clipEdges,
+          offset
+        );
+
+        const undoData = {
+          nodes: JSON.parse(JSON.stringify(existingNodes)),
+          edges: JSON.parse(JSON.stringify(existingEdges)),
+        };
+        const mergedNodes = [...(existingNodes as Node[]), ...newNodes];
+        const mergedEdges = [...(existingEdges as Edge[]), ...newEdges];
+        const redoData = {
+          nodes: JSON.parse(JSON.stringify(mergedNodes)),
+          edges: JSON.parse(JSON.stringify(mergedEdges)),
+        };
+        addToHistory('paste', 'Pasted content', undoData, redoData);
+        get().actions.importData(mergedNodes as any, mergedEdges as any, {
+          merge: false,
+        });
+        set((s) => ({
+          ...s,
+          selectedNodeIds: newNodes.map((n) => n.id),
+        }));
       },
       
       canPaste: () => {
@@ -546,19 +653,25 @@ export const createComposerModeSlice: StateCreator<
         const { editHistory, historyIndex } = get();
         if (historyIndex >= 0) {
           const item = editHistory[historyIndex];
-          // TODO: 执行撤销操作
-          console.log('Undoing:', item.description);
-          set(state => ({ ...state, historyIndex: state.historyIndex - 1 }));
+          if (item.undoData?.nodes && item.undoData?.edges) {
+            get().actions.importData(item.undoData.nodes, item.undoData.edges, {
+              merge: false,
+            });
+          }
+          set((state) => ({ ...state, historyIndex: state.historyIndex - 1 }));
         }
       },
-      
+
       redo: () => {
         const { editHistory, historyIndex } = get();
         if (historyIndex < editHistory.length - 1) {
           const item = editHistory[historyIndex + 1];
-          // TODO: 执行重做操作
-          console.log('Redoing:', item.description);
-          set(state => ({ ...state, historyIndex: state.historyIndex + 1 }));
+          if (item.redoData?.nodes && item.redoData?.edges) {
+            get().actions.importData(item.redoData.nodes, item.redoData.edges, {
+              merge: false,
+            });
+          }
+          set((state) => ({ ...state, historyIndex: state.historyIndex + 1 }));
         }
       },
       
@@ -624,43 +737,131 @@ export const createComposerModeSlice: StateCreator<
       },
       
       alignLeft: () => {
-        console.log('Aligning nodes to left');
-        addToHistory('alignLeft', 'Aligned nodes to left', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'left');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('alignLeft', 'Aligned nodes to left', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       alignRight: () => {
-        console.log('Aligning nodes to right');
-        addToHistory('alignRight', 'Aligned nodes to right', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'right');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('alignRight', 'Aligned nodes to right', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       alignTop: () => {
-        console.log('Aligning nodes to top');
-        addToHistory('alignTop', 'Aligned nodes to top', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'top');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('alignTop', 'Aligned nodes to top', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       alignBottom: () => {
-        console.log('Aligning nodes to bottom');
-        addToHistory('alignBottom', 'Aligned nodes to bottom', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'bottom');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('alignBottom', 'Aligned nodes to bottom', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       alignCenterHorizontal: () => {
-        console.log('Aligning nodes to center horizontal');
-        addToHistory('alignCenterH', 'Aligned nodes horizontally', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'center');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('alignCenterH', 'Aligned nodes horizontally', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       alignCenterVertical: () => {
-        console.log('Aligning nodes to center vertical');
-        addToHistory('alignCenterV', 'Aligned nodes vertically', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'middle');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('alignCenterV', 'Aligned nodes vertically', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       distributeHorizontally: () => {
-        console.log('Distributing nodes horizontally');
-        addToHistory('distributeH', 'Distributed nodes horizontally', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'distribute-horizontal');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('distributeH', 'Distributed nodes horizontally', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
-      
+
       distributeVertically: () => {
-        console.log('Distributing nodes vertically');
-        addToHistory('distributeV', 'Distributed nodes vertically', null, null);
+        const state = get();
+        const nodes = state.nodes as Node[];
+        const edges = state.edges as Edge[];
+        const ids = new Set(state.selectedNodeIds);
+        const selected = nodes.filter((n) => ids.has(n.id));
+        if (selected.length < 2) return;
+        const undoData = { nodes: JSON.parse(JSON.stringify(nodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        const aligned = alignNodes(selected, 'distribute-vertical');
+        const alignedMap = new Map(aligned.map((n) => [n.id, n]));
+        const newNodes = nodes.map((n) => alignedMap.get(n.id) ?? n);
+        const redoData = { nodes: JSON.parse(JSON.stringify(newNodes)), edges: JSON.parse(JSON.stringify(edges)) };
+        addToHistory('distributeV', 'Distributed nodes vertically', undoData, redoData);
+        get().actions.importData(newNodes as any, edges as any, { merge: false });
       },
       
       autoLayoutTree: () => {
@@ -848,6 +1049,11 @@ export const createComposerModeSlice: StateCreator<
       },
       
       markDirty: () => {
+        set(state => ({ ...state, isDirty: true, hasUnsavedChanges: true }));
+      },
+      
+      // 兼容旧接口：作为别名调用 markDirty，防止旧代码报错
+      saveCurrentState: () => {
         set(state => ({ ...state, isDirty: true, hasUnsavedChanges: true }));
       },
       

@@ -1,6 +1,6 @@
 
 import { StateCreator } from 'zustand';
-import { BehaviorTreeState, BlackboardEntry } from './behavior-tree-store';
+import type { BehaviorTreeState, BlackboardEntry } from './behavior-tree-store';
 
 export interface BlackboardSlice {
   blackboard: Record<string, BlackboardEntry>;

@@ -666,7 +666,7 @@ export default function ComposerPropertyPanel() {
             onClick={() => {
               // 删除节点
               if (selectedNode) {
-                actions.deleteNodes([selectedNode.id]);
+                composerActions.deleteSelectedNodes();
               }
             }}
           >

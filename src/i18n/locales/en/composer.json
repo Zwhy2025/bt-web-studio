@@ -129,5 +129,10 @@
     "delete": "Delete",
     "selectAll": "Ctrl+A",
     "validate": "F5"
+  },
+  "validation": {
+    "valid": "Tree is valid",
+    "noErrors": "No errors",
+    "cycleForbidden": "Cycle prohibited"
   }
 }

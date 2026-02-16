@@ -3,7 +3,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { ImportDialog, ExportDialog } from "@/components/xml-dialog"
 import { Node, Edge } from "reactflow"
 import { useToast } from "@/hooks/use-toast"
-import { useBehaviorTreeStore } from "@/core/store/behavior-tree-store"
+import { useBehaviorTreeStore, useBehaviorTreeData } from "@/core/store/behavior-tree-store"
 import { useI18n } from "@/hooks/use-i18n"
 import { TopBar } from "@/components/layout/top-bar"
 import { ModeAwareLayout } from "@/components/layout/mode-aware-layout"
@@ -15,12 +15,11 @@ function AppContent() {
     const { t } = useI18n()
     const actions = useBehaviorTreeStore(state => state.actions)
     const { toast } = useToast()
+    const { nodes, edges } = useBehaviorTreeData()
 
     // 对话框状态
     const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
-    const [exportNodes, setExportNodes] = useState<Node[]>([])
-    const [exportEdges, setExportEdges] = useState<Edge[]>([])
 
     // 预览功能状态
     const [treeDirection, setTreeDirection] = useState<'vertical' | 'horizontal'>('vertical')
@@ -61,9 +60,9 @@ function AppContent() {
         })
     }
 
-    // 导入数据
+    // 导入数据（替换模式，清除残余节点和树）
     const handleImport = (nodes: Node[], edges: Edge[]) => {
-        actions.importData(nodes, edges)
+        actions.importData(nodes, edges, { merge: false })
         setIsImportDialogOpen(false)
         toast({
             title: t('messages:importSuccess'),
@@ -71,12 +70,6 @@ function AppContent() {
                 .replace('{{nodes}}', nodes.length.toString())
                 .replace('{{edges}}', edges.length.toString())
         })
-    }
-
-    // 设置导出数据
-    const handleExportData = (nodes: Node[], edges: Edge[]) => {
-        setExportNodes(nodes)
-        setExportEdges(edges)
     }
 
     return (
@@ -87,6 +80,8 @@ function AppContent() {
                 onRedo={handleRedo}
                 onToggleTreeDirection={handleToggleTreeDirection}
                 onToggleCompactMode={handleToggleCompactMode}
+                onImportClick={() => setIsImportDialogOpen(true)}
+                onExportClick={() => setIsExportDialogOpen(true)}
                 treeDirection={treeDirection}
                 isCompactMode={isCompactMode}
             />
@@ -111,14 +106,15 @@ function AppContent() {
                 open={isImportDialogOpen}
                 onOpenChange={setIsImportDialogOpen}
                 onImport={handleImport}
+                existingNodeCount={nodes.length}
             />
             
             {/* 导出对话框 */}
             <ExportDialog
                 open={isExportDialogOpen}
                 onOpenChange={setIsExportDialogOpen}
-                nodes={exportNodes}
-                edges={exportEdges}
+                nodes={nodes}
+                edges={edges}
             />
         </div>
     )

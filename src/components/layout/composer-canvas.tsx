@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { createNode } from '@/core/store/sessionState';
 import ReactFlow, {
   type Node,
@@ -20,20 +20,33 @@ import ReactFlow, {
   Panel,
   MarkerType,
   type XYPosition,
+  applyNodeChanges,
+  applyEdgeChanges,
 } from 'reactflow';
 import { cn } from '@/core/utils/utils';
 import { useI18n } from '@/hooks/use-i18n';
+import { useToast } from '@/hooks/use-toast';
+import { wouldCreateCycle } from '@/core/graph/cycle-detector';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import {
   useComposerActions,
-  useActiveTool,
   useSelectedNodes,
   useSnapToGrid,
   useBehaviorTreeData,
-  useActions
+  useActions,
 } from '@/core/store/behavior-tree-store';
-import { ComposerTool } from '@/core/store/composerModeState';
+import { useBehaviorTreeStore } from '@/core/store/behavior-tree-store';
 import { Button } from '@/components/ui/button';
-import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info, Undo2, Redo2 } from 'lucide-react';
+import { Grid3X3, Map, ZoomIn, ZoomOut, Maximize, RotateCcw, Info, Undo2, Redo2, Copy, Trash2, GitBranch } from 'lucide-react';
+import { autoLayoutTree } from '@/core/layout/auto-layout-utils';
 
 // 引入ReactFlow样式
 import 'reactflow/dist/style.css';
@@ -42,11 +55,16 @@ import 'reactflow/dist/style.css';
 import { BehaviorTreeNode } from '../nodes/behavior-tree-node';
 import ControlSequenceNode from '../nodes/control-sequence-node';
 
-// 自定义节点类型映射
+// 自定义节点类型映射（包含 XML 导入产生的类型，避免 React Flow 回退警告）
 const nodeTypes = {
   behaviorTreeNode: BehaviorTreeNode,
   'control-sequence': ControlSequenceNode,
-  default: BehaviorTreeNode, // 默认回退
+  'control-selector': BehaviorTreeNode,
+  action: BehaviorTreeNode,
+  condition: BehaviorTreeNode,
+  decorator: BehaviorTreeNode,
+  subtree: BehaviorTreeNode,
+  default: BehaviorTreeNode,
 };
 
 // 默认边样式
@@ -185,9 +203,9 @@ function ReactFlowCanvas({
   children
 }: ComposerCanvasProps) {
   const { t } = useI18n();
+  const { toast } = useToast();
   const composerActions = useComposerActions();
   const actions = useActions();
-  const activeTool = useActiveTool();
   const selectedNodes = useSelectedNodes();
   const snapToGrid = useSnapToGrid();
   const behaviorTreeData = useBehaviorTreeData();
@@ -198,35 +216,137 @@ function ReactFlowCanvas({
   const [showMiniMap, setShowMiniMap] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes] = useNodesState([]);
+  const [edges, setEdges] = useEdgesState([]);
+  const skipStoreSyncRef = useRef(false);
+  const nodesRef = useRef<Node[]>([]);
+  const edgesRef = useRef<Edge[]>([]);
 
   useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
+
+  useEffect(() => {
+    edgesRef.current = edges;
+  }, [edges]);
+
+  useEffect(() => {
+    if (skipStoreSyncRef.current) {
+      skipStoreSyncRef.current = false;
+      return;
+    }
     if (behaviorTreeData && behaviorTreeData.nodes) {
-      setNodes(behaviorTreeData.nodes);
+      // 清除所有节点的 selected，避免 store 中残留多选导致拖动时联动
+      const normalizedNodes = behaviorTreeData.nodes.map((n) => ({ ...n, selected: false }));
+      nodesRef.current = normalizedNodes;
+      setNodes(normalizedNodes);
     }
   }, [behaviorTreeData?.nodes, setNodes]);
 
   useEffect(() => {
+    if (skipStoreSyncRef.current) {
+      skipStoreSyncRef.current = false;
+      return;
+    }
     if (behaviorTreeData && behaviorTreeData.edges) {
+      edgesRef.current = behaviorTreeData.edges;
       setEdges(behaviorTreeData.edges);
     }
   }, [behaviorTreeData?.edges, setEdges]);
 
+  // 以 store 的 selectedNodeIds 为准，强制同步 ReactFlow 节点选中态
+  useEffect(() => {
+    setNodes((currentNodes) => {
+      const selectedSet = new Set(selectedNodes);
+      let changed = false;
+      const syncedNodes = currentNodes.map((node) => {
+        const shouldSelected = selectedSet.has(node.id);
+        if ((node.selected ?? false) !== shouldSelected) {
+          changed = true;
+          return { ...node, selected: shouldSelected };
+        }
+        return node;
+      });
+      if (!changed) return currentNodes;
+      nodesRef.current = syncedNodes;
+      return syncedNodes;
+    });
+  }, [selectedNodes, setNodes]);
+
+  // 节点/边变更时同步到 store，避免添加节点时用旧数据覆盖拖拽后的位置
+  const onNodesChangeWithSync: OnNodesChange = useCallback(
+    (changes) => {
+      const newNodes = applyNodeChanges(changes, nodesRef.current);
+      nodesRef.current = newNodes;
+      setNodes(newNodes);
+      const hasPositionChange = changes.some((c) => c.type === 'position' && c.dragging === false);
+      if (hasPositionChange) {
+        skipStoreSyncRef.current = true;
+        actions.importData(newNodes, edgesRef.current, { merge: false });
+      }
+    },
+    [setNodes, actions]
+  );
+
+  const onEdgesChangeWithSync: OnEdgesChange = useCallback(
+    (changes) => {
+      const newEdges = applyEdgeChanges(changes, edgesRef.current);
+      edgesRef.current = newEdges;
+      setEdges(newEdges);
+      const hasStructureChange = changes.some((c) => c.type === 'add' || c.type === 'remove');
+      if (hasStructureChange) {
+        skipStoreSyncRef.current = true;
+        actions.importData(nodesRef.current, newEdges, { merge: false });
+      }
+    },
+    [setEdges, actions]
+  );
+
+  // 拖拽开始时兜底收敛选中态，防止残留多选导致联动拖动
+  const onNodeDragStart = useCallback((event: React.MouseEvent, draggingNode: Node) => {
+    if (event.shiftKey || event.metaKey || event.ctrlKey) {
+      return;
+    }
+
+    const currentNodes = nodesRef.current;
+    const selectedCount = currentNodes.filter((n) => n.selected).length;
+    if (selectedCount <= 1 && draggingNode.selected) {
+      return;
+    }
+
+    const nextNodes = currentNodes.map((n) => ({ ...n, selected: n.id === draggingNode.id }));
+    nodesRef.current = nextNodes;
+    setNodes(nextNodes);
+    composerActions.setSelectedNodes([draggingNode.id]);
+  }, [setNodes, composerActions]);
+
   // 连接处理
   const onConnect: OnConnect = useCallback((connection: Connection) => {
+    const currentNodes = nodesRef.current;
+    const currentEdges = edgesRef.current;
+    const source = connection.source!;
+    const target = connection.target!;
     // 禁止把边连到 root（root 只能向下连接）
-    const targetNode = nodes.find((n) => n.id === connection.target);
+    const targetNode = currentNodes.find((n) => n.id === target);
     if (targetNode && (targetNode.data as any)?.instanceName === 'root') {
-      return; // 忽略
+      return;
     }
-    const edge = {
-      ...connection,
-      ...defaultEdgeOptions,
-    };
-    setEdges((eds) => addEdge(edge, eds));
-    composerActions.saveCurrentState();
-  }, [setEdges, composerActions, nodes]);
+    // 循环检测
+    if (wouldCreateCycle(source, target, currentEdges, currentNodes)) {
+      toast({ title: t('composer:validation.cycleForbidden', '禁止回路'), variant: 'destructive' });
+      return;
+    }
+    const edge = { ...connection, ...defaultEdgeOptions };
+    const newEdges = addEdge(edge, currentEdges);
+    edgesRef.current = newEdges;
+    setEdges(newEdges);
+    const undoData = { nodes: JSON.parse(JSON.stringify(currentNodes)), edges: JSON.parse(JSON.stringify(currentEdges)) };
+    const redoData = { nodes: JSON.parse(JSON.stringify(currentNodes)), edges: JSON.parse(JSON.stringify(newEdges)) };
+    composerActions.addToHistory('addEdge', 'Added connection', undoData, redoData);
+    skipStoreSyncRef.current = true;
+    actions.importData(currentNodes, newEdges, { merge: false });
+    composerActions.markDirty();
+  }, [setEdges, composerActions, actions, toast, t]);
 
   // 拖拽处理
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -237,10 +357,9 @@ function ReactFlowCanvas({
   const onDrop = useCallback((event: React.DragEvent) => {
     event.preventDefault();
 
-    const reactFlowBounds = event.currentTarget.getBoundingClientRect();
     const position: XYPosition = reactFlowInstance?.screenToFlowPosition({
-      x: event.clientX - reactFlowBounds.left,
-      y: event.clientY - reactFlowBounds.top,
+      x: event.clientX,
+      y: event.clientY,
     }) || { x: 0, y: 0 };
 
     // 获取拖拽数据 - 支持多种格式
@@ -280,46 +399,77 @@ function ReactFlowCanvas({
     }
 
     if (nodeData) {
-        try {
-          const isFirstNode = behaviorTreeData.nodes.length === 0;
-          
-          // 使用共享函数创建节点
-          const newNode = createNode(
-            position,
-            nodeData,
-            isFirstNode,
-            snapToGrid,
-            'behaviorTreeNode'
-          );
+      try {
+        const currentNodes = nodesRef.current;
+        const nextEdges = edgesRef.current;
+        const isFirstNode = currentNodes.length === 0;
 
-          // 对于第一个节点，设置为Sequence类型
-          if (isFirstNode) {
-            newNode.data.modelName = 'Sequence';
-            newNode.data.category = 'control';
+        // 使用共享函数创建节点
+        const newNode = createNode(
+          position,
+          nodeData,
+          isFirstNode,
+          snapToGrid,
+          'behaviorTreeNode'
+        );
+
+        // 统一模型/实例名的初始逻辑，确保属性面板可见到默认值
+        if (isFirstNode) {
+          // 第一个节点固定为 Sequence 控制节点
+          newNode.data.modelName = 'Sequence';
+          newNode.data.category = 'control';
+          // root 的实例名在 createNode 中已设为 'root'
+        } else {
+          // 普通节点：若未提供，则用库中名称作为 modelName 与默认实例名
+          newNode.data.modelName = newNode.data.modelName || nodeData.name || newNode.data.label;
+          if (!newNode.data.instanceName) {
+            newNode.data.instanceName = newNode.data.modelName;
           }
-
-          // 先将节点添加到store中
-          actions.addNode(newNode);
-          
-          // 然后更新ReactFlow的节点状态
-          setNodes((nds) => nds.concat(newNode));
-          
-          // 确保节点被正确注册到全局状态
-          composerActions.saveCurrentState();
-          
-          // 立即选择新创建的节点
-          composerActions.selectNode(newNode.id);
-          
-        } catch (error) {
-          console.error('Failed to create node:', error);
         }
+
+        // 清除已有节点的 selected，只选中新节点，避免 ReactFlow 多选导致拖动时联动
+        const clearedNodes = currentNodes.map((n) => ({ ...n, selected: false }));
+        (newNode as any).selected = true;
+        const nextNodes = [...clearedNodes, newNode as any];
+        const undoData = {
+          nodes: JSON.parse(JSON.stringify(currentNodes)),
+          edges: JSON.parse(JSON.stringify(nextEdges)),
+        };
+        const redoData = {
+          nodes: JSON.parse(JSON.stringify(nextNodes)),
+          edges: JSON.parse(JSON.stringify(nextEdges)),
+        };
+
+        skipStoreSyncRef.current = true;
+        nodesRef.current = nextNodes;
+        setNodes(nextNodes);
+        composerActions.setSelectedNodes([newNode.id]);
+        composerActions.addToHistory('addNode', `Added node`, undoData, redoData);
+        actions.importData(nextNodes as any, nextEdges as any, {
+          merge: false,
+        });
+
+        // 标记变更，触发保存提示/状态
+        composerActions.markDirty();
+
+        // 立即选择并打开属性面板，确保可见
+        // 稍作延迟，确保 ReactFlow 与 store 均完成更新
+        setTimeout(() => composerActions.openNodeSettings(newNode.id), 0);
+      } catch (error) {
+        console.error('Failed to create node:', error);
       }
-  }, [reactFlowInstance, snapToGrid, setNodes, actions, composerActions, behaviorTreeData.nodes]);
+    }
+  }, [reactFlowInstance, snapToGrid, setNodes, actions, composerActions]);
 
   // 选择变化处理
   const onSelectionChange = useCallback(({ nodes: selectedNodes }: { nodes: Node[] }) => {
     const selectedIds = selectedNodes.map(node => node.id);
     composerActions.setSelectedNodes(selectedIds);
+  }, [composerActions]);
+
+  // 双击节点聚焦属性面板
+  const onNodeDoubleClick = useCallback((_: React.MouseEvent, node: Node) => {
+    composerActions.openNodeSettings(node.id);
   }, [composerActions]);
 
   // 键盘事件处理
@@ -359,30 +509,58 @@ function ReactFlowCanvas({
     setZoomLevel(viewport.zoom);
   }, []);
 
+  // 右键菜单：全选
+  const handleSelectAll = useCallback(() => {
+    const allIds = nodes.map((n) => n.id);
+    setNodes((nds) => nds.map((n) => ({ ...n, selected: true })));
+    composerActions.setSelectedNodes(allIds);
+  }, [nodes, setNodes, composerActions]);
+
+  // 右键菜单：自动布局
+  const handleAutoLayout = useCallback(() => {
+    const layouted = autoLayoutTree(nodes, edges);
+    const store = useBehaviorTreeStore.getState();
+    store.actions.importData(layouted as any, edges as any, { merge: false });
+    setNodes(layouted);
+    reactFlowInstance?.fitView({ padding: 0.2 });
+    composerActions.markDirty();
+  }, [nodes, edges, setNodes, reactFlowInstance, composerActions]);
+
   return (
     <div className={cn('flex-1 relative', className)}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onInit={setReactFlowInstance}
-        onSelectionChange={onSelectionChange}
-        onMove={onMove}
-        nodeTypes={nodeTypes}
-        defaultEdgeOptions={defaultEdgeOptions}
-        connectionMode={ConnectionMode.Loose}
-        snapToGrid={snapToGrid}
-        snapGrid={[20, 20]}
-        fitView
-        attributionPosition="bottom-right"
-        panOnDrag={activeTool === ComposerTool.PAN}
-        selectionOnDrag={activeTool === ComposerTool.SELECT}
-        className="bg-background"
-      >
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <div className="w-full h-full">
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChangeWithSync}
+              onEdgesChange={onEdgesChangeWithSync}
+              onConnect={onConnect}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onInit={setReactFlowInstance}
+              onNodeDragStart={onNodeDragStart}
+              onSelectionChange={onSelectionChange}
+              onNodeDoubleClick={onNodeDoubleClick}
+              onMove={onMove}
+              nodeTypes={nodeTypes}
+              defaultEdgeOptions={defaultEdgeOptions}
+              connectionMode={ConnectionMode.Loose}
+              snapToGrid={snapToGrid}
+              snapGrid={[20, 20]}
+              fitView
+              attributionPosition="bottom-right"
+              panOnDrag={[0, 1]}
+              selectionOnDrag
+              selectionKeyCode="Shift"
+              panOnScroll
+              zoomOnScroll
+              zoomOnPinch
+              deleteKeyCode="Delete"
+              multiSelectionKeyCode="Shift"
+              className="bg-background"
+            >
         {/* 背景网格 */}
         {showGrid && (
           <Background
@@ -430,7 +608,44 @@ function ReactFlowCanvas({
             </div>
           </Panel>
         )}
-      </ReactFlow>
+            </ReactFlow>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-48">
+          <ContextMenuItem onSelect={handleSelectAll}>
+            <span>{t('composer:toolbar.selectAll')}</span>
+            <ContextMenuShortcut>⌘A</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onSelect={() => composerActions.copySelection()}
+            disabled={selectedNodes.length === 0}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            <span>{t('composer:actions.copy')}</span>
+            <ContextMenuShortcut>⌘C</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => composerActions.deleteSelectedNodes()}
+            disabled={selectedNodes.length === 0}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            <span>{t('composer:toolbar.delete')}</span>
+            <ContextMenuShortcut>Del</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuLabel>{t('composer:toolbar.layout')}</ContextMenuLabel>
+          <ContextMenuItem onSelect={handleAutoLayout}>
+            <GitBranch className="mr-2 h-4 w-4" />
+            <span>{t('menu:autoLayoutTree')}</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => composerActions.toggleSnapToGrid()}>
+            <Grid3X3 className="mr-2 h-4 w-4" />
+            <span>{snapToGrid ? t('common:disable', '禁用') : t('common:enable', '启用')} {t('menu:gridSnap')}</span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       {children}
     </div>
   );
