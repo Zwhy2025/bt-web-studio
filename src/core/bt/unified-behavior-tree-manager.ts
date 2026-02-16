@@ -1,6 +1,7 @@
 // src/lib/unified-behavior-tree-manager.ts
 import { Node, Edge } from "reactflow";
-import { BehaviorTreeNode, BehaviorTreeEdge, NodeStatus } from '@/core/store/behavior-tree-store';
+import type { BehaviorTreeNode, BehaviorTreeEdge } from '@/core/store/behavior-tree-store';
+import { NodeStatus } from '@/core/store/behavior-tree-store';
 import { globalXmlProcessor } from '@/core/bt/global-xml-processor';
 
 /**
@@ -515,6 +516,15 @@ export function toggleSubtreeExpansion(
   (subtreeRefNode.data as any).isExpanded = expand;
 
   if (expand) {
+    // 已展开则直接返回，避免重复添加
+    const alreadyExpanded = parentRuntimeData.nodes.some(
+      (n) => (n.data as any)?.parentSubtreeRef === subtreeRefNodeId
+    );
+    if (alreadyExpanded) {
+      console.log(`⏭️ Subtree ${subtreeId} already expanded, skipping`);
+      return { nodes: parentRuntimeData.nodes, edges: parentRuntimeData.edges };
+    }
+
     // 展开：将子树节点添加到父树中
     const subtreeNodes = subtree.nodes.map(node => ({
       ...node,

@@ -178,6 +178,7 @@
   },
   "validation": {
     "valid": "行为树有效",
-    "noErrors": "无错误"
+    "noErrors": "无错误",
+    "cycleForbidden": "禁止回路"
   }
 }

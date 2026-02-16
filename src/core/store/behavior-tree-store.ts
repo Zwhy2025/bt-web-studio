@@ -4,7 +4,8 @@ import { shallow } from 'zustand/shallow';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Node, Edge } from 'reactflow';
 
-import { createSessionSlice, SessionSlice, createDefaultSession } from './sessionState';
+import { createSessionSlice, SessionSlice } from './sessionState';
+import { createDefaultSession } from './default-session';
 import { createTreeSlice, TreeSlice } from './treeState';
 import { createBlackboardSlice, BlackboardSlice } from './blackboardState';
 import { createDebuggerSlice, DebuggerSlice } from './debuggerState';
@@ -15,63 +16,9 @@ import { createComposerModeSlice, ComposerModeSlice } from './composerModeState'
 import { createDebugModeSlice, DebugModeSlice } from './debugModeState';
 import { createReplayModeSlice, ReplayModeSlice } from './replayModeState';
 
-// 节点状态枚举
-export enum NodeStatus {
-  IDLE = 'idle',
-  RUNNING = 'running',
-  SUCCESS = 'success',
-  FAILURE = 'failure',
-}
-
-// 黑板数据类型
-export interface BlackboardEntry {
-  key: string;
-  value: any;
-  type: 'string' | 'number' | 'boolean' | 'object';
-  timestamp: number;
-  source?: string; // 哪个节点设置的
-}
-
-// 扩展的节点类型
-export interface BehaviorTreeNode extends Node {
-  data: {
-    label: string;
-    status?: NodeStatus;
-    parameters?: Record<string, any>;
-    breakpoint?: boolean;
-    executionCount?: number;
-    lastExecutionTime?: number;
-    description?: string;
-    subtreeId?: string;
-    subtreeParameters?: Record<string, string>;
-    isSubtreeReference?: boolean;
-    isExpanded?: boolean;
-    isSubtreeChild?: boolean;
-    parentSubtreeRef?: string;
-    originalId?: string;
-  };
-}
-
-// 扩展的边类型
-export interface BehaviorTreeEdge extends Edge {
-  data?: {
-    executionCount?: number;
-    lastExecutionTime?: number;
-    isSubtreeConnection?: boolean;
-    parentSubtreeRef?: string;
-  };
-}
-
-// 调试状态
-export enum DebugState {
-  DISCONNECTED = 'disconnected',
-  CONNECTING = 'connecting',
-  CONNECTED = 'connected',
-  STOPPED = 'stopped',
-  RUNNING = 'running',
-  PAUSED = 'paused',
-  STEPPING = 'stepping',
-}
+// 从 types 模块 re-export，保持向后兼容
+export { NodeStatus, DebugState } from './behavior-tree-types';
+export type { BlackboardEntry, BehaviorTreeNode, BehaviorTreeEdge, ProjectSession } from './behavior-tree-types';
 
 // 执行事件
 export interface ExecutionEvent {
@@ -79,21 +26,9 @@ export interface ExecutionEvent {
   timestamp: number;
   nodeId: string;
   type: 'enter' | 'exit' | 'tick';
-  status: NodeStatus;
+  status: import('./behavior-tree-types').NodeStatus;
   blackboardSnapshot?: Record<string, any>;
   duration?: number;
-}
-
-// 项目会话
-export interface ProjectSession {
-  id: string;
-  name: string;
-  nodes: BehaviorTreeNode[];
-  edges: BehaviorTreeEdge[];
-  blackboard: Record<string, BlackboardEntry>;
-  createdAt: number;
-  modifiedAt: number;
-  filePath?: string;
 }
 
 // 合并所有 Slices 的类型定义

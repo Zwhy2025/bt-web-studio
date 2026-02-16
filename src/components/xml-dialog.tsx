@@ -23,15 +23,19 @@ interface ImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImport: (nodes: Node[], edges: Edge[]) => void;
+  /** 当前画布节点数量，>0 时显示替换确认提示 */
+  existingNodeCount?: number;
 }
 
-export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps) {
+export function ImportDialog({ open, onOpenChange, onImport, existingNodeCount = 0 }: ImportDialogProps) {
     const { t } = useI18n()
   const [xml, setXml] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [fileName, setFileName] = useState<string>("");
+  const [importConfirm, setImportConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const hasExistingContent = (existingNodeCount ?? 0) > 0;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -60,6 +64,10 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
       setError(t("xml:pleaseSelectOrInputXml"));
       return;
     }
+    if (hasExistingContent && !importConfirm) {
+      setError(t("xml:importReplaceConfirm", { count: existingNodeCount }));
+      return;
+    }
 
     // 使用统一管理器解析XML
     try {
@@ -71,9 +79,15 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
         throw new Error('Failed to get runtime data');
       }
 
-      onImport(layoutedNodes, runtimeData.edges);
+      const { normalizeImportedNodesForComposer } = await import('@/core/bt/import-normalizer');
+      const { nodes: normalizedNodes, edges: normalizedEdges } = normalizeImportedNodesForComposer(
+        layoutedNodes,
+        runtimeData.edges
+      );
+      onImport(normalizedNodes, normalizedEdges);
       onOpenChange(false);
       setError(undefined);
+      setImportConfirm(false);
 
       toast({
         title: t("messages:importSuccess"),
@@ -175,6 +189,23 @@ export function ImportDialog({ open, onOpenChange, onImport }: ImportDialogProps
             />
           </div>
 
+          {hasExistingContent && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription className="flex flex-col gap-2">
+                <span>{t("xml:importReplaceConfirm", { count: existingNodeCount })}</span>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={importConfirm}
+                    onChange={(e) => setImportConfirm(e.target.checked)}
+                    className="rounded border-input"
+                  />
+                  <span className="text-sm">{t("common:confirm")}</span>
+                </label>
+              </AlertDescription>
+            </Alert>
+          )}
           {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />

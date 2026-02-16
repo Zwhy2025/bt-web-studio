@@ -37,7 +37,7 @@ export function FunctionTabs({ className }: FunctionTabsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => window.open('/docs/user-guide.md', '_blank')}>{t('menu:docs') || 'User Guide'}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => window.open('/docs/用户手册.md', '_blank')}>{t('menu:docs') || 'User Guide'}</DropdownMenuItem>
           <DropdownMenuItem onSelect={() => window.open('/AGENTS.md', '_blank')}>Repository Guidelines</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

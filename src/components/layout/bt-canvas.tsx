@@ -56,42 +56,7 @@ import {
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Button } from "@/components/ui/button"
 import { RotateCcw, RotateCw, Copy, ClipboardPaste, Trash2, Info, Grid3X3, AlignLeft, GitBranch, RefreshCcw, Bug } from "lucide-react"
-
-// 检查是否会形成回路
-function wouldCreateCycle(sourceId: string, targetId: string, edges: Edge[], nodes: Node[]): boolean {
-    // 如果目标节点是根节点，则不允许连接
-    if (targetId === "root") {
-        return true;
-    }
-
-    // 检查是否直接连接到自己的父节点（形成双向连接）
-    const isDirectParent = edges.some(edge => edge.source === targetId && edge.target === sourceId);
-    if (isDirectParent) {
-        return true;
-    }
-
-    // 检查是否会形成间接回路
-    const visited = new Set<string>();
-    const stack: string[] = [sourceId];
-
-    while (stack.length > 0) {
-        const currentId = stack.pop()!;
-        if (currentId === targetId) {
-            return true; // 发现回路
-        }
-        if (visited.has(currentId)) {
-            continue;
-        }
-        visited.add(currentId);
-
-        // 将当前节点的所有子节点添加到栈中
-        edges
-            .filter(edge => edge.source === currentId)
-            .forEach(edge => stack.push(edge.target));
-    }
-
-    return false; // 没有发现回路
-}
+import { wouldCreateCycle } from "@/core/graph/cycle-detector"
 
 function CanvasInner({
     onNodesExport,

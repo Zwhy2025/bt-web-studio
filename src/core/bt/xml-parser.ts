@@ -1,5 +1,6 @@
 // src/lib/xml-parser.ts
-import { BehaviorTreeNode, BehaviorTreeEdge, NodeStatus } from '@/core/store/behavior-tree-store';
+import type { BehaviorTreeNode, BehaviorTreeEdge } from '@/core/store/behavior-tree-store';
+import { NodeStatus } from '@/core/store/behavior-tree-store';
 import { globalXmlProcessor } from '@/core/bt/global-xml-processor';
 
 /**

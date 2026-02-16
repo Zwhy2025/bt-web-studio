@@ -43,5 +43,6 @@
   "selectXmlFile": "选择 XML 文件",
   "orDirectInputXml": "或直接输入/粘贴 XML 内容",
   "pasteXmlContentHere": "在此粘贴 BehaviorTree.CPP XML 内容...",
-  "sampleXml": "示例XML"
+  "sampleXml": "示例XML",
+  "importReplaceConfirm": "导入将替换当前内容（当前有 {{count}} 个节点），是否继续？"
 }

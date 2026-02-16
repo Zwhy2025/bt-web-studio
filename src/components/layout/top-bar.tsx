@@ -20,6 +20,8 @@ interface TopBarProps {
   onRedo?: () => void;
   onToggleTreeDirection?: () => void;
   onToggleCompactMode?: () => void;
+  onImportClick?: () => void;
+  onExportClick?: () => void;
   treeDirection?: 'vertical' | 'horizontal';
   isCompactMode?: boolean;
 }
@@ -29,6 +31,8 @@ export function TopBar({
   onRedo,
   onToggleTreeDirection,
   onToggleCompactMode,
+  onImportClick,
+  onExportClick,
   treeDirection = 'vertical',
   isCompactMode = false
 }: TopBarProps) {
@@ -71,10 +75,16 @@ export function TopBar({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="min-w-[160px]">
-                <DropdownMenuItem className="gap-2 cursor-pointer">
+                <DropdownMenuItem
+                  onSelect={() => onImportClick?.()}
+                  className="gap-2 cursor-pointer"
+                >
                   导入 XML
                 </DropdownMenuItem>
-                <DropdownMenuItem className="gap-2 cursor-pointer">
+                <DropdownMenuItem
+                  onSelect={() => onExportClick?.()}
+                  className="gap-2 cursor-pointer"
+                >
                   导出 XML
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -233,7 +243,7 @@ export function TopBar({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="min-w-[160px]">
               <DropdownMenuItem 
-                onSelect={() => window.open('/docs/user-guide.md', '_blank')}
+                onSelect={() => window.open('/docs/用户手册.md', '_blank')}
                 className="gap-2 cursor-pointer"
               >
                 用户手册

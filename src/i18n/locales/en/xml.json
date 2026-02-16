@@ -43,5 +43,6 @@
   "selectXmlFile": "Select XML File",
   "orDirectInputXml": "Or directly input/paste XML content",
   "pasteXmlContentHere": "Paste BehaviorTree.CPP XML content here...",
-  "sampleXml": "Sample XML"
+  "sampleXml": "Sample XML",
+  "importReplaceConfirm": "Import will replace current content ({{count}} nodes). Continue?"
 }
