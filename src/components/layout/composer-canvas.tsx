@@ -244,7 +244,10 @@ function ReactFlowCanvas({
   }, [behaviorTreeData?.nodes, setNodes]);
 
   useEffect(() => {
-    if (skipStoreSyncRef.current) return;
+    if (skipStoreSyncRef.current) {
+      skipStoreSyncRef.current = false;
+      return;
+    }
     if (behaviorTreeData && behaviorTreeData.edges) {
       edgesRef.current = behaviorTreeData.edges;
       setEdges(behaviorTreeData.edges);

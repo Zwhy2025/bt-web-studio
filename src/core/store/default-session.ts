@@ -18,6 +18,13 @@ export interface DefaultSessionExtra {
   status: DebugState;
 }
 
+let nodeIdCounter = 0;
+
+function createUniqueNodeId(): string {
+  nodeIdCounter = (nodeIdCounter + 1) % 1_000_000;
+  return `node-${Date.now()}-${nodeIdCounter}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 /**
  * 创建一个新节点
  */
@@ -27,29 +34,33 @@ export const createNode = (
   isFirstNode = false,
   snapToGrid = true,
   nodeType = 'behaviorTreeNode'
-): Node => ({
-  id: isFirstNode ? 'root' : `node-${Date.now()}`,
-  type: nodeType,
-  position: snapToGrid
-    ? {
-        x: Math.round(position.x / 20) * 20,
-        y: Math.round(position.y / 20) * 20,
-      }
-    : position,
-  data: {
-    label: data.label || data.name || 'Unnamed Node',
-    status: NodeStatus.IDLE,
-    parameters: {},
-    executionCount: 0,
-    inputs: isFirstNode ? [] : [{ id: 'in', side: 'top' }],
-    outputs: [{ id: 'out', side: 'bottom' }],
-    ...(isFirstNode ? { instanceName: 'root' } : {}),
-    originalId: data.id,
-    nodeType: nodeType,
-    createdAt: Date.now(),
-    ...data,
-  },
-});
+): Node => {
+  const resolvedNodeType = isFirstNode ? 'control-sequence' : nodeType;
+
+  return {
+    id: isFirstNode ? 'root' : createUniqueNodeId(),
+    type: resolvedNodeType,
+    position: snapToGrid
+      ? {
+          x: Math.round(position.x / 20) * 20,
+          y: Math.round(position.y / 20) * 20,
+        }
+      : position,
+    data: {
+      label: data.label || data.name || 'Unnamed Node',
+      status: NodeStatus.IDLE,
+      parameters: {},
+      executionCount: 0,
+      inputs: isFirstNode ? [] : [{ id: 'in', side: 'top' }],
+      outputs: [{ id: 'out', side: 'bottom' }],
+      ...(isFirstNode ? { instanceName: 'root' } : {}),
+      originalId: data.id,
+      createdAt: Date.now(),
+      ...data,
+      nodeType: resolvedNodeType,
+    },
+  };
+};
 
 /**
  * 创建默认会话
@@ -68,7 +79,7 @@ export function createDefaultSession(): ProjectSession & DefaultSessionExtra {
         },
         true,
         true,
-        'behaviorTreeNode'
+        'control-sequence'
       ) as BehaviorTreeNode,
     ],
     edges: [] as BehaviorTreeEdge[],

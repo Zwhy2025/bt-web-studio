@@ -14,6 +14,11 @@ export function wouldCreateCycle(
   edges: Edge[],
   _nodes: Node[]
 ): boolean {
+  // 禁止自连接
+  if (sourceId === targetId) {
+    return true;
+  }
+
   // 如果目标节点是根节点，则不允许连接
   if (targetId === 'root') {
     return true;
@@ -27,13 +32,14 @@ export function wouldCreateCycle(
     return true;
   }
 
-  // 检查是否会形成间接回路：从 source 出发，若可达 target 则存在回路
+  // 检查是否会形成间接回路：
+  // 若当前图中 target 可达 source，则新增 source -> target 会形成环。
   const visited = new Set<string>();
-  const stack: string[] = [sourceId];
+  const stack: string[] = [targetId];
 
   while (stack.length > 0) {
     const currentId = stack.pop()!;
-    if (currentId === targetId) {
+    if (currentId === sourceId) {
       return true; // 发现回路
     }
     if (visited.has(currentId)) {
